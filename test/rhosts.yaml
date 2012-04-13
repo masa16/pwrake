@@ -1,0 +1,6 @@
+- local1:
+   - local1 2
+   - local2 2
+- local2:
+   - local1 2
+   - local2 2

@@ -1,0 +1,13 @@
+N=20
+
+rule ".o" => ".c" do |t|
+  sh "sleep 1; echo --- #{t.name} $$ `hostname`---"
+end
+
+(1..N).map do |i|
+  task "task#{i}.c"
+end
+
+obj = (1..N).map{|i| "task#{i}.o"}
+
+task :default => obj

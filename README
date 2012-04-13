@@ -1,0 +1,19 @@
+Pwrake - Parallel Workflow extension for Rake 
+                   Masahiro Tanaka 2010-08-16
+
+* Required package
+
+ - Ruby 1.8.x + Rake 0.8.7
+ - or Ruby 1.9.x
+
+* Install
+
+ $ ruby setup.rb
+
+* Workflow demo
+
+ - See demo directories:
+
+  demo/hierarchy : Dummy hierarchy workflow
+  demo/montage   : Montage workflow
+  demo/spcam	 : Subaru SprimeCam Data Reduction
