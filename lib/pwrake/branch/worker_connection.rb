@@ -8,7 +8,7 @@ module Pwrake
       @id = id
       @host = host
       @ncore = ncore
-      prog = "../../pwrake/lib/pwrake/worker/worker.rb"
+      prog = "../lib/pwrake/worker/worker.rb"
       cmd = "ssh -x -T -q #{@host} 'cd #{Dir.pwd};"+
         "exec ruby #{prog} #{@id} #{@ncore}'"
       # $stderr.puts "cmd=#{cmd}"

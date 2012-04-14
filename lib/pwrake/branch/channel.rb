@@ -84,8 +84,9 @@ module Pwrake
           id,item = $1,$2
           Pwrake::Channel.enq(id,item)
           return true
-        when /^end:(\d+)$/
-          id = $1
+        when /^end:(\d+):([^,]*),(.*)$/
+          id,stat_val,stat_cond = $1,$2,$3
+          # p "#{id},#{stat_val},#{stat_cond}"
           Pwrake::Channel.enq(id,:end)
           return true
         else
