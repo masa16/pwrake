@@ -1,6 +1,7 @@
 require 'fiber'
 
 module Pwrake
+
   class Channel
     @@id = "0"
     @@chan_by_id = {}
@@ -16,7 +17,8 @@ module Pwrake
       @fiber = Fiber.current
       @@chan_by_fiber[@fiber] = self
       @queue = []
-      @status
+      @status = nil
+      io.puts("new:#{@id}")
     end
 
     attr_reader :queue, :status
@@ -84,10 +86,13 @@ module Pwrake
           id,item = $1,$2
           Pwrake::Channel.enq(id,item)
           return true
-        when /^end:(\d+):([^,]*),(.*)$/
-          id,stat_val,stat_cond = $1,$2,$3
+        when /^end:(\d+):(\d+):([^,]*),(.*)$/
+          id,pid,stat_val,stat_cond = $1,$2,$3,$4
           # p "#{id},#{stat_val},#{stat_cond}"
           Pwrake::Channel.enq(id,:end)
+          return true
+        when /^start:(\d+):(\d+)$/
+          # started
           return true
         else
           return false
@@ -97,8 +102,7 @@ module Pwrake
       def get_channel_by_id(id)
         chan = @@chan_by_id[id]
         if chan.nil?
-          pp @@chan_by_id
-          raise "no channel w/ id=#{id.inspect} "
+          raise "no channel w/ id=#{id.inspect} in #{@@chan_by_id.inspect}"
         end
         return chan
       end

@@ -57,7 +57,7 @@ module Pwrake
           f = Fiber.new do
             chan = Channel.new(conn.io)
             while task = @queue.deq
-              Util.puts "deq:#{task.name} fiber:#{fb_idx}"
+              #Util.puts "deq:#{task.name} fiber:#{fb_idx}"
               task.execute
               @queue.release(task.resource)
               # Util.puts "task end:#{task.name} fiber:#{i}"
