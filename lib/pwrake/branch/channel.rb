@@ -18,7 +18,7 @@ module Pwrake
       @@chan_by_fiber[@fiber] = self
       @queue = []
       @status = nil
-      io.puts("new:#{@id}")
+      @io.puts("new:#{@id}")
     end
 
     attr_reader :queue, :status

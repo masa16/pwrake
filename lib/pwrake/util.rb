@@ -1,5 +1,5 @@
 module Pwrake
-  #$DEBUG=true
+  $DEBUG=true
   module Util
     module_function
     def puts(s)

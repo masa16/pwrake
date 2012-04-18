@@ -91,12 +91,6 @@ module Pwrake
       Util.dputs "main:exit_branch"
       @ioevent.finish "exit_branch"
 
-      #@ioevent.each do |conn|
-      #  conn.send "exit_branch"
-      #end
-      #@ioevent.event_loop do |conn,s|
-      #  Util.print s
-      #end
       # @conn_set.each{|conn| conn.close}
     end
 
