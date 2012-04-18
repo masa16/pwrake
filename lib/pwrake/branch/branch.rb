@@ -75,6 +75,8 @@ module Pwrake
       @list.each{|f| f.resume}
       #Util.puts "end connect"
 
+      @ioevent.each{|conn| conn.io.puts "start:"}
+
       @ioevent.add_io($stdin)
     end
 

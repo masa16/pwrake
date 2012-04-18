@@ -1,5 +1,6 @@
 require "thread"
-require "pp"
+require "pathname"
+require "fileutils"
 
 class Communicator
   def initialize
@@ -22,73 +23,101 @@ class Communicator
   end
 end
 
+class Dummy
+  def method_missing(*args)
+  end
+end
+
 
 class Worker
   # @@io = Communicator.new
-  @@channels = {}
-  @@threads = []
-  @@dir = '.'
+  @@workers = {}
+  @@current_dir = '.'
+  @@project = "#{Process.pid}"
+  @@dummy = Dummy.new
 
   class << self
+    def p
+      puts "@@workers = #{@@workers.inspect}"
+    end
+
     def count_cpu
       ncpu = 0
       open("/proc/cpuinfo").each do |l|
-        if /^processor\s+: \d+/=~l
-          ncpu += 1
-        end
+        ncpu += 1 if /^processor\s+: \d+/=~l
       end
       ncpu
     end
 
     def chdir(dir)
       raise "directory #{dir} not found" if !File.directory?(dir)
-      @@dir = dir
+      @@current_dir = dir
     end
 
     def [](id)
-      @@channels[id]
+      if @@workers.key?(id)
+        @@workers[id]
+      else
+        $io.puts "no worker id:#{id}"
+        @@dummy
+      end
     end
 
-    def []=(id,value)
-      @@channels[id] = value
-    end
-
-    def exit
-      @@channels.each{|id,ch| ch.queue.enq(nil)}
-      @@threads.each{|th| th.join}
+    def close_all
+      @@workers.each{|id,ch| ch.close}
+      @@workers.each{|id,ch| ch.join}
       $io.puts "worker_end"
       Kernel.exit
-   end
+    end
   end
+
 
   # instance methods
+
   def initialize(id)
     @id = id
-    @@channels[@id] = self
+    @@workers[@id] = self
     @queue = Queue.new
-    @dir = @@dir
+    @current_dir = nil
     new_thread
   end
-  attr_accessor :dir, :queue, :thread
+
+  # attr_accessor :dir, :queue, :thread
 
   def dir
-    @dir || @@dir
+    @current_dir || @@current_dir
   end
 
   def new_thread
     pipe_in, pipe_out = IO.pipe
-    @@threads << Thread.new(pipe_in,"#{@id}:") do |pin,pre|
+    @pipe_thread = Thread.new(pipe_in,"#{@id}:") do |pin,pre|
       while s = pin.gets
         $io.print pre+s
       end
     end
-    @@threads << Thread.new do
+    @exec_thread = Thread.new do
       while cmd = @queue.deq
-        @pid = spawn(cmd,:out=>pipe_out,:chdir=>dir)
-        $io.puts "start:#{@id}:#{@pid}"
-        pid,status = Process.wait2(@pid)
-        status_s = status_to_str(status)
-        $io.puts "end:#{@id}:#{@pid}:#{status_s}"
+        case cmd
+        when Proc
+          begin
+            cmd.call
+          rescue => exc
+            $stderr.puts exc
+          else
+            $stderr.puts "end proc"
+          end
+        when String
+          begin
+            @pid = spawn(cmd,[:out,:err]=>pipe_out,:chdir=>dir)
+          rescue => exc
+            $io.puts "end:error:#{exc}"
+          else
+            $io.puts "start:#{@id}:#{@pid}"
+            pid,status = Process.wait2(@pid)
+            status_s = status_to_str(status)
+            $io.puts "end:#{@id}:#{@pid}:#{status_s}"
+          end
+        end
       end
       pipe_out.close
     end
@@ -109,15 +138,21 @@ class Worker
 
   def cd(dir)
     raise "directory #{dir} not found" if !File.directory?(dir)
-    @dir = dir
+    @current_dir = dir
   end
 
   def execute(cmd)
     @queue.enq(cmd)
   end
 
-  def exit
-    @q.enq(nil)
+  def close
+    @queue.enq(nil)
+  end
+
+  def join
+    @pipe_thread.join if @pipe_thread
+    @exec_thread.join if @exec_thread
+    @@workers.delete(@id)
   end
 
   def kill(sig)
@@ -128,18 +163,104 @@ class Worker
   end
 end
 
-def check_queue(id)
-  $queue[id] ||= new_thread(id)
+
+class GfarmWorker < Worker
+  @@gfarm_top = "/tmp"
+  @@gfarm_prefix = nil
+
+  class << self
+    def init
+      @@gfarm_prefix = "#{@@gfarm_top}/pwrake_#{ENV['USER']}_#{@@project}_"
+      if !Dir.glob(@@gfarm_prefix+"*").empty?
+        raise "Already running worker:#{@@project}"
+      end
+    end
+  end
+
+  def initialize(id)
+    super(id)
+    raise "Gfarm uninitialized" if @@gfarm_prefix.nil?
+    @gfarm_mountpoint = "#{@@gfarm_prefix}#{@id}"
+
+    execute proc{
+      FileUtils.mkdir_p @gfarm_mountpoint
+      pid = spawn("gfarm2fs "+@gfarm_mountpoint)
+      Process.wait(pid)
+    }
+  end
+
+  def close
+    if File.directory? @gfarm_mountpoint
+      execute proc{
+        pid = spawn("fusermount -u "+@gfarm_mountpoint)
+        Process.wait(pid)
+      }
+      execute proc{
+        FileUtils.rmdir @gfarm_mountpoint
+      }
+    end
+    super
+  end
+
+  def cd(dir)
+    pn = Pathname(dir)
+    if pn.absolute?
+      pn = Pathname(@gfarm_mountpoint) + pn
+    end
+    super(pn.to_s)
+  end
 end
+
 
 # --- start ---
 
 $io = Communicator.new
+$worker_class = Worker
 
 @node_id = ARGV[0]
 @ncore = ARGV[1] ? ARGV[1].to_i : Worker.count_cpu
 
 $io.puts "ncore:#{@ncore}"
+
+END{ Worker.close_all }
+
+
+# --- initialize ---
+
+while line = $io.gets
+  line.chomp!
+  line.strip!
+  case line
+  when /^p$/o
+    Worker.p
+
+  when /^fs:gfarm$/o
+    $worker_class = GfarmWorker
+    GfarmWorker.init
+    #
+  when /^new:(.*)$/o
+    $1.split.each do |id|
+      $worker_class.new(id)
+    end
+    #
+  when /^cd:(.*)$/o
+    dir = $1
+    Worker.chdir(dir)
+    #
+  when /^export:(\w+)=(.*)$/o
+    k,v = $1,$2
+    ENV[k] = v
+    #
+  when /^start:$/o
+    break
+    #
+  else
+    raise "invalid line: #{line}"
+  end
+end
+
+# Worker.start_all
+# $io.puts "start"
 
 # --- event loop ---
 
@@ -147,6 +268,7 @@ while line = $io.gets
   line.chomp!
   line.strip!
   case line
+    #
   when /^(\d+):(.*)$/o
     id,cmd = $1,$2
     if /cd (\S+)/o =~ cmd
@@ -156,20 +278,16 @@ while line = $io.gets
       Worker[id].execute(cmd)
     end
     #
-  when /^new:(\d+)$/o
-    id = $1
-    Worker.new(id)
-    #
-  when /^cd:(.*)$/o
-    dir = $1
-    Worker.chdir(dir)
-    #
   when /^kill:(\d+):(.*)$/o
     id,signal = $1,$2
     Worker[id].kill(signal)
     #
+  when /^kill:(.*)$/o
+    signal = $1
+    Process.kill(signal, 0)
+    #
   when /^exit:$/o
-    Worker.exit
+    Kernel.exit
     #
   else
     raise "invalid line: #{line}"
