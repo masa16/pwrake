@@ -6,7 +6,7 @@ module Pwrake
     @@id = "0"
     @@chan_by_id = {}
     @@chan_by_fiber = {}
-    @@chan_by_io = Hash.new{|hash,key|hash[key]=[]}
+    @@chan_by_io = Hash.new{|hash,key| hash[key]=[]}
 
     def initialize(io)
       @io = io
@@ -27,6 +27,7 @@ module Pwrake
       arg.split("\n").each do |x|
         @io.print "#{@id}:#{x}\n"
       end
+      @io.flush
     end
 
     def gets
@@ -45,16 +46,11 @@ module Pwrake
     end
 
     def close
-      #while @running
-      #  pp self
-      #  Fiber.yield
-      #end
-      # $stderr.print "--- close @id=#{@id}\n"
-      # $stderr.flush
       @@chan_by_fiber.delete(@fiber)
       @@chan_by_io[@io].delete(self)
       if @@chan_by_io[@io].empty?
         @io.print "exit:\n"
+        @io.flush
         # @io.close
       end
       # @@chan_by_id.delete(@id)
@@ -74,6 +70,7 @@ module Pwrake
     end
 
     class << self
+
       def enq(id,item)
         chan = get_channel_by_id(id)
         chan.queue.push(item)
@@ -88,7 +85,6 @@ module Pwrake
           return true
         when /^end:(\d+):(\d+):([^,]*),(.*)$/
           id,pid,stat_val,stat_cond = $1,$2,$3,$4
-          # p "#{id},#{stat_val},#{stat_cond}"
           Pwrake::Channel.enq(id,:end)
           return true
         when /^start:(\d+):(\d+)$/
@@ -110,6 +106,8 @@ module Pwrake
       def current
         @@chan_by_fiber[Fiber.current]
       end
+
     end
+
   end
 end

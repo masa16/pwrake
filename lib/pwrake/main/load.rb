@@ -1,6 +1,8 @@
 require "pwrake/util.rb"
 
 require "pwrake/ioevent.rb"
+require "pwrake/comm_io.rb"
+require "pwrake/util.rb"
 
 require "pwrake/main/main"
 require "pwrake/main/rake_modify"

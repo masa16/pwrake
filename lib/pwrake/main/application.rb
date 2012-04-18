@@ -25,6 +25,7 @@ module Pwrake
           top_level
         ensure
           @main.finish if @main
+          Util.dputs "main/application:end"
         end
         $stderr.print "invoker: #{Time.now-t} sec\n"
       end

@@ -24,6 +24,7 @@ module Pwrake
       # puts "Branch#connect @hosts=#{@hosts.inspect}"
 
       @ioevent = IOEvent.new
+      @conn_list = []
 
       s = $stdin.gets
       raise if s.chomp != "begin_worker_list"
@@ -34,6 +35,7 @@ module Pwrake
           id, host, ncore = $1,$2,$3
           ncore = ncore.to_i if ncore
           conn = WorkerConnection.new(id,host,ncore)
+          @conn_list.push(conn)
           @ioevent.add_io(conn.io,conn)
         else
           raise "invalid workers"
@@ -47,25 +49,27 @@ module Pwrake
         end
       end
 
-      # Util.puts "end of ncore:"
+      #Util.puts "end of ncore:"
       @list = []
 
       i=0
       @ioevent.each do |conn|
         conn.ncore.times do
           fb_idx = i
+
           f = Fiber.new do
             chan = Channel.new(conn.io)
             while task = @queue.deq
-              #Util.puts "deq:#{task.name} fiber:#{fb_idx}"
+              # Util.puts "deq:#{task.name} fiber:#{fb_idx}"
               task.execute
               @queue.release(task.resource)
               # Util.puts "task end:#{task.name} fiber:#{i}"
               Util.puts "taskend:#{task.name}"
             end
             chan.close
-            Util.puts "fiber end"
+            Util.dputs "fiber end"
           end
+
           # Util.puts "fiber.id = #{f.object_id}"
           i += 1
           @list.push f
@@ -75,47 +79,49 @@ module Pwrake
       @list.each{|f| f.resume}
       #Util.puts "end connect"
 
-      @ioevent.each{|conn| conn.io.puts "start:"}
+      @ioevent.each{|conn| conn.send "start:"}
 
-      @ioevent.add_io($stdin)
     end
 
     def execute
       tasks = []
 
+      @ioevent.add_io($stdin)
       @ioevent.event_loop do |conn,s|
         s = s.chomp
         # Util.puts "conn=#{conn.inspect} s=#{s.inspect}"
 
         if conn==$stdin
           case s
-          when /exit_branch/
-            break
-          when /end_task_list/
-            #Util.puts "enq"
-            @queue.enq(tasks)
-            tasks.clear
-          when /^(\d+):(.+)$/
+          when /^(\d+):(.+)$/o
             id, tname = $1,$2
             #Util.puts "id=#{id} task=#{tname}"
             task = Rake.application[tname]
             tasks.push task
+          when /end_task_list/o
+            #Util.puts "enq"
+            @queue.enq(tasks)
+            tasks.clear
+          when /exit_branch/o
+            Util.dputs "branch:exit_branch"
+            break
           else
             #Util.puts "invalid command:#{s.inspect}"
           end
         else
           # Util.puts "#{[conn,s]}\n"
           if !Channel.check_line(s)
-            Util.puts '--'+s
+            Util.dputs '--'+s
           end
         end
       end
+      @ioevent.delete_io($stdin)
+    end
 
-      @ioevent.each do |conn|
-        conn.io.puts "exit:"
-      end
-
+    def finish
       @queue.finish
+      @ioevent.finish("exit:")
+      Util.dputs "branch:finish"
     end
 
   end # Branch

@@ -15,8 +15,13 @@ module Pwrake
       @io_set.push(io)
     end
 
+    def delete_io(io)
+      @data_by_io.delete(io)
+      @io_set.delete(io)
+    end
+
     def close(io)
-      Util.puts "closing #{io.inspect}"
+      Util.dputs "closing #{io.inspect}"
       #puts "close called"
       io.close
       @io_set.delete(io)
@@ -36,7 +41,7 @@ module Pwrake
       if io.eof?
         self.close(io)
       elsif s = io.gets
-        #print "##{s.chomp.inspect}\n"
+        # print "##{s.chomp.inspect}\n"
         block.call(@data_by_io[io],s)
       end
     end
@@ -65,6 +70,16 @@ module Pwrake
         for io in io_sel[0]
           event_for_io(io,&block)
         end
+      end
+    end
+
+    def finish(exit_cmd)
+      each_io do |io|
+        io.print exit_cmd+"\n"
+        io.flush
+      end
+      event_loop do |data,s|
+        Util.print s
       end
     end
   end

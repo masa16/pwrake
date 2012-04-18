@@ -2,6 +2,7 @@ module Pwrake
 
   class WorkerConnection
 
+    @@connections = []
     @@wk_id = "0"
 
     def initialize(id,host,ncore)          # parent
@@ -13,14 +14,24 @@ module Pwrake
         "exec ruby #{prog} #{@id} #{@ncore}'"
       # $stderr.puts "cmd=#{cmd}"
       @io = IO.popen(cmd, "r+")
+      @@connections.push(self)
     end
 
     attr_reader :io, :host
     attr_accessor :ncore
 
-    def close
-      @io.close
+    def send(cmd)
+      @io.print cmd.to_str+"\n"
+      @io.flush
     end
+
+    def close
+      @io.puts "exit:"
+      @io.close
+      @@connections.delete(self)
+      Util.puts "exited #{@id}"
+    end
+
   end # Connection
 
 end

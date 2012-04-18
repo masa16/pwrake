@@ -10,7 +10,7 @@ module Pwrake
         @hosts = hosts.dup
       else
         @hosts = YAML.load(open("rhosts.yaml"))
-        p @hosts
+        Util.dputs "@hosts=#{@hosts.inspect}"
       end
       if @hosts.kind_of? Hash
         @hosts = [@hosts]
@@ -30,18 +30,16 @@ module Pwrake
         a.each do |sub_host,wk_hosts|
           conn = BranchConnection.new(sub_host,wk_hosts)
           @conn_set.push(conn)
-          io = conn.io
-          # p io
-          @ioevent.add_io(io,conn)
-          io.print "begin_worker_list\n"
+          @ioevent.add_io(conn.io,conn)
+          conn.send "begin_worker_list"
           wk_hosts.map do |s|
             host, ncore = s.split
             ncore = ncore.to_i if ncore
-            wk = WorkerChannel.new(io,host,ncore)
+            wk = WorkerChannel.new(conn.io,host,ncore)
             @worker_set << wk
             wk.send_worker
           end
-          io.print "end_worker_list\n"
+          conn.send "end_worker_list"
         end
       end
       @task_set = {}
@@ -63,9 +61,8 @@ module Pwrake
           wk.send_tasks
         end
 
-        @ioevent.each_io do |io|
-          io.print "end_task_list\n"
-          io.flush
+        @ioevent.each do |conn|
+          conn.send "end_task_list"
         end
 
         #$stderr.puts "send task: #{Time.now-t} sec"
@@ -83,16 +80,24 @@ module Pwrake
             # print "task_hash=#{task_hash.inspect}\n"
             break if task_hash.empty?
           else
-            print s+"\n"
+            Util.puts s
           end
         end
+
       end
-      # print "out of loop\n"
     end
 
     def finish
-      Util.dputs "r:finish"
-      @conn_set.each{|conn| conn.close}
+      Util.dputs "main:exit_branch"
+      @ioevent.finish "exit_branch"
+
+      #@ioevent.each do |conn|
+      #  conn.send "exit_branch"
+      #end
+      #@ioevent.event_loop do |conn,s|
+      #  Util.print s
+      #end
+      # @conn_set.each{|conn| conn.close}
     end
 
   end

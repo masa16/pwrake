@@ -21,6 +21,10 @@ class Communicator
   def gets
     @in.gets
   end
+
+  def dputs(s)
+    puts(s) if $DEBUG
+  end
 end
 
 class Dummy
@@ -32,6 +36,7 @@ end
 class Worker
   # @@io = Communicator.new
   @@workers = {}
+  @@id_list = []
   @@current_dir = '.'
   @@project = "#{Process.pid}"
   @@dummy = Dummy.new
@@ -66,7 +71,7 @@ class Worker
     def close_all
       @@workers.each{|id,ch| ch.close}
       @@workers.each{|id,ch| ch.join}
-      $io.puts "worker_end"
+      $io.dputs "worker:end:#{@@id_list.inspect}"
       Kernel.exit
     end
   end
@@ -76,6 +81,7 @@ class Worker
 
   def initialize(id)
     @id = id
+    @@id_list << id
     @@workers[@id] = self
     @queue = Queue.new
     @current_dir = nil

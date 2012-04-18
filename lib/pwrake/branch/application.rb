@@ -18,7 +18,13 @@ module Pwrake
       standard_exception_handling do
         init("pwrake_branch")
         load_rakefile
-        Branch.new.run
+        begin
+          @branch = Branch.new
+          @branch.run
+        ensure
+          @branch.finish if @branch
+          Util.dputs "branch/application:end"
+        end
       end
     end
 
