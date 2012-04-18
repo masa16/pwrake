@@ -7,6 +7,7 @@ module Pwrake
     def initialize
       @queue = FiberQueue.new
       @timeout = 10
+      @exit_cmd = "exit:"
     end
 
     def run
@@ -36,7 +37,7 @@ module Pwrake
           ncore = ncore.to_i if ncore
           conn = WorkerConnection.new(id,host,ncore)
           @conn_list.push(conn)
-          @ioevent.add_io(conn.io,conn)
+          @ioevent.add_io(conn.ior,conn)
         else
           raise "invalid workers"
         end
@@ -58,7 +59,7 @@ module Pwrake
           fb_idx = i
 
           f = Fiber.new do
-            chan = Channel.new(conn.io)
+            chan = Channel.new(conn.iow)
             while task = @queue.deq
               # Util.puts "deq:#{task.name} fiber:#{fb_idx}"
               task.execute
@@ -67,7 +68,7 @@ module Pwrake
               Util.puts "taskend:#{task.name}"
             end
             chan.close
-            Util.dputs "fiber end"
+            #Util.dputs "fiber end"
           end
 
           # Util.puts "fiber.id = #{f.object_id}"
@@ -79,7 +80,7 @@ module Pwrake
       @list.each{|f| f.resume}
       #Util.puts "end connect"
 
-      @ioevent.each{|conn| conn.send "start:"}
+      @ioevent.each{|conn| conn.send_cmd "start:"}
 
     end
 
@@ -88,39 +89,61 @@ module Pwrake
 
       @ioevent.add_io($stdin)
       @ioevent.event_loop do |conn,s|
-        s = s.chomp
-        # Util.puts "conn=#{conn.inspect} s=#{s.inspect}"
+        s.chomp!
+        s.strip!
+        # Util.dputs "conn=#{conn.inspect} s=#{s.inspect}"
 
         if conn==$stdin
+
+          # read from main pwrake
           case s
           when /^(\d+):(.+)$/o
             id, tname = $1,$2
             #Util.puts "id=#{id} task=#{tname}"
             task = Rake.application[tname]
             tasks.push task
-          when /end_task_list/o
+          when /^end_task_list$/o
             #Util.puts "enq"
             @queue.enq(tasks)
             tasks.clear
-          when /exit_branch/o
+          when /^exit_branch$/o
             Util.dputs "branch:exit_branch"
             break
+          when /^kill:(.*)$/o
+            self.kill($1)
           else
-            #Util.puts "invalid command:#{s.inspect}"
+            Util.puts "unknown command:#{s.inspect}"
           end
+
         else
-          # Util.puts "#{[conn,s]}\n"
+
+          # read from worker
           if !Channel.check_line(s)
-            Util.dputs '--'+s
+            Util.puts '??:'+s
           end
         end
       end
       @ioevent.delete_io($stdin)
+      @queue.finish
+    end
+
+    def kill(sig)
+      @ioevent.delete_io($stdin)
+      @exit_cmd = "kill:#{sig}"
+      Kernel.exit
     end
 
     def finish
-      @queue.finish
-      @ioevent.finish("exit:")
+      @ioevent.each do |conn|
+        conn.send_cmd @exit_cmd if conn.respond_to?(:send_cmd)
+      end
+      @ioevent.each_io do |io|
+        while s=io.gets
+          if !Channel.check_line(s)
+            Util.print '?e:'+s
+          end
+        end
+      end
       Util.dputs "branch:finish"
     end
 

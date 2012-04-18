@@ -30,16 +30,16 @@ module Pwrake
         a.each do |sub_host,wk_hosts|
           conn = BranchConnection.new(sub_host,wk_hosts)
           @conn_set.push(conn)
-          @ioevent.add_io(conn.io,conn)
-          conn.send "begin_worker_list"
+          @ioevent.add_io(conn.ior,conn)
+          conn.send_cmd "begin_worker_list"
           wk_hosts.map do |s|
             host, ncore = s.split
             ncore = ncore.to_i if ncore
-            wk = WorkerChannel.new(conn.io,host,ncore)
+            wk = WorkerChannel.new(conn.iow,host,ncore)
             @worker_set << wk
             wk.send_worker
           end
-          conn.send "end_worker_list"
+          conn.send_cmd "end_worker_list"
         end
       end
       @task_set = {}
@@ -62,7 +62,7 @@ module Pwrake
         end
 
         @ioevent.each do |conn|
-          conn.send "end_task_list"
+          conn.send_cmd "end_task_list"
         end
 
         #$stderr.puts "send task: #{Time.now-t} sec"
@@ -70,14 +70,12 @@ module Pwrake
 
         # event loop
         @ioevent.event_loop do |conn,s|
-          s = s.chomp
-          # print "|#{s}\n"
+          s.chomp!
           if /^taskend:(.*)$/o =~ s
             task_name = $1
             if t = task_hash.delete(task_name)
               t.already_invoked = true
             end
-            # print "task_hash=#{task_hash.inspect}\n"
             break if task_hash.empty?
           else
             Util.puts s

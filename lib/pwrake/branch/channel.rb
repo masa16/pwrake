@@ -48,11 +48,13 @@ module Pwrake
     def close
       @@chan_by_fiber.delete(@fiber)
       @@chan_by_io[@io].delete(self)
-      if @@chan_by_io[@io].empty?
-        @io.print "exit:\n"
-        @io.flush
-        # @io.close
-      end
+      # if @@chan_by_io[@io].empty?
+      #   if !@io.closed?
+      #     @io.print "exit:\n"
+      #     @io.flush
+      #     # @io.close
+      #   end
+      # end
       # @@chan_by_id.delete(@id)
     end
 
@@ -78,6 +80,7 @@ module Pwrake
       end
 
       def check_line(line)
+        #Util.puts "line=#{line}"
         case line
         when /^(\d+):(.*)$/
           id,item = $1,$2
@@ -88,7 +91,9 @@ module Pwrake
           Pwrake::Channel.enq(id,:end)
           return true
         when /^start:(\d+):(\d+)$/
+          return true
           # started
+        when /^killing.$/
           return true
         else
           return false

@@ -21,12 +21,13 @@ module Pwrake
     end
 
     def close(io)
-      Util.dputs "closing #{io.inspect}"
+      #Util.dputs "closing #{io.inspect}"
       #puts "close called"
       io.close
       @io_set.delete(io)
       @closed << io
       @data_by_io[io] = nil
+      #Util.dputs "ioevent:@io_set=#{@io_set.inspect}"
     end
 
     def each(&block)
@@ -74,13 +75,17 @@ module Pwrake
     end
 
     def finish(exit_cmd)
-      each_io do |io|
-        io.print exit_cmd+"\n"
-        io.flush
+      each do |conn|
+        if conn.respond_to?(:send_cmd)
+          # Util.puts "send #{exit_cmd} to #{conn.inspect}"
+          conn.send_cmd exit_cmd
+        end
       end
+      # Util.puts "# pass 1"
       event_loop do |data,s|
         Util.print s
       end
+      # Util.puts "# pass 2"
     end
   end
 end

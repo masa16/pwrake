@@ -34,7 +34,6 @@ end
 
 
 class Worker
-  # @@io = Communicator.new
   @@workers = {}
   @@id_list = []
   @@current_dir = '.'
@@ -162,9 +161,7 @@ class Worker
   end
 
   def kill(sig)
-    if /^\d+$/=~sig
-      sig = sig.to_i
-    end
+    sig = sig.to_i if /^\d+$/=~sig
     Process.kill(sig,@pid)
   end
 end
@@ -230,6 +227,12 @@ $io.puts "ncore:#{@ncore}"
 
 END{ Worker.close_all }
 
+[:TERM,:INT,:KILL].each do |sig|
+  Signal.trap(sig) do
+    Worker.close_all
+    Kernel.exit
+  end
+end
 
 # --- initialize ---
 
@@ -289,8 +292,10 @@ while line = $io.gets
     Worker[id].kill(signal)
     #
   when /^kill:(.*)$/o
-    signal = $1
-    Process.kill(signal, 0)
+    sig = $1
+    sig = sig.to_i if /^\d+$/=~sig
+    $io.puts "worker killed. signal=#{sig}"
+    Process.kill(sig, 0)
     #
   when /^exit:$/o
     Kernel.exit
