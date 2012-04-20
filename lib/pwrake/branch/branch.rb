@@ -7,36 +7,31 @@ module Pwrake
     def initialize
       @queue = FiberQueue.new
       @timeout = 10
-      @exit_cmd = "exit:"
+      @exit_cmd = "exit_connection"
+      @ioevent = IOEvent.new
     end
 
     def run
-      connect
+      setup_workers
+      setup_fibers
       execute
     end
 
-    def connect
-      # from ~/2012/0410/test.rb
-      # get host list from master
-      # @hosts = ["local1 2","local2 2"]
-
-      # get host list from master
-      # @hosts = Marshal.load($stdin)
-      # puts "Branch#connect @hosts=#{@hosts.inspect}"
-
-      @ioevent = IOEvent.new
-      @conn_list = []
-
+    def setup_workers
       s = $stdin.gets
       raise if s.chomp != "begin_worker_list"
+
       while s = $stdin.gets
         s.chomp!
         break if s == "end_worker_list"
         if /^(\d+):(\S+) (\d+)?$/ =~ s
           id, host, ncore = $1,$2,$3
           ncore = ncore.to_i if ncore
-          conn = WorkerConnection.new(id,host,ncore)
-          @conn_list.push(conn)
+          # conn = WorkerConnection.new(id,host,ncore)
+          prog = "../lib/pwrake/worker/worker.rb"
+          cmd = "ssh -x -T -q #{host} 'cd #{Dir.pwd};"+
+            "exec ruby #{prog} #{id} #{ncore}'"
+          conn = Connection.new(host,cmd,ncore)
           @ioevent.add_io(conn.ior,conn)
         else
           raise "invalid workers"
@@ -46,42 +41,32 @@ module Pwrake
       @ioevent.event_each do |conn,s|
         if /ncore:(\d+)/ =~ s
           conn.ncore = $1.to_i
-          #Util.puts "ncore:#{conn.host}:#{conn.ncore}"
         end
       end
+    end
 
-      #Util.puts "end of ncore:"
-      @list = []
+    def setup_fibers
+      fiber_list = []
 
-      i=0
       @ioevent.each do |conn|
         conn.ncore.times do
-          fb_idx = i
 
           f = Fiber.new do
-            chan = Channel.new(conn.iow)
+            chan = Channel.new(conn)
             while task = @queue.deq
-              # Util.puts "deq:#{task.name} fiber:#{fb_idx}"
               task.execute
               @queue.release(task.resource)
-              # Util.puts "task end:#{task.name} fiber:#{i}"
               Util.puts "taskend:#{task.name}"
             end
             chan.close
-            #Util.dputs "fiber end"
           end
 
-          # Util.puts "fiber.id = #{f.object_id}"
-          i += 1
-          @list.push f
+          fiber_list.push f
         end
       end
 
-      @list.each{|f| f.resume}
-      #Util.puts "end connect"
-
+      fiber_list.each{|f| f.resume}
       @ioevent.each{|conn| conn.send_cmd "start:"}
-
     end
 
     def execute
@@ -91,26 +76,31 @@ module Pwrake
       @ioevent.event_loop do |conn,s|
         s.chomp!
         s.strip!
-        # Util.dputs "conn=#{conn.inspect} s=#{s.inspect}"
 
         if conn==$stdin
 
-          # read from main pwrake
+          # receive command from main pwrake
           case s
+
           when /^(\d+):(.+)$/o
             id, tname = $1,$2
-            #Util.puts "id=#{id} task=#{tname}"
             task = Rake.application[tname]
-            tasks.push task
+            tasks.push(task)
+
           when /^end_task_list$/o
-            #Util.puts "enq"
             @queue.enq(tasks)
             tasks.clear
-          when /^exit_branch$/o
-            Util.dputs "branch:exit_branch"
+
+          when /^exit_connection$/o
+            Util.dputs "branch:exit_connection"
             break
+
           when /^kill:(.*)$/o
-            self.kill($1)
+            sig = $1
+            # Util.puts "branch:kill:#{sig}"
+            Connection.kill(sig)
+            Kernel.exit
+
           else
             Util.puts "unknown command:#{s.inspect}"
           end
@@ -123,19 +113,13 @@ module Pwrake
           end
         end
       end
-      @ioevent.delete_io($stdin)
       @queue.finish
     end
 
-    def kill(sig)
-      @ioevent.delete_io($stdin)
-      @exit_cmd = "kill:#{sig}"
-      Kernel.exit
-    end
-
     def finish
+      @ioevent.delete_io($stdin)
       @ioevent.each do |conn|
-        conn.send_cmd @exit_cmd if conn.respond_to?(:send_cmd)
+        conn.close
       end
       @ioevent.each_io do |io|
         while s=io.gets

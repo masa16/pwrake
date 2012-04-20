@@ -1,24 +1,18 @@
 module Pwrake
 
-  class WorkerConnection
+  class Connection
 
     @@connections = []
-    @@wk_id = "0"
+    @@killed = false
 
-    def initialize(id,host,ncore)          # parent
-      @id = id
-      @host = host
+    def initialize(host,cmd,ncore=nil)
       @ncore = ncore
-      prog = "../lib/pwrake/worker/worker.rb"
-      cmd = "ssh -x -T -q #{@host} 'cd #{Dir.pwd};"+
-        "exec ruby #{prog} #{@id} #{@ncore}'"
-
+      @host = host
       @ior,w1 = IO.pipe
       r2,@iow = IO.pipe
       pid = spawn(cmd,:pgroup=>true,:out=>w1,:in=>r2)
       w1.close
       r2.close
-
       @@connections.push(self)
     end
 
@@ -26,35 +20,47 @@ module Pwrake
     attr_accessor :ncore
 
     def send_cmd(cmd)
+      Fiber.yield if @@killed
       @iow.print cmd.to_str+"\n"
       @iow.flush
     end
 
-    def close
-      @iow.puts "exit:"
-      @iow.close
-      @@connections.delete(self)
-      Util.puts "exited #{@id}"
+    def print(s)
+      Fiber.yield if @@killed
+      @iow.print s
+    end
+
+    def puts(s)
+      Fiber.yield if @@killed
+      @iow.puts s
+    end
+
+    def flush
+      Fiber.yield if @@killed
+      @iow.flush
     end
 
     def kill(sig)
       @iow.puts "kill:#{sig}"
+      @iow.flush
+    end
+
+    def close
+      @iow.puts "exit_connection" if !@@killed
       @iow.close
+      @@connections.delete(self)
     end
 
     class << self
       def kill(sig)
-        Util.puts "wkcn:signal trapped:#{sig}"
-        # open("/tmp/sig-#{ENV['USER']}-#{Process.pid}","w"){|f| f.puts "signal trapped:"}
+        @@killed = true
         @@connections.each{|conn| conn.kill(sig)}
-        Kernel.exit
       end
     end
 
     [:TERM,:INT,:KILL].each do |sig|
       Signal.trap(sig) do
         self.kill(sig)
-        exit
       end
     end
 

@@ -21,10 +21,10 @@ module Pwrake
         t = Time.now
         begin
           @main = Main.new
-          @main.connect
+          @main.setup_branches
           top_level
         ensure
-          @main.finish if @main
+          @main.finish # if @main
           Util.dputs "main/application:end"
         end
         $stderr.print "invoker: #{Time.now-t} sec\n"

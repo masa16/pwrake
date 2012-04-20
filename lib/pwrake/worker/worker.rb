@@ -297,7 +297,7 @@ while line = $io.gets
     $io.puts "worker killed. signal=#{sig}"
     Process.kill(sig, 0)
     #
-  when /^exit:$/o
+  when /^exit_connection$/o
     Kernel.exit
     #
   else

@@ -3,7 +3,7 @@ $stderr = $stdout
 module Rake
   class << self
     def application
-      @application ||= Pwrake::Application.new
+      @application ||= Pwrake::BranchApplication.new
     end
   end
 end
@@ -12,7 +12,7 @@ end
 module Pwrake
 
   # The TaskManager module is a mixin for managing tasks.
-  class Application < ::Rake::Application
+  class BranchApplication < ::Rake::Application
 
     def run
       standard_exception_handling do
@@ -22,7 +22,7 @@ module Pwrake
           @branch = Branch.new
           @branch.run
         ensure
-          @branch.finish if @branch
+          @branch.finish # if @branch
           Util.dputs "branch/application:end"
         end
       end

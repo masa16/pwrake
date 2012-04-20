@@ -1,0 +1,10 @@
+HOSTFILE : hosts.yaml
+
+LOGFILE : pwrake-log-%Y%m%dT%H%M%S-{Process.pid}.log
+
+FILESYSTEM : gfarm
+
+SCHEDULER : gfarm_affinity
+
+GFARM_MOUNT_DIR : /tmp
+GFARM_MOUNT_SUBDIR : /tmp
