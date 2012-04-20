@@ -20,7 +20,6 @@ module Pwrake
     attr_accessor :ncore
 
     def send_cmd(cmd)
-      Fiber.yield if @@killed
       @iow.print cmd.to_str+"\n"
       @iow.flush
     end

@@ -48,14 +48,6 @@ module Pwrake
     def close
       @@chan_by_fiber.delete(@fiber)
       @@chan_by_io[@io].delete(self)
-      # if @@chan_by_io[@io].empty?
-      #   if !@io.closed?
-      #     @io.print "exit:\n"
-      #     @io.flush
-      #     # @io.close
-      #   end
-      # end
-      # @@chan_by_id.delete(@id)
     end
 
     def system(*cmd)

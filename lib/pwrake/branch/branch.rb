@@ -27,7 +27,6 @@ module Pwrake
         if /^(\d+):(\S+) (\d+)?$/ =~ s
           id, host, ncore = $1,$2,$3
           ncore = ncore.to_i if ncore
-          # conn = WorkerConnection.new(id,host,ncore)
           prog = "../lib/pwrake/worker/worker.rb"
           cmd = "ssh -x -T -q #{host} 'cd #{Dir.pwd};"+
             "exec ruby #{prog} #{id} #{ncore}'"

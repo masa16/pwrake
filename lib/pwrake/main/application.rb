@@ -19,13 +19,12 @@ module Pwrake
         init("pwrake")
         load_rakefile
         t = Time.now
+        @main = Main.new
         begin
-          @main = Main.new
           @main.setup_branches
           top_level
         ensure
-          @main.finish # if @main
-          Util.dputs "main/application:end"
+          @main.finish
         end
         $stderr.print "invoker: #{Time.now-t} sec\n"
       end
