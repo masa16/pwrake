@@ -6,35 +6,82 @@ module Pwrake
 
     DEFAULT_CONFFILES = ["pwrake_conf.yaml"]
     DEFAULT_CONF = {
-      'HOSTFILE'=>'hosts.yaml'
+      'DIRECTORY'=>Dir.pwd,
+      'PWRAKE_CONF'=>'pwrake_conf.yaml',
+      'HOSTFILE'=>'hosts.yaml',
+      'FILESYSTEM'=>'local',
+      'LOGFILE'=>Time.now.strftime("Pwrake-%Y%m%d%H%M%S-#{Process.pid}.log"),
+      'TRACE'=>true,
+      'MAIN_HOSTNAME'=>`hostname -f`.chomp
     }
 
-    def option(key)
-      ENV[key] || @confopt[key] || DEFAULT_CONF[key]
-    end
-
     def initialize(hosts=nil)
-      @main_host = `hostname -f`.chomp
+      @pwrake_conf = Rake.application.options.pwrake_conf
 
-      @conffile = DEFAULT_CONFFILES.find{|fn| File.exist?(fn)}
-      if @conffile.nil?
-        raise "pwrake_conf.yaml not found"
+      if @pwrake_conf
+        if !File.exist?(@pwrake_conf)
+          raise "Configuration file not found: #{@pwrake_conf}"
+        end
+      else
+        @pwrake_conf = DEFAULT_CONFFILES.find{|fn| File.exist?(fn)}
       end
-      Util.dputs "@conffile=#{@conffile}"
-      @confopt = YAML.load(open(@conffile))
 
-      @hostfile = option('HOSTFILE')
+      if @pwrake_conf.nil?
+        @confopt = {}
+      else
+        Util.dputs "@pwrake_conf=#{@pwrake_conf}"
+        @confopt = YAML.load(open(@pwrake_conf))
+      end
+
+      DEFAULT_CONF.each do |key,value|
+        if !@confopt[key]
+          @confopt[key] = value
+        end
+        if value = ENV[key]
+          @confopt[key] = value
+        end
+      end
+
+      @filesystem = @confopt['FILESYSTEM']
+      if @filesystem.nil?
+        # get mountpoint
+        path = Pathname.pwd
+        while ! path.mountpoint?
+          path = path.parent
+        end
+        @mount_point = path
+        # get filesystem
+        open('/etc/mtab','r') do |f|
+          f.each_line do |l|
+            if /#{@mount_point} (?:type )?(\S+)/o =~ l
+              @mount_type = $1
+              break
+            end
+          end
+        end
+        case @mount_type
+        when /gfarm2fs/
+          @filesystem = 'gfarm'
+          @cwd = "/"+Pathname.pwd.relative_path_from(@mount_point).to_s
+        when 'nfs'
+          @filesystem = 'nfs'
+          @cwd = Dir.pwd
+        else
+          @filesystem = 'local'
+          @cwd = Dir.pwd
+          # raise "unknown filesystem : #{@mount_point} type #{@mount_type}"
+        end
+      end
+
       if hosts
         @hosts = hosts.dup
       else
-        @hosts = YAML.load(open(@hostfile))
+        @hosts = YAML.load(open(@confopt['HOSTFILE']))
       end
       if @hosts.kind_of? Hash
         @hosts = [@hosts]
       end
       Util.dputs "@hosts=#{@hosts.inspect}"
-
-      @logfile = option('LOGFILE')
 
       @branch_set = []
       @worker_set = []
@@ -49,10 +96,14 @@ module Pwrake
     def setup_branches
       @hosts.each do |a|
         a.each do |sub_host,wk_hosts|
-          cmd = "ssh -x -T -q #{sub_host} 'cd #{Dir.pwd};" +
-            "exec ./pwrake_branch -t'"
+          dir = File.absolute_path(File.dirname($0))
+          cmd = "ssh -x -T -q #{sub_host} '" +
+            "PATH=#{dir}:${PATH} exec pwrake_branch -t'"
           conn = Connection.new(sub_host,cmd)
           @ioevent.add_io(conn.ior,conn)
+
+          Marshal.dump(@confopt,conn.iow)
+
           conn.send_cmd "begin_worker_list"
           wk_hosts.map do |s|
             host, ncore = s.split

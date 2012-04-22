@@ -17,8 +17,9 @@ module Pwrake
     def run
       standard_exception_handling do
         init("pwrake_branch")
-        load_rakefile
         @branch = Branch.new
+        @branch.init
+        load_rakefile
         begin
           @branch.run
         ensure

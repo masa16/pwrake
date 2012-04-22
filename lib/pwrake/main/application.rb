@@ -47,6 +47,8 @@ module Pwrake
           }
         end
       end
+      opts.push ['--pwrake-conf [FILE]','PWrake configuation file in YAML',
+                 lambda {|value| options.pwrake_conf = value}]
       opts
     end
 

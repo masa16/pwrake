@@ -1,3 +1,6 @@
+require "fileutils"
+require "pathname"
+
 require "pwrake/ioevent"
 # require "pwrake/comm_io"
 require "pwrake/util"

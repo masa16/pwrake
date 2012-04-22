@@ -7,7 +7,8 @@ rescue LoadError
   require 'rake'
 end
 
-$LOAD_PATH.unshift "../lib"
+libpath = File.absolute_path(File.dirname(__FILE__)+"/../lib")
+$LOAD_PATH.unshift libpath
 require "pwrake/branch/load"
 
 Rake.application.run

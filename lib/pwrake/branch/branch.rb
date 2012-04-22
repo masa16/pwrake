@@ -11,11 +11,35 @@ module Pwrake
       @ioevent = IOEvent.new
     end
 
+    def init
+      @options = Marshal.load($stdin)
+      # setup_options
+      # pp @options
+      setup_directory
+    end
+
     def run
       setup_workers
       setup_fibers
       execute
     end
+
+    def setup_directory
+      @cwd = @options['DIRECTORY']
+      case fs=@options['FILESYSTEM']
+      when /gfarm/io
+        # require 'pwrake/gfarm'
+        Dir.chdir(@cwd)
+      when /nfs/io
+        Dir.chdir(@cwd)
+      when /local/io
+        Dir.chdir(@cwd)
+      else
+        raise "unknown filesystem: #{fs}"
+      end
+      # p Dir.pwd
+    end
+
 
     def setup_workers
       s = $stdin.gets
@@ -27,9 +51,9 @@ module Pwrake
         if /^(\d+):(\S+) (\d+)?$/ =~ s
           id, host, ncore = $1,$2,$3
           ncore = ncore.to_i if ncore
-          prog = "../lib/pwrake/worker/worker.rb"
-          cmd = "ssh -x -T -q #{host} 'cd #{Dir.pwd};"+
-            "exec ruby #{prog} #{id} #{ncore}'"
+          dir = File.absolute_path(File.dirname($PROGRAM_NAME))
+          cmd = "ssh -x -T -q #{host} '"+
+            "PATH=#{dir}:${PATH} exec pwrake_worker #{id} #{ncore}'"
           conn = Connection.new(host,cmd,ncore)
           @ioevent.add_io(conn.ior,conn)
         else

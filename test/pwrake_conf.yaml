@@ -1,6 +1,6 @@
 HOSTFILE : hosts.yaml
 
-LOGFILE : pwrake-log-%Y%m%dT%H%M%S-{Process.pid}.log
+# LOGFILE : Pwrake-%Y%m%dT%H%M%S-{Process.pid}.log
 
 FILESYSTEM : gfarm
 
