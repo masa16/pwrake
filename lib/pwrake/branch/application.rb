@@ -17,7 +17,8 @@ module Pwrake
     def run
       standard_exception_handling do
         init("pwrake_branch")
-        @branch = Branch.new
+        opts = pwrake_options
+        @branch = Branch.new(opts)
         @branch.init
         load_rakefile
         begin
@@ -39,6 +40,29 @@ module Pwrake
           }
         end
       end
+      opts
+    end
+
+    def pwrake_options
+      opts = Marshal.load($stdin)
+      # p opts
+
+      if !opts.kind_of?(Hash)
+        p opts
+        raise "options is not Hash"
+      end
+
+      standard_rake_options.each do |opt|
+        k = opt[0].sub(/^--/o,'').tr('a-z-','A-Z_')
+        if v=opts[k]
+          #p [k,v]
+          b = opt.last
+          if b.kind_of?(Proc)
+            b.call(v)
+          end
+        end
+      end
+
       opts
     end
 

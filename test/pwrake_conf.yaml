@@ -2,7 +2,7 @@ HOSTFILE : hosts.yaml
 
 # LOGFILE : Pwrake-%Y%m%dT%H%M%S-{Process.pid}.log
 
-FILESYSTEM : gfarm
+#FILESYSTEM : gfarm
 
 SCHEDULER : gfarm_affinity
 

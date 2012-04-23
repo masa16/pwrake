@@ -6,15 +6,16 @@ class GfarmPath
   @@gfarm_top = "/tmp"
   @@gfarm_prefix = nil
 
-  @@gfarm_prefix = "#{@@gfarm_top}/pwrake_#{ENV['USER']}_#{Process.pid}_"
+  @@gfarm_prefix = "#{@@gfarm_top}/pwrake_#{ENV['USER']}_#{Process.pid}"
 
   if !Dir.glob(@@gfarm_prefix+"*").empty?
     raise "Already running Gfarm client:#{@@gfarm_prefix}"
   end
 
-  def initialize(id)
+  def initialize(id=nil)
     @id = id
-    @gfarm_mountpoint = "#{@@gfarm_prefix}#{@id}"
+    @gfarm_mountpoint = "#{@@gfarm_prefix}"
+    @gfarm_mountpoint += "_#{@id}" if @id
 
     puts "mkdir_p #{@gfarm_mountpoint}"
     FileUtils.mkdir_p @gfarm_mountpoint
@@ -37,7 +38,7 @@ class GfarmPath
     end
   end
 
-  def cd(dir)
+  def chdir(dir)
     pn = Pathname(dir)
     if pn.absolute?
       pn = pn.relative_path_from(Pathname("/"))
@@ -49,8 +50,8 @@ class GfarmPath
   END{@@list.each{|x| x.close}}
 end
 
-m=GfarmPath.new("001")
+#m=GfarmPath.new("001")
 #sleep 1
-m.cd("/home")
+#m.cd("/home")
 #sleep 1
 #m.close

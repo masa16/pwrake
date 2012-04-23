@@ -6,16 +6,39 @@ module Pwrake
 
     DEFAULT_CONFFILES = ["pwrake_conf.yaml"]
     DEFAULT_CONF = {
-      'DIRECTORY'=>Dir.pwd,
       'PWRAKE_CONF'=>'pwrake_conf.yaml',
       'HOSTFILE'=>'hosts.yaml',
       'FILESYSTEM'=>'local',
-      'LOGFILE'=>Time.now.strftime("Pwrake-%Y%m%d%H%M%S-#{Process.pid}.log"),
+      'LOGFILE'=>"Pwrake-%Y%m%d%H%M%S-%$.log",
       'TRACE'=>true,
       'MAIN_HOSTNAME'=>`hostname -f`.chomp
     }
 
     def initialize(hosts=nil)
+      setup_options
+      setup_filesystem
+
+      if hosts
+        @hosts = hosts.dup
+      else
+        @hosts = YAML.load(open(@confopt['HOSTFILE']))
+      end
+      if @hosts.kind_of? Hash
+        @hosts = [@hosts]
+      end
+      Util.dputs "@hosts=#{@hosts.inspect}"
+
+      @branch_set = []
+      @worker_set = []
+
+      @scheduler = RoundRobinScheduler.new
+      @tracer = Tracer.new
+
+      @ioevent = IOEvent.new
+      @task_set = {}
+    end
+
+    def setup_options
       @pwrake_conf = Rake.application.options.pwrake_conf
 
       if @pwrake_conf
@@ -42,7 +65,18 @@ module Pwrake
         end
       end
 
+      @confopt['TRACE'] = Rake.application.options.trace
+      @confopt['VERBOSE'] = true if Rake.verbose
+      @confopt['SILENT'] = true if !Rake.verbose
+      @confopt['DRY_RUN'] = Rake.application.options.dryrun
+      #@confopt['RAKEFILE'] =
+      #@confopt['LIBDIR'] =
+      @confopt['RAKELIBDIR'] = Rake.application.options.rakelib.join(':')
+    end
+
+    def setup_filesystem
       @filesystem = @confopt['FILESYSTEM']
+
       if @filesystem.nil?
         # get mountpoint
         path = Pathname.pwd
@@ -62,43 +96,33 @@ module Pwrake
         case @mount_type
         when /gfarm2fs/
           @filesystem = 'gfarm'
-          @cwd = "/"+Pathname.pwd.relative_path_from(@mount_point).to_s
         when 'nfs'
           @filesystem = 'nfs'
-          @cwd = Dir.pwd
         else
-          @filesystem = 'local'
-          @cwd = Dir.pwd
           # raise "unknown filesystem : #{@mount_point} type #{@mount_type}"
+          @filesystem = 'local'
         end
+
+        @confopt['FILESYSTEM'] = @filesystem
       end
 
-      if hosts
-        @hosts = hosts.dup
+      case @filesystem
+      when 'gfarm'
+        @cwd = "/"+Pathname.pwd.relative_path_from(@mount_point).to_s
+      when 'nfs'
+        @cwd = Dir.pwd
       else
-        @hosts = YAML.load(open(@confopt['HOSTFILE']))
+        @cwd = Dir.pwd
       end
-      if @hosts.kind_of? Hash
-        @hosts = [@hosts]
-      end
-      Util.dputs "@hosts=#{@hosts.inspect}"
-
-      @branch_set = []
-      @worker_set = []
-
-      @scheduler = RoundRobinScheduler.new
-      @tracer = Tracer.new
-
-      @ioevent = IOEvent.new
-      @task_set = {}
+      @confopt['DIRECTORY'] = @cwd
     end
 
     def setup_branches
       @hosts.each do |a|
         a.each do |sub_host,wk_hosts|
-          dir = File.absolute_path(File.dirname($0))
+          dir = File.absolute_path(File.dirname($PROGRAM_NAME))
           cmd = "ssh -x -T -q #{sub_host} '" +
-            "PATH=#{dir}:${PATH} exec pwrake_branch -t'"
+            "PATH=#{dir}:${PATH} exec pwrake_branch'"
           conn = Connection.new(sub_host,cmd)
           @ioevent.add_io(conn.ior,conn)
 

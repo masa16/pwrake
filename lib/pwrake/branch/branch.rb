@@ -4,7 +4,8 @@ module Pwrake
 
   class Branch
 
-    def initialize
+    def initialize(opts)
+      @options = opts
       @queue = FiberQueue.new
       @timeout = 10
       @exit_cmd = "exit_connection"
@@ -12,10 +13,9 @@ module Pwrake
     end
 
     def init
-      @options = Marshal.load($stdin)
       # setup_options
       # pp @options
-      setup_directory
+      setup_filesystem
     end
 
     def run
@@ -24,12 +24,15 @@ module Pwrake
       execute
     end
 
-    def setup_directory
+
+    def setup_filesystem
       @cwd = @options['DIRECTORY']
       case fs=@options['FILESYSTEM']
       when /gfarm/io
-        # require 'pwrake/gfarm'
-        Dir.chdir(@cwd)
+        require 'pwrake/gfarm'
+        @fs = GfarmPath.new
+        @fs.chdir(@cwd)
+        # Dir.chdir(@cwd)
       when /nfs/io
         Dir.chdir(@cwd)
       when /local/io
