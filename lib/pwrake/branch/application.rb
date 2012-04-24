@@ -45,7 +45,7 @@ module Pwrake
 
     def pwrake_options
       opts = Marshal.load($stdin)
-      # p opts
+      p opts
 
       if !opts.kind_of?(Hash)
         p opts

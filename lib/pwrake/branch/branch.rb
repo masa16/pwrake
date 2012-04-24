@@ -27,7 +27,9 @@ module Pwrake
 
     def setup_filesystem
       @cwd = @options['DIRECTORY']
-      case fs=@options['FILESYSTEM']
+      fs=@options['FILESYSTEM']
+      #puts "fs=#{fs}"
+      case fs
       when /gfarm/io
         require 'pwrake/gfarm'
         @fs = GfarmPath.new
@@ -58,6 +60,9 @@ module Pwrake
           cmd = "ssh -x -T -q #{host} '"+
             "PATH=#{dir}:${PATH} exec pwrake_worker #{id} #{ncore}'"
           conn = Connection.new(host,cmd,ncore)
+
+          #Marshal.dump(@wk_opt,conn.iow)
+
           @ioevent.add_io(conn.ior,conn)
         else
           raise "invalid workers"
@@ -68,6 +73,18 @@ module Pwrake
         if /ncore:(\d+)/ =~ s
           conn.ncore = $1.to_i
         end
+      end
+
+      if @options['FILESYSTEM']=='gfarm'
+        gfarm = true
+      end
+      @ioevent.each do |conn|
+        if gfarm
+          #puts "fs:gfarm"
+          conn.send_cmd "fs:gfarm"
+        end
+        #puts "cd:#{@cwd}"
+        conn.send_cmd "cd:#{@cwd}"
       end
     end
 

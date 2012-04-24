@@ -10,6 +10,8 @@ class Communicator
     @out = $stdout
   end
 
+  attr_reader :in, :out
+
   def puts(s)
     @out.print s+"\n"
     @out.flush
@@ -56,7 +58,7 @@ class Worker
     end
 
     def chdir(dir)
-      raise "directory #{dir} not found" if !File.directory?(dir)
+      # raise "directory #{dir} not found" if !File.directory?(dir)
       @@current_dir = dir
     end
 
@@ -70,6 +72,7 @@ class Worker
     end
 
     def close_all
+      Dir.chdir
       @@workers.each{|id,ch| ch.close}
       @@workers.each{|id,ch| ch.join}
       $io.dputs "worker:end:#{@@id_list.inspect}"
@@ -111,7 +114,7 @@ class Worker
           rescue => exc
             $stderr.puts exc
           else
-            $stderr.puts "end proc"
+            # $stderr.puts "end proc"
           end
         when String
           begin
@@ -182,6 +185,10 @@ class GfarmWorker < Worker
     end
   end
 
+  def dir
+    @gfarm_mountpoint + (@current_dir || @@current_dir)
+  end
+
   def initialize(id)
     super(id)
     raise "Gfarm uninitialized" if @@gfarm_prefix.nil?
@@ -199,6 +206,7 @@ class GfarmWorker < Worker
       execute proc{
         pid = spawn("fusermount -u "+@gfarm_mountpoint)
         Process.wait(pid)
+        system "sync"
       }
       execute proc{
         FileUtils.rmdir @gfarm_mountpoint
@@ -209,10 +217,12 @@ class GfarmWorker < Worker
 
   def cd(dir)
     pn = Pathname(dir)
-    if pn.absolute?
-      pn = Pathname(@gfarm_mountpoint) + pn
+    if !pn.absolute?
+      pn = Pathname(@current_dir) + pn
     end
-    super(pn.to_s)
+    real_path = Pathname(@gfarm_mountpoint) + pn
+    raise "directory #{real_path} not found" if !File.directory?(real_path.to_s)
+    @current_dir = pn.to_s
   end
 end
 
@@ -221,6 +231,8 @@ end
 
 $io = Communicator.new
 $worker_class = Worker
+
+# $opts = Marshal.load($io.in)
 
 @node_id = ARGV[0]
 @ncore = ARGV[1] ? ARGV[1].to_i : Worker.count_cpu

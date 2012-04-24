@@ -1,7 +1,7 @@
 N=20
 
 rule ".o" => ".c" do |t|
-  sh "sleep 1; echo --- #{t.name} $$ `hostname`---"
+  sh "sleep 1; echo --- #{t.name} $$ `hostname` `pwd` ---"
 end
 
 (1..N).map do |i|

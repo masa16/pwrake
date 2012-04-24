@@ -8,7 +8,7 @@ module Pwrake
     DEFAULT_CONF = {
       'PWRAKE_CONF'=>'pwrake_conf.yaml',
       'HOSTFILE'=>'hosts.yaml',
-      'FILESYSTEM'=>'local',
+      'FILESYSTEM'=>nil,
       'LOGFILE'=>"Pwrake-%Y%m%d%H%M%S-%$.log",
       'TRACE'=>true,
       'MAIN_HOSTNAME'=>`hostname -f`.chomp
@@ -106,6 +106,8 @@ module Pwrake
         @confopt['FILESYSTEM'] = @filesystem
       end
 
+      puts "FILESYSTEM=#{@filesystem}"
+
       case @filesystem
       when 'gfarm'
         @cwd = "/"+Pathname.pwd.relative_path_from(@mount_point).to_s
@@ -124,10 +126,10 @@ module Pwrake
           cmd = "ssh -x -T -q #{sub_host} '" +
             "PATH=#{dir}:${PATH} exec pwrake_branch'"
           conn = Connection.new(sub_host,cmd)
-          @ioevent.add_io(conn.ior,conn)
 
           Marshal.dump(@confopt,conn.iow)
 
+          @ioevent.add_io(conn.ior,conn)
           conn.send_cmd "begin_worker_list"
           wk_hosts.map do |s|
             host, ncore = s.split
