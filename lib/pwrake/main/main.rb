@@ -117,30 +117,70 @@ module Pwrake
         @cwd = Dir.pwd
       end
       @confopt['DIRECTORY'] = @cwd
+
+      puts "@cwd=#{@cwd}"
     end
 
     def setup_branches
+      tm = Time.now
+      wk_count = 0
+      conn_by_host = {}
       @hosts.each do |a|
-        a.each do |sub_host,wk_hosts|
+        a.each_key do |sub_host|
           dir = File.absolute_path(File.dirname($PROGRAM_NAME))
           cmd = "ssh -x -T -q #{sub_host} '" +
             "PATH=#{dir}:${PATH} exec pwrake_branch'"
           conn = Connection.new(sub_host,cmd)
-
-          Marshal.dump(@confopt,conn.iow)
-
           @ioevent.add_io(conn.ior,conn)
-          conn.send_cmd "begin_worker_list"
+          conn_by_host[sub_host] = conn
+        end
+      end
+      puts "pass1 t=#{Time.now-tm}"
+      tm = Time.now
+
+      @ioevent.event_each do |conn,s|
+        if !s or s.chomp != "pwrake_branch started"
+          p s
+          raise "pwrake_branch start failed: conn=#{conn.inspect}"
+        end
+        puts conn.host
+      end
+      puts "pass2 t=#{Time.now-tm}"
+      tm = Time.now
+
+      @ioevent.each do |conn|
+        Marshal.dump(@confopt,conn.iow)
+        conn.send_cmd "begin_worker_list"
+      end
+
+      puts "pass3 t=#{Time.now-tm}"
+      tm = Time.now
+
+      @hosts.each do |a|
+        a.each do |sub_host,wk_hosts|
+          conn = conn_by_host[sub_host]
           wk_hosts.map do |s|
-            host, ncore = s.split
+            h, ncore = s.split
             ncore = ncore.to_i if ncore
-            wk = WorkerChannel.new(conn.iow,host,ncore)
-            @worker_set.push(wk)
-            wk.send_worker
+            if /(.*)\[([^-]+)(?:-|\.\.)([^-]+)\](.*)/o =~ h
+              range = ($1+$2+$4)..($1+$3+$4)
+            else
+              range = h..h
+            end
+            range.each do |host|
+              # puts "connecting #{host} #{ncore}"
+              wk = WorkerChannel.new(conn.iow,host,ncore)
+              @worker_set.push(wk)
+              wk.send_worker
+              wk_count += 1
+            end
           end
           conn.send_cmd "end_worker_list"
         end
       end
+      puts "wk_count=#{wk_count}"
+      puts "pass4 t=#{Time.now-tm}"
+      tm = Time.now
     end
 
     def invoke(root, args)

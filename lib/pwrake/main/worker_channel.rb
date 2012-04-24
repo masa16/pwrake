@@ -18,6 +18,7 @@ module Pwrake
     def send_worker
       x = "#{@id}:#{@host} #{@ncore}\n"
       @io.print(x)
+      # @io.write_nonblock(x)
       @io.flush
     end
 

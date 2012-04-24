@@ -11,6 +11,9 @@ libpath = File.absolute_path(File.dirname(__FILE__)+"/../lib")
 $LOAD_PATH.unshift libpath
 require "pwrake/branch/load"
 
+$stdout.puts "pwrake_branch started"
+$stdout.flush
+
 Rake.application.run
 
 #system "ps vx 1>&2"

@@ -10,7 +10,7 @@ module Pwrake
       @host = host
       @ior,w1 = IO.pipe
       r2,@iow = IO.pipe
-      pid = spawn(cmd,:pgroup=>true,:out=>w1,:in=>r2)
+      pid = spawn(cmd,:pgroup=>true,:out=>w1,:err=>$stderr,:in=>r2)
       w1.close
       r2.close
       @@connections.push(self)

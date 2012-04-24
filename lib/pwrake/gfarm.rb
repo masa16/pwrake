@@ -17,10 +17,10 @@ class GfarmPath
     @gfarm_mountpoint = @@gfarm_prefix
     @gfarm_mountpoint += "_#{@id}" if @id
 
-    puts "mkdir_p #{@gfarm_mountpoint}"
+    # puts "mkdir_p #{@gfarm_mountpoint}"
     FileUtils.mkdir_p @gfarm_mountpoint
     cmd = "gfarm2fs "+@gfarm_mountpoint
-    puts cmd
+    # puts cmd
     pid = spawn(cmd)
     Process.wait(pid)
     @@list.push(self)
@@ -29,11 +29,11 @@ class GfarmPath
   def close
     if File.directory? @gfarm_mountpoint
       cmd = "fusermount -u "+@gfarm_mountpoint
-      puts cmd
+      # puts cmd
       pid = spawn(cmd)
       Process.wait(pid)
       system "sync"
-      puts "rmdir #{@gfarm_mountpoint}"
+      # puts "rmdir #{@gfarm_mountpoint}"
       FileUtils.rmdir @gfarm_mountpoint
       @@list.delete(self)
     end
@@ -45,9 +45,9 @@ class GfarmPath
       pn = pn.relative_path_from(Pathname("/"))
       pn = Pathname(@gfarm_mountpoint) + pn
     end
-    puts "cd #{pn}"
+    # puts "cd #{pn}"
     Dir.chdir(pn.to_s)
-    puts Dir.pwd
+    # puts Dir.pwd
   end
 
   END{Dir.chdir; @@list.each{|x| x.close}}
