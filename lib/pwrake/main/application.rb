@@ -22,11 +22,15 @@ module Pwrake
         @main = Main.new
         begin
           @main.setup_branches
+        $stderr.print "init: #{Time.now-t} sec\n"
+        t = Time.now
           top_level
+        $stderr.print "main: #{Time.now-t} sec\n"
+        t = Time.now
         ensure
           @main.finish
         end
-        $stderr.print "invoker: #{Time.now-t} sec\n"
+        $stderr.print "finish: #{Time.now-t} sec\n"
       end
     end
 
