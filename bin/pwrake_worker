@@ -146,9 +146,13 @@ class Worker
     return x
   end
 
-  def cd(dir)
-    raise "directory #{dir} not found" if !File.directory?(dir)
-    @current_dir = dir
+  def cd(d)
+    path = Pathname.new(d)
+    if path.relative?
+      d = (Pathname.new(dir)+path).to_s
+    end
+    raise "directory '#{d}' not found" if !File.directory?(d)
+    @current_dir = d
   end
 
   def execute(cmd)
@@ -294,7 +298,7 @@ while line = $io.gets
     #
   when /^(\d+):(.*)$/o
     id,cmd = $1,$2
-    if /cd (\S+)/o =~ cmd
+    if /^cd (\S+)$/o =~ cmd
       dir = $1
       Worker[id].cd(dir)
     else
