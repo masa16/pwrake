@@ -298,12 +298,7 @@ while line = $io.gets
     #
   when /^(\d+):(.*)$/o
     id,cmd = $1,$2
-    if /^cd (\S+)$/o =~ cmd
-      dir = $1
-      Worker[id].cd(dir)
-    else
-      Worker[id].execute(cmd)
-    end
+    Worker[id].execute(cmd)
     #
   when /^kill:(\d+):(.*)$/o
     id,signal = $1,$2
