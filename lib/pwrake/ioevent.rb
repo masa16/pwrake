@@ -9,6 +9,8 @@ module Pwrake
       @data_by_io = {}
     end
 
+    attr_reader :closed
+
     def add_io(io,data=nil)
       data = io if data.nil?
       @data_by_io[io] = data
@@ -23,8 +25,8 @@ module Pwrake
     def close(io)
       io.close
       @io_set.delete(io)
+      @data_by_io.delete(io)
       @closed << io
-      @data_by_io[io] = nil
     end
 
     def each(&block)
@@ -46,7 +48,11 @@ module Pwrake
 
     def event_each(timeout=10,&block)
       io_set = @io_set.dup
+      #io_set.each{|io| $stderr.puts "#{io.inspect} #{io.closed?}"}
+      #$stderr.flush
       while !io_set.empty? and io_sel = select(io_set,nil,nil,timeout)
+        #$stderr.puts "pass #{io_sel.inspect}"
+        #$stderr.flush
         for io in io_sel[0]
           event_for_io(io,&block)
           io_set.delete(io)
@@ -58,7 +64,7 @@ module Pwrake
       end
       # error check
       if !io_set.empty?
-        raise "connect to worker error"
+        raise "Error in connecting to worker"
       end
     end
 
