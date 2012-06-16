@@ -1,8 +1,3 @@
-module Kernel
-  alias backquote :'`'
-  module_function :backquote
-end
-
 module FileUtils
 
   # Run the system command +cmd+. If multiple arguments are given the command
@@ -61,7 +56,7 @@ module FileUtils
 
   #module_function
 
-  def `(cmd) #`
+  def bq(cmd)
     cmd_log = cmd.inspect
     tm = Pwrake.timer("bq",cmd_log)
     #
