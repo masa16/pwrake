@@ -1,7 +1,8 @@
-N=20
+N=20000
 
 rule ".o" => ".c" do |t|
-  sh "sleep 1; echo --- #{t.name} $$ `hostname` `pwd` ---"
+  #sh "sleep 0.1; echo --- #{t.name} $$ `hostname` `pwd` ---"
+  sh "hostname >& /dev/null"
 end
 
 (1..N).map do |i|
@@ -10,4 +11,9 @@ end
 
 obj = (1..N).map{|i| "task#{i}.o"}
 
-task :default => obj
+task :default => obj do
+  a=`ps vx`.split(/\n/)
+  puts a.shift
+  a.each{|l| puts l if /pwrake/=~l}
+end
+
