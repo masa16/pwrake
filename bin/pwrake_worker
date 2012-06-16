@@ -36,18 +36,13 @@ class Dummy
   end
 end
 
-
-class Worker
-  @@workers = {}
-  @@id_list = []
+class Properties
   @@current_dir = '.'
   @@project = "#{Process.pid}"
-  @@dummy = Dummy.new
 
   class << self
-    def p
-      puts "@@workers = #{@@workers.inspect}"
-    end
+    def current_dir; @@current_dir; end
+    def project; @@project; end
 
     def count_cpu
       ncpu = 0
@@ -60,6 +55,26 @@ class Worker
     def chdir(dir)
       # raise "directory #{dir} not found" if !File.directory?(dir)
       @@current_dir = dir
+    end
+  end
+end
+
+class WorkerSet
+
+  @@workers = {}
+  @@dummy = Dummy.new
+
+  class << self
+    def p
+      puts "@@workers = #{@@workers.inspect}"
+    end
+
+    def add(id,worker)
+      @@workers[id] = worker
+    end
+
+    def delete(id)
+      @@workers.delete(id)
     end
 
     def [](id)
@@ -75,18 +90,20 @@ class Worker
       Dir.chdir
       @@workers.each{|id,ch| ch.close}
       @@workers.each{|id,ch| ch.join}
-      $io.dputs "worker:end:#{@@id_list.inspect}"
+      id_list = @@workers.keys
+      $io.dputs "worker:end:#{id_list.inspect}"
       Kernel.exit
     end
   end
+end
 
 
+class Worker
   # instance methods
 
   def initialize(id)
     @id = id
-    @@id_list << id
-    @@workers[@id] = self
+    WorkerSet.add(id,self)
     @queue = Queue.new
     @current_dir = nil
     new_thread
@@ -95,7 +112,7 @@ class Worker
   # attr_accessor :dir, :queue, :thread
 
   def dir
-    @current_dir || @@current_dir
+    @current_dir || Properties.current_dir
   end
 
   def new_thread
@@ -125,7 +142,9 @@ class Worker
             $io.puts "start:#{@id}:#{@pid}"
             pid,status = Process.wait2(@pid)
             status_s = status_to_str(status)
-            $io.puts "end:#{@id}:#{@pid}:#{status_s}"
+            # x = "end:#{@id}:#{@pid}:#{status_s}"
+            # $stderr.print "#{x}\n"
+            $io.puts x
           end
         end
       end
@@ -166,7 +185,7 @@ class Worker
   def join
     @pipe_thread.join if @pipe_thread
     @exec_thread.join if @exec_thread
-    @@workers.delete(@id)
+    WorkerSet.delete(@id)
   end
 
   def kill(sig)
@@ -182,15 +201,15 @@ class GfarmWorker < Worker
 
   class << self
     def init
-      @@gfarm_prefix = "#{@@gfarm_top}/pwrake_#{ENV['USER']}_#{@@project}_"
+      @@gfarm_prefix = "#{@@gfarm_top}/pwrake_#{ENV['USER']}_#{Properties.project}_"
       if !Dir.glob(@@gfarm_prefix+"*").empty?
-        raise "Already running worker:#{@@project}"
+        raise "Already running worker:#{Properties.project}"
       end
     end
   end
 
   def dir
-    @gfarm_mountpoint + (@current_dir || @@current_dir)
+    @gfarm_mountpoint + (@current_dir || Properties.current_dir)
   end
 
   def initialize(id)
@@ -239,15 +258,15 @@ $worker_class = Worker
 # $opts = Marshal.load($io.in)
 
 @node_id = ARGV[0]
-@ncore = ARGV[1] ? ARGV[1].to_i : Worker.count_cpu
+@ncore = ARGV[1] ? ARGV[1].to_i : Properties.count_cpu
 
 $io.puts "ncore:#{@ncore}"
 
-END{ Worker.close_all }
+END{ WorkerSet.close_all }
 
 [:TERM,:INT,:KILL].each do |sig|
   Signal.trap(sig) do
-    Worker.close_all
+    WorkerSet.close_all
     Kernel.exit
   end
 end
@@ -259,7 +278,7 @@ while line = $io.gets
   line.strip!
   case line
   when /^p$/o
-    Worker.p
+    WorkerSet.p
 
   when /^fs:gfarm$/o
     $worker_class = GfarmWorker
@@ -272,7 +291,7 @@ while line = $io.gets
     #
   when /^cd:(.*)$/o
     dir = $1
-    Worker.chdir(dir)
+    Properties.chdir(dir)
     #
   when /^export:(\w+)=(.*)$/o
     k,v = $1,$2
@@ -298,11 +317,11 @@ while line = $io.gets
     #
   when /^(\d+):(.*)$/o
     id,cmd = $1,$2
-    Worker[id].execute(cmd)
+    WorkerSet[id].execute(cmd)
     #
   when /^kill:(\d+):(.*)$/o
     id,signal = $1,$2
-    Worker[id].kill(signal)
+    WorkerSet[id].kill(signal)
     #
   when /^kill:(.*)$/o
     sig = $1
