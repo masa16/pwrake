@@ -27,7 +27,7 @@ module Pwrake
 
     def setup_filesystem
       @cwd = @options['DIRECTORY']
-      fs=@options['FILESYSTEM']
+      fs = @options['FILESYSTEM']
       #puts "fs=#{fs}"
       case fs
       when /gfarm/io
@@ -75,9 +75,14 @@ module Pwrake
         end
       end
 
+      if !@ioevent.closed.empty?
+        raise "Error in connection setup from Branch to Worker"
+      end
+
       if @options['FILESYSTEM']=='gfarm'
         gfarm = true
       end
+
       @ioevent.each do |conn|
         if gfarm
           #puts "fs:gfarm"
