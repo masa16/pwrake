@@ -8,18 +8,23 @@ class Communicator
   def initialize
     @in = $stdin
     @out = $stdout
+    @mutex = Mutex.new
   end
 
   attr_reader :in, :out
 
   def puts(s)
-    @out.print s+"\n"
-    @out.flush
+    @mutex.synchronize do
+      @out.print s+"\n"
+      @out.flush
+    end
   end
 
   def print(s)
-    @out.print s
-    @out.flush
+    @mutex.synchronize do
+      @out.print s
+      @out.flush
+    end
   end
 
   def gets
@@ -137,17 +142,19 @@ class Worker
           begin
             @pid = spawn(cmd,[:out,:err]=>pipe_out,:chdir=>dir)
           rescue => exc
-            $io.puts "end:error:#{exc}"
+            $io.puts x="end:error:#{exc}"
+            $stderr.print "pwrake_worker: #{x}\n"
           else
             $io.puts "start:#{@id}:#{@pid}"
             pid,status = Process.wait2(@pid)
             status_s = status_to_str(status)
-            # x = "end:#{@id}:#{@pid}:#{status_s}"
-            # $stderr.print "#{x}\n"
+            x = "end:#{@id}:#{@pid}:#{status_s}"
+            $stderr.print "#{x}\n"
             $io.puts x
           end
         end
       end
+      $stderr.print "pwrake_worker: thread end\n"
       pipe_out.close
     end
   end
