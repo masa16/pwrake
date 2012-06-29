@@ -12,5 +12,3 @@ $LOAD_PATH.unshift libpath
 require "pwrake/main/load"
 
 Rake.application.run
-
-#system "ps vx 1>&2"
