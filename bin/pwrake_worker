@@ -154,7 +154,6 @@ class Worker
           end
         end
       end
-      $stderr.print "pwrake_worker: thread end\n"
       pipe_out.close
     end
   end
@@ -307,6 +306,9 @@ while line = $io.gets
   when /^start:$/o
     break
     #
+  when /^exit_connection$/o
+    $io.puts "worker_exit: #{line}"
+    Kernel.exit
   else
     raise "invalid line: #{line}"
   end
