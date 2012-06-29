@@ -14,6 +14,7 @@ module Pwrake
       w1.close
       r2.close
       @@connections.push(self)
+      sleep 0.01
     end
 
     attr_reader :ior, :iow, :host
