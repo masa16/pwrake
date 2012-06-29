@@ -128,8 +128,9 @@ module Pwrake
       @hosts.each do |a|
         a.each_key do |sub_host|
           dir = File.absolute_path(File.dirname($PROGRAM_NAME))
+          args = Shellwords.shelljoin(ARGV)
           cmd = "ssh -x -T -q #{sub_host} '" +
-            "PATH=#{dir}:${PATH} exec pwrake_branch'"
+            "PATH=#{dir}:${PATH} exec pwrake_branch #{args}'"
           conn = Connection.new(sub_host,cmd)
           @ioevent.add_io(conn.ior,conn)
           conn_by_host[sub_host] = conn
@@ -223,6 +224,9 @@ module Pwrake
 
 
     def finish
+      if defined?(measure)
+        measure
+      end
       Util.dputs "main:exit_branch"
       @ioevent.each do |conn|
         conn.close if conn # finish if conn.respond_to?(:finish)
