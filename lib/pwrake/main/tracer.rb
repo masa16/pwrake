@@ -8,12 +8,7 @@ module Pwrake
     end
 
     def fetch_tasks( root )
-      case $test
-      when :orig
-        @footprint = {}
-      else
-        Rake.application.clear_footprint
-      end
+      Rake.application.clear_footprint
       @fetched_tasks = {}
       t = Time.now
       status = find_task( root, [] )
@@ -39,18 +34,10 @@ module Pwrake
         fail RuntimeError, "Circular dependency detected: #{chain.join(' => ')} => #{name}"
       end
 
-      case $test
-      when :orig
-        if @footprint[name] || @fetched[name]
-          return :traced
-        end
-        @footprint[name] = true
-      else
-        if tsk.already_fetched || tsk.footprint
-          return :traced
-        end
-        tsk.footprint = true
+      if tsk.already_fetched || tsk.footprint
+        return :traced
       end
+      tsk.footprint = true
 
       chain.push(name)
       prerequisites = tsk.prerequisites
@@ -66,12 +53,7 @@ module Pwrake
       chain.pop
 
       if all_invoked
-        case $test
-        when :orig
-          @fetched[name] = true
-        when :array
-          tsk.already_fetched = true
-        end
+        tsk.already_fetched = true
         if tsk.needed?
           #puts "name=#{name} task.needed"
           @fetched_tasks[name] = tsk

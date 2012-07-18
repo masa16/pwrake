@@ -22,7 +22,6 @@ module Pwrake
         @main = Main.new
         begin
           @main.setup_branches
-          measure
           $stderr.print "init: #{Time.now-t} sec\n"
           t = Time.now
           top_level

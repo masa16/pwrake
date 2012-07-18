@@ -185,9 +185,7 @@ module Pwrake
     end
 
     def invoke(root, args)
-      measure
       while task_hash = @tracer.fetch_tasks(root)
-        measure
         return if task_hash.empty?
 
         # scheduling
