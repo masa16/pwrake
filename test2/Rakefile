@@ -1,0 +1,14 @@
+require "./measure.rb"
+
+$test=(ENV['TEST']||"none").to_sym
+N=ENV['N']
+
+measure
+
+src = FileList["src#{N}/*.c"]
+obj = src.ext("o")
+
+rule ".o" => ".c" do |t|
+end
+
+task :default => obj

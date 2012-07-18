@@ -1,0 +1,42 @@
+----------------------------------------
+  774 pts/0    S<l+   0:00      0  2187 28892  9084  0.0 /home/tanakams/local/bin/ruby ./rake N=1000
+- main   1000 28.892
+0.22user 0.09system 0:00.39elapsed 79%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+4309minor)pagefaults 0swaps
+----------------------------------------
+----------------------------------------
+  784 pts/0    S<l+   0:00      0  2187 36736 16928  0.0 /home/tanakams/local/bin/ruby ./rake N=5000
+- main   5000 36.736
+0.82user 0.25system 0:01.52elapsed 70%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+8217minor)pagefaults 0swaps
+----------------------------------------
+----------------------------------------
+  794 pts/0    S<l+   0:01      0  2187 45992 26204  0.0 /home/tanakams/local/bin/ruby ./rake N=10000
+- main   10000 45.992
+1.61user 0.44system 0:02.97elapsed 69%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+12824minor)pagefaults 0swaps
+----------------------------------------
+----------------------------------------
+  808 pts/0    S<l+   0:10      0  2187 135700 115932  0.3 /home/tanakams/local/bin/ruby ./rake N=50000
+- main   50000 135.7
+8.86user 2.35system 0:15.72elapsed 71%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+58110minor)pagefaults 0swaps
+----------------------------------------
+----------------------------------------
+  837 pts/0    S<l+   0:21      0  2187 193448 173512  0.5 /home/tanakams/local/bin/ruby ./rake N=100000
+- main   100000 193.448
+19.96user 4.36system 0:33.23elapsed 73%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+87258minor)pagefaults 0swaps
+----------------------------------------
+----------------------------------------
+  867 pts/0    S<l+   0:51      0  2187 339648 319472  0.9 /home/tanakams/local/bin/ruby ./rake N=200000
+- main   200000 339.648
+47.48user 9.30system 1:14.36elapsed 76%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+158294minor)pagefaults 0swaps
+----------------------------------------
+----------------------------------------
+  921 pts/0    S<l+   2:23      0  2187 627456 606312  1.8 /home/tanakams/local/bin/ruby ./rake N=400000
+- main   400000 627.456
+131.89user 25.00system 3:55.63elapsed 66%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+300484minor)pagefaults 0swaps
+----------------------------------------

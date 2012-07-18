@@ -1,0 +1,82 @@
+[ion:~/2012/0703/pwrake2/test2]
+$ time ../bin/pwrake N=100000 TEST=orig
+FILESYSTEM=local
+@cwd=/home/masa/2012/0703/pwrake2/test2
+pass1 t=0.014586265
+localhost
+pass2 t=0.244203563
+pass3 t=9.605e-05
+wk_count=1
+pass4 t=0.000100951
+["localhost"]
+localhost:  1860 pts/0    Sl+    0:01      0  2145 165470 27960  1.3 ruby ../bin/pwrake N=100000 TEST=orig
+localhost:  1871 ?        Rsl    0:00      0  2145 142350 14892  0.7 ruby /home/masa/2012/0703/pwrake2/bin/pwrake_branch N=100000 TEST=orig
+- main   100000 165.47
+- branch 100000 142.35 1
+init: 0.580702407 sec
+fetch task: 15.472549812
+["localhost"]
+localhost:  1860 pts/0    Sl+    0:15      0  2145 340682 202972  9.9 ruby ../bin/pwrake N=100000 TEST=orig
+localhost:  1871 ?        Ssl    0:01      0  2145 156802 29592  1.4 ruby /home/masa/2012/0703/pwrake2/bin/pwrake_branch N=100000 TEST=orig
+- main   100000 340.682
+- branch 100000 156.802 1
+(in /home/masa/2012/0703/pwrake2/test2)
+fetch task: 0.969272349
+["localhost"]
+localhost:  1860 pts/0    Sl+    0:20      0  2145 359706 221956 10.8 ruby ../bin/pwrake N=100000 TEST=orig
+localhost:  1871 ?        Ssl    0:12      0  2145 248046 120800  5.9 ruby /home/masa/2012/0703/pwrake2/bin/pwrake_branch N=100000 TEST=orig
+- main   100000 359.706
+- branch 100000 248.046 1
+fetch task: 2.7209e-05
+main: 37.430064349 sec
+["localhost"]
+localhost:  1860 pts/0    Sl+    0:20      0  2145 359706 221956 10.8 ruby ../bin/pwrake N=100000 TEST=orig
+localhost:  1871 ?        Ssl    0:12      0  2145 248046 120800  5.9 ruby /home/masa/2012/0703/pwrake2/bin/pwrake_branch N=100000 TEST=orig
+- main   100000 359.706
+- branch 100000 248.046 1
+finish: 0.468892804 sec
+
+real	0m40.926s
+user	0m19.808s
+sys	0m1.508s
+[ion:~/2012/0703/pwrake2/test2]
+$ time ../bin/pwrake N=100000 TEST=array
+FILESYSTEM=local
+@cwd=/home/masa/2012/0703/pwrake2/test2
+pass1 t=0.017971368
+localhost
+pass2 t=0.222313373
+pass3 t=8.7934e-05
+wk_count=1
+pass4 t=9.8831e-05
+["localhost"]
+localhost:  2055 pts/0    Sl+    0:01      7  2145 162734 25104  1.2 ruby ../bin/pwrake N=100000 TEST=array
+localhost:  2067 ?        Rsl    0:00      0  2145 141670 14372  0.7 ruby /home/masa/2012/0703/pwrake2/bin/pwrake_branch N=100000 TEST=array
+- main   100000 162.734
+- branch 100000 141.67 1
+init: 0.572021183 sec
+fetch task: 17.172933553
+["localhost"]
+localhost:  2055 pts/0    Sl+    0:15      7  2145 306734 169032  8.2 ruby ../bin/pwrake N=100000 TEST=array
+localhost:  2067 ?        Ssl    0:01      0  2145 156814 29556  1.4 ruby /home/masa/2012/0703/pwrake2/bin/pwrake_branch N=100000 TEST=array
+- main   100000 306.734
+- branch 100000 156.814 1
+(in /home/masa/2012/0703/pwrake2/test2)
+fetch task: 0.953331928
+["localhost"]
+localhost:  2055 pts/0    Sl+    0:20      7  2145 321986 184320  9.0 ruby ../bin/pwrake N=100000 TEST=array
+localhost:  2067 ?        Ssl    0:11      0  2145 247902 120668  5.9 ruby /home/masa/2012/0703/pwrake2/bin/pwrake_branch N=100000 TEST=array
+- main   100000 321.986
+- branch 100000 247.902 1
+fetch task: 4.9344e-05
+main: 35.789792122 sec
+["localhost"]
+localhost:  2055 pts/0    Sl+    0:20      7  2145 321986 184320  9.0 ruby ../bin/pwrake N=100000 TEST=array
+localhost:  2067 ?        Ssl    0:11      0  2145 247902 120668  5.9 ruby /home/masa/2012/0703/pwrake2/bin/pwrake_branch N=100000 TEST=array
+- main   100000 321.986
+- branch 100000 247.902 1
+finish: 0.510597941 sec
+
+real	0m38.948s
+user	0m19.586s
+sys	0m1.716s
