@@ -8,18 +8,20 @@ module Pwrake
     end
 
     def fetch_tasks( root )
-      @footprint = {}
-      @fetched_tasks = []
-      #tm = timer("trace")
+      case $test
+      when :orig
+        @footprint = {}
+      else
+        Rake.application.clear_footprint
+      end
+      @fetched_tasks = {}
       t = Time.now
       status = find_task( root, [] )
-      msg = [ "num_tasks=%i" % [@fetched_tasks.size] ]
-      tk = @fetched_tasks[0]
-      msg << "task[0]=%s" % tk.name.inspect if tk.kind_of?(Rake::Task)
-      #tm.finish(msg.join(' '))
       $stderr.puts "fetch task: #{Time.now-t}"
+      fetched_tasks = @fetched_tasks
+      @fetched_tasks = nil
       if status
-        return @fetched_tasks
+        return fetched_tasks
       else
         return nil
       end
@@ -37,10 +39,18 @@ module Pwrake
         fail RuntimeError, "Circular dependency detected: #{chain.join(' => ')} => #{name}"
       end
 
-      if @footprint[name] || @fetched[name]
-        return :traced
+      case $test
+      when :orig
+        if @footprint[name] || @fetched[name]
+          return :traced
+        end
+        @footprint[name] = true
+      else
+        if tsk.already_fetched || tsk.footprint
+          return :traced
+        end
+        tsk.footprint = true
       end
-      @footprint[name] = true
 
       chain.push(name)
       prerequisites = tsk.prerequisites
@@ -55,12 +65,16 @@ module Pwrake
       end
       chain.pop
 
-
       if all_invoked
-        @fetched[name] = true
+        case $test
+        when :orig
+          @fetched[name] = true
+        when :array
+          tsk.already_fetched = true
+        end
         if tsk.needed?
           #puts "name=#{name} task.needed"
-          @fetched_tasks << tsk
+          @fetched_tasks[name] = tsk
         else
           #puts "name=#{name} task.needed"
           tsk.already_invoked = true

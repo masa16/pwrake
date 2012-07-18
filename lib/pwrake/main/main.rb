@@ -185,14 +185,13 @@ module Pwrake
     end
 
     def invoke(root, args)
-      while tasks = @tracer.fetch_tasks(root)
-        break if tasks.empty?
-
-        task_hash = {}
-        tasks.each{|t| task_hash[t.name]=t}
+      measure
+      while task_hash = @tracer.fetch_tasks(root)
+        measure
+        return if task_hash.empty?
 
         # scheduling
-        @scheduler.assign(tasks,@worker_set)
+        @scheduler.assign(task_hash,@worker_set)
 
         # send tasks
         @worker_set.each do |wk|
@@ -219,6 +218,7 @@ module Pwrake
             Util.puts s
           end
         end
+        task_hash = nil
       end
     end
 

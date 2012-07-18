@@ -22,11 +22,12 @@ module Pwrake
         @main = Main.new
         begin
           @main.setup_branches
-        $stderr.print "init: #{Time.now-t} sec\n"
-        t = Time.now
+          measure
+          $stderr.print "init: #{Time.now-t} sec\n"
+          t = Time.now
           top_level
-        $stderr.print "main: #{Time.now-t} sec\n"
-        t = Time.now
+          $stderr.print "main: #{Time.now-t} sec\n"
+          t = Time.now
         ensure
           @main.finish
         end
@@ -84,21 +85,6 @@ module Pwrake
                  Main::DEFAULT_CONF.map{|k,v| "\t\t#{k}: #{v}"}.join("\n"),
                  lambda {|value| options.pwrake_conf = value}]
       opts
-    end
-
-    def define_task(task_class, *args, &block)
-      task_name, arg_names, deps = resolve_args(args)
-      task_name = task_class.scope_name(@scope, task_name)
-      deps = [deps] unless deps.respond_to?(:to_ary)
-      deps = deps.collect {|d| d.to_s }
-      task = intern(task_class, task_name)
-      task.set_arg_names(arg_names) unless arg_names.empty?
-      if Rake::TaskManager.record_task_metadata
-        add_location(task)
-        task.add_description(get_description(task))
-      end
-      task.enhance(deps)
-      # task.enhance(deps, &block)
     end
 
   end # class MainApplication < ::Rake::Application

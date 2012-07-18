@@ -7,7 +7,7 @@ module Pwrake
 
     def assign(tasks,worker_set)
       #t = Time.now
-      tasks.each do |t|
+      tasks.each_value do |t|
         #worker_set.assign_task_by_index(t.name, @i)
         worker_chan = worker_set[@i]
         worker_chan.add_task(t)
