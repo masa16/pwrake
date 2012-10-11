@@ -58,7 +58,7 @@ module Pwrake
           ncore = ncore.to_i if ncore
           dir = File.absolute_path(File.dirname($PROGRAM_NAME))
           cmd = "ssh -x -T -q #{host} '"+
-            "PATH=#{dir}:${PATH} exec pwrake_worker #{id} #{ncore}'"
+            "cd #{@cwd}; PATH=#{dir}:${PATH} exec pwrake_worker #{id} #{ncore}'"
           conn = Connection.new(host,cmd,ncore)
 
           #Marshal.dump(@wk_opt,conn.iow)
