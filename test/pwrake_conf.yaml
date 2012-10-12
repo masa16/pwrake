@@ -4,6 +4,10 @@ HOSTFILE : hosts.yaml
 
 #FILESYSTEM : gfarm
 
+PASS_ENV :
+ - ENV1
+ - ENV2
+
 SCHEDULER : gfarm_affinity
 
 GFARM_MOUNT_DIR : /tmp

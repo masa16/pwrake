@@ -17,9 +17,10 @@ module Pwrake
     def run
       standard_exception_handling do
         init("pwrake")
+        @main = Main.new
         load_rakefile
         t = Time.now
-        @main = Main.new
+        @main.init
         begin
           @main.setup_branches
           $stderr.print "init: #{Time.now-t} sec\n"

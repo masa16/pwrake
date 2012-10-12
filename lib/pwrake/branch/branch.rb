@@ -15,8 +15,11 @@ module Pwrake
     def init
       # setup_options
       # pp @options
+      set_env
       setup_filesystem
     end
+
+    # Rakefile is loaded after 'init' before 'run'
 
     def run
       setup_workers
@@ -24,6 +27,14 @@ module Pwrake
       execute
     end
 
+    def set_env
+      case envs = @options['PASS_ENV']
+      when Hash
+        envs.each do |k,v|
+          ENV[k] = v
+        end
+      end
+    end
 
     def setup_filesystem
       @cwd = @options['DIRECTORY']
@@ -77,6 +88,14 @@ module Pwrake
 
       if !@ioevent.closed.empty?
         raise "Error in connection setup from Branch to Worker"
+      end
+
+      if pass_env = @options['PASS_ENV']
+        @ioevent.each do |conn|
+          pass_env.each do |k,v|
+            conn.send_cmd "export:#{k}=#{v}"
+          end
+        end
       end
 
       if @options['FILESYSTEM']=='gfarm'

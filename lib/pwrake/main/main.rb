@@ -14,8 +14,14 @@ module Pwrake
       'MAIN_HOSTNAME'=>`hostname -f`.chomp
     }
 
-    def initialize(hosts=nil)
+    def initialize
       setup_options
+    end
+
+    # load_rakefile
+
+    def init(hosts=nil)
+      setup_pass_env
       setup_filesystem
 
       if hosts
@@ -72,6 +78,37 @@ module Pwrake
       #@confopt['RAKEFILE'] =
       #@confopt['LIBDIR'] =
       @confopt['RAKELIBDIR'] = Rake.application.options.rakelib.join(':')
+    end
+
+    def setup_pass_env
+      if envs = @confopt['PASS_ENV']
+        pass_env = {}
+
+        case envs
+        when Array
+          envs.each do |k|
+            k = k.to_s
+            if v = ENV[k]
+              pass_env[k] = v
+            end
+          end
+        when Hash
+          envs.each do |k,v|
+            k = k.to_s
+            if v = ENV[k] || v
+              pass_env[k] = v
+            end
+          end
+        else
+          raise "invalid option for PASS_ENV in pwrake_conf.yaml"
+        end
+
+        if pass_env.empty?
+          @confopt.delete('PASS_ENV')
+        else
+          @confopt['PASS_ENV'] = pass_env
+        end
+      end
     end
 
     def setup_filesystem
