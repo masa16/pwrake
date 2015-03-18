@@ -69,8 +69,11 @@ module Pwrake
           ncore = ncore.to_i if ncore
           dir = File.absolute_path(File.dirname($PROGRAM_NAME))
           cmd = "ssh -x -T -q #{host} '"+
-            "PATH=#{dir}:${PATH} exec pwrake_worker #{id} #{ncore}'"
+            "PATH=#{dir}:${PATH} exec ${HOME}/git/pwrake2/bin/pwrake_worker #{id} #{ncore}'"
+          cmd = "${HOME}/git/pwrake2/bin/pwrake_worker #{id} #{ncore}"
+          $stderr.puts cmd
           conn = Connection.new(host,cmd,ncore)
+          $stderr.puts conn.inspect
 
           #Marshal.dump(@wk_opt,conn.iow)
 
@@ -81,10 +84,14 @@ module Pwrake
       end
 
       @ioevent.event_each do |conn,s|
+        $stderr.puts s
         if /ncore:(\d+)/ =~ s
           conn.ncore = $1.to_i
         end
       end
+
+      $stderr.puts @ioevent.inspect
+      $stderr.puts @ioevent.closed.inspect
 
       if !@ioevent.closed.empty?
         raise "Error in connection setup from Branch to Worker"

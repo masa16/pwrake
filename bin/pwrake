@@ -9,6 +9,6 @@ end
 
 libpath = File.absolute_path(File.dirname(__FILE__))+"/../lib"
 $LOAD_PATH.unshift libpath
-require "pwrake/main/load"
+require "pwrake/master"
 
 Rake.application.run

@@ -1,35 +1,26 @@
-module Rake
-  class << self
-    def application
-      @application ||= Pwrake::MainApplication.new
-    end
-  end
-end
-
-
 module Pwrake
 
-  # The TaskManager module is a mixin for managing tasks.
-  class MainApplication < ::Rake::Application
+  # a mixin for managing Rake application.
+  module MasterApplication
     #include Pwrake::Log
 
     # Run the Pwrake application.
     def run
       standard_exception_handling do
         init("pwrake")
-        @main = Main.new
+        @role = Master.new
         load_rakefile
         t = Time.now
-        @main.init
+        @role.init
         begin
-          @main.setup_branches
+          @role.setup_branches
           $stderr.print "init: #{Time.now-t} sec\n"
           t = Time.now
           top_level
           $stderr.print "main: #{Time.now-t} sec\n"
           t = Time.now
         ensure
-          @main.finish
+          @role.finish
         end
         $stderr.print "finish: #{Time.now-t} sec\n"
       end
@@ -38,14 +29,14 @@ module Pwrake
     def invoke_task(task_string)
       name, args = parse_task_string(task_string)
       t = self[name]
-      @main.invoke(t,args)
+      @role.invoke(t,args)
     end
 
     # Read and handle the command line options.
     def handle_options
       options.rakelib = ['rakelib']
 
-      OptionParser.new do |opts|
+      result = OptionParser.new do |opts|
         opts.banner = $PROGRAM_NAME+" [-f rakefile] {options} targets..."
         opts.separator ""
         opts.separator "Options are ..."
@@ -57,7 +48,7 @@ module Pwrake
 
         standard_rake_options.each { |args| opts.on(*args) }
         opts.environment('RAKEOPT')
-      end.parse!
+      end.parse(ARGV)
 
       # If class namespaces are requested, set the global options
       # according to the values in the options structure.
@@ -68,6 +59,7 @@ module Pwrake
         $dryrun = options.dryrun
         $silent = options.silent
       end
+      result
     end
 
     def standard_rake_options
@@ -82,10 +74,10 @@ module Pwrake
         end
       end
       opts.push ['--pwrake-conf [FILE]',"Pwrake configuation file in YAML:\n"+
-                 Main::DEFAULT_CONF.map{|k,v| "\t\t#{k}: #{v}"}.join("\n"),
+                 Master::DEFAULT_CONF.map{|k,v| "\t\t#{k}: #{v}"}.join("\n"),
                  lambda {|value| options.pwrake_conf = value}]
       opts
     end
 
-  end # class MainApplication < ::Rake::Application
+  end # class MasterApplication < ::Rake::Application
 end # mocule Pwrake

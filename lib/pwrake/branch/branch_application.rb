@@ -1,18 +1,9 @@
 $stderr = $stdout
 
-module Rake
-  class << self
-    def application
-      @application ||= Pwrake::BranchApplication.new
-    end
-  end
-end
-
-
 module Pwrake
 
   # The TaskManager module is a mixin for managing tasks.
-  class BranchApplication < ::Rake::Application
+  module BranchApplication
 
     def run
       standard_exception_handling do

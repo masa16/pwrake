@@ -6,9 +6,13 @@ require "pwrake/ioevent"
 require "pwrake/util"
 require "pwrake/connection"
 
-require "pwrake/main/main"
-require "pwrake/main/rake_modify"
-require "pwrake/main/application"
-require "pwrake/main/scheduler"
-require "pwrake/main/tracer"
-require "pwrake/main/worker_channel"
+require "pwrake/master/master"
+require "pwrake/master/rake_modify"
+require "pwrake/master/master_application"
+require "pwrake/master/scheduler"
+require "pwrake/master/tracer"
+require "pwrake/master/worker_channel"
+
+class Rake::Application
+  prepend Pwrake::MasterApplication
+end

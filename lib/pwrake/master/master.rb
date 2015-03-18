@@ -2,7 +2,7 @@ require "yaml"
 
 module Pwrake
 
-  class Main
+  class Master
 
     DEFAULT_CONFFILES = ["pwrake_conf.yaml"]
     DEFAULT_CONF = {
