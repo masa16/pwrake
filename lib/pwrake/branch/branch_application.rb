@@ -5,10 +5,10 @@ module Pwrake
   # The TaskManager module is a mixin for managing tasks.
   module BranchApplication
 
-    def run
+    def run_branch
       standard_exception_handling do
         init("pwrake_branch")
-        opts = pwrake_options
+        opts = branch_options
         @branch = Branch.new(opts)
         @branch.init
         load_rakefile
@@ -20,21 +20,7 @@ module Pwrake
       end
     end
 
-    def standard_rake_options
-      opts = super
-      opts.each_with_index do |a,i|
-        if a[0] == '--version'
-          a[3] = lambda { |value|
-            puts "rake, version #{RAKEVERSION}"
-            puts "pwrake, version #{Pwrake::PWRAKEVERSION}"
-            exit
-          }
-        end
-      end
-      opts
-    end
-
-    def pwrake_options
+    def branch_options
       opts = Marshal.load($stdin)
       # p opts
 
