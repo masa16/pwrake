@@ -4,7 +4,7 @@ require "pathname"
 require "pwrake/ioevent"
 # require "pwrake/comm_io"
 require "pwrake/util"
-require "pwrake/transmitter"
+require "pwrake/communicator"
 
 require "pwrake/master/master"
 require "pwrake/master/rake_modify"

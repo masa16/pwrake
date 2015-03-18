@@ -77,7 +77,7 @@ module Pwrake
             "PATH=#{dir}:${PATH} exec ${HOME}/git/pwrake2/bin/pwrake_worker #{id} #{ncore}'"
           cmd = "${HOME}/git/pwrake2/bin/pwrake_worker #{id} #{ncore}"
           $stderr.puts cmd
-          conn = Transmitter.new(host,cmd,ncore)
+          conn = Communicator.new(host,cmd,ncore)
           $stderr.puts conn.inspect
 
           #Marshal.dump(@wk_opt,conn.iow)
@@ -99,7 +99,7 @@ module Pwrake
       $stderr.puts @ioevent.closed.inspect
 
       if !@ioevent.closed.empty?
-        raise "Error in transmitter setup from Branch to Worker"
+        raise "Error in communicator setup from Branch to Worker"
       end
 
       if pass_env = @options['PASS_ENV']
@@ -177,7 +177,7 @@ module Pwrake
           when /^kill:(.*)$/o
             sig = $1
             # Util.puts "branch:kill:#{sig}"
-            Transmitter.kill(sig)
+            Communicator.kill(sig)
             Kernel.exit
 
           else

@@ -3,7 +3,7 @@ require "pwrake/log"
 require "pwrake/logger"
 
 require "pwrake/ioevent.rb"
-require "pwrake/transmitter"
+require "pwrake/communicator"
 
 require "pwrake/branch/branch_application"
 require "pwrake/branch/rake_modify.rb"

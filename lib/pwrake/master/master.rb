@@ -168,7 +168,7 @@ module Pwrake
           args = Shellwords.shelljoin(ARGV)
           cmd = "ssh -x -T -q #{sub_host} '" +
             "PATH=#{dir}:${PATH} exec pwrake_branch #{args}'"
-          conn = Transmitter.new(sub_host,cmd)
+          conn = Communicator.new(sub_host,cmd)
           @ioevent.add_io(conn.ior,conn)
           conn_by_host[sub_host] = conn
         end
