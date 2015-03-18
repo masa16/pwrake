@@ -46,7 +46,7 @@ module Pwrake
     end
 
     def close
-      @iow.puts "exit_transmitter" if !@@killed
+      @iow.puts "exit_connection" if !@@killed
       @iow.close
       @@transmitters.delete(self)
     end
