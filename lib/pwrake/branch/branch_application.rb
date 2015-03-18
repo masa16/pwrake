@@ -10,13 +10,8 @@ module Pwrake
         init("pwrake_branch")
         opts = branch_options
         @branch = Branch.new(opts)
-        @branch.init
         load_rakefile
-        begin
-          @branch.run
-        ensure
-          @branch.finish
-        end
+        @branch.run
       end
     end
 

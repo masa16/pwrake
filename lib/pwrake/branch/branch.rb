@@ -10,6 +10,7 @@ module Pwrake
       @timeout = 10
       @exit_cmd = "exit_connection"
       @ioevent = IOEvent.new
+      init
     end
 
     def init
@@ -22,9 +23,13 @@ module Pwrake
     # Rakefile is loaded after 'init' before 'run'
 
     def run
-      setup_workers
-      setup_fibers
-      execute
+      begin
+        setup_workers
+        setup_fibers
+        execute
+      ensure
+        finish
+      end
     end
 
     def set_env
