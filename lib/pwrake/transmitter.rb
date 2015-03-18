@@ -1,8 +1,8 @@
 module Pwrake
 
-  class Connection
+  class Transmitter
 
-    @@connections = []
+    @@transmitters = []
     @@killed = false
 
     def initialize(host,cmd,ncore=nil)
@@ -13,7 +13,7 @@ module Pwrake
       pid = spawn(cmd,:pgroup=>true,:out=>w1,:err=>$stderr,:in=>r2)
       w1.close
       r2.close
-      @@connections.push(self)
+      @@transmitters.push(self)
       sleep 0.01
     end
 
@@ -46,15 +46,15 @@ module Pwrake
     end
 
     def close
-      @iow.puts "exit_connection" if !@@killed
+      @iow.puts "exit_transmitter" if !@@killed
       @iow.close
-      @@connections.delete(self)
+      @@transmitters.delete(self)
     end
 
     class << self
       def kill(sig)
         @@killed = true
-        @@connections.each{|conn| conn.kill(sig)}
+        @@transmitters.each{|trs| trs.kill(sig)}
       end
     end
 
@@ -64,6 +64,6 @@ module Pwrake
       end
     end
 
-  end # Connection
+  end # Transmitter
 
 end
