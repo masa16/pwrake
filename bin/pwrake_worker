@@ -270,7 +270,7 @@ $io.puts "ncore:#{@ncore}"
 
 END{ WorkerSet.close_all }
 
-[:TERM,:INT,:KILL].each do |sig|
+[:TERM,:INT].each do |sig|
   Signal.trap(sig) do
     WorkerSet.close_all
     Kernel.exit

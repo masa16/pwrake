@@ -58,7 +58,7 @@ module Pwrake
       end
     end
 
-    [:TERM,:INT,:KILL].each do |sig|
+    [:TERM,:INT].each do |sig|
       Signal.trap(sig) do
         self.kill(sig)
       end
