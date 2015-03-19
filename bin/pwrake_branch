@@ -9,11 +9,9 @@ end
 
 libpath = File.absolute_path(File.dirname(__FILE__))+"/../lib"
 $LOAD_PATH.unshift libpath
+require "pwrake/master"
 require "pwrake/branch"
 
-$stdout.puts "pwrake_branch started"
-$stdout.flush
-
-Rake.application.run_branch
+Rake.application.run_branch($stdin,$stdout)
 
 #system "ps vx 1>&2"

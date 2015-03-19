@@ -162,16 +162,25 @@ module Pwrake
       tm = Time.now
       wk_count = 0
       conn_by_host = {}
-      @hosts.each do |a|
-        a.each_key do |sub_host|
-          dir = File.absolute_path(File.dirname($PROGRAM_NAME))
-          args = Shellwords.shelljoin(ARGV)
-          cmd = "ssh -x -T -q #{sub_host} '" +
-            "PATH=#{dir}:${PATH} exec pwrake_branch #{args}'"
-          conn = Communicator.new(sub_host,cmd)
-          @ioevent.add_io(conn.ior,conn)
-          conn_by_host[sub_host] = conn
+      if !ENV["T"]
+        @hosts.each do |a|
+          a.each_key do |sub_host|
+            dir = File.absolute_path(File.dirname($PROGRAM_NAME))
+            args = Shellwords.shelljoin(ARGV)
+            cmd = "ssh -x -T -q #{sub_host} '" +
+              "PATH=#{dir}:${PATH} exec pwrake_branch #{args}'"
+            conn = Communicator.new(sub_host,cmd)
+            @ioevent.add_io(conn.ior,conn)
+            conn_by_host[sub_host] = conn
+          end
         end
+      else
+        sub_host = "localhost"
+        conn = Communicator.new(sub_host) do |r,w|
+          Rake.application.run_branch(r,w)
+        end
+        @ioevent.add_io(conn.ior,conn)
+        conn_by_host[sub_host] = conn
       end
       puts "pass1 t=#{Time.now-tm}"
       tm = Time.now

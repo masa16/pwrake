@@ -5,6 +5,7 @@ module Rake
     attr_accessor :already_fetched
     attr_accessor :footprint
 
+=begin
     def initialize(task_name, app)
       @name = task_name.to_s
       @prerequisites = []
@@ -28,6 +29,7 @@ module Rake
       end
       self
     end
+=end
   end
 
   # The TaskManager module is a mixin for managing tasks.

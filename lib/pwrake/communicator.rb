@@ -5,16 +5,20 @@ module Pwrake
     @@communicators = []
     @@killed = false
 
-    def initialize(host,cmd,ncore=nil)
+    def initialize(host,cmd=nil,ncore=nil)
       @ncore = ncore
       @host = host
       @ior,w1 = IO.pipe
       r2,@iow = IO.pipe
-      pid = spawn(cmd,:pgroup=>true,:out=>w1,:err=>$stderr,:in=>r2)
-      w1.close
-      r2.close
+      if block_given?
+        @thread = Thread.new(r2,w1){|r,w| yield(r,w); puts "end yield" }
+      else
+        @pid = spawn(cmd,:pgroup=>true,:out=>w1,:err=>$stderr,:in=>r2)
+        w1.close
+        r2.close
+        sleep 0.01
+      end
       @@communicators.push(self)
-      sleep 0.01
     end
 
     attr_reader :ior, :iow, :host
@@ -41,8 +45,10 @@ module Pwrake
     end
 
     def kill(sig)
-      @iow.puts "kill:#{sig}"
-      @iow.flush
+      $stderr.puts "#{self.class.to_s}#kill sig=#{sig} pid=#{Process.pid} thread=#{Thread.current} self=#{self.inspect}"
+      #$stderr.puts "#{self.class.to_s}#kill:#{sig}"
+      send_cmd "kill:#{sig}"
+      #@iow.flush
     end
 
     def close
@@ -54,13 +60,18 @@ module Pwrake
     class << self
       def kill(sig)
         @@killed = true
-        @@communicators.each{|trs| trs.kill(sig)}
+        @@communicators.each{|comm| comm.kill(sig)}
       end
     end
 
-    [:TERM,:INT].each do |sig|
-      Signal.trap(sig) do
-        self.kill(sig)
+    if true
+      [:TERM,:INT].each do |sig|
+        Signal.trap(sig) do
+          $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid} thread=#{Thread.current})"
+          self.kill(sig)
+          Process.kill(sig,@pid) if @pid
+          Kernel.exit
+        end
       end
     end
 

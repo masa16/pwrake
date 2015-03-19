@@ -99,6 +99,11 @@ class WorkerSet
       $io.dputs "worker:end:#{id_list.inspect}"
       Kernel.exit
     end
+
+    def kill(sig)
+      @@workers.each{|id,ch| ch.kill(sig)}
+      close_all
+    end
   end
 end
 
@@ -134,7 +139,8 @@ class Worker
           begin
             cmd.call
           rescue => exc
-            $stderr.puts exc
+            $stderr.puts exc.message
+            $stderr.puts exc.backtrace
           else
             # $stderr.puts "end proc"
           end
@@ -147,9 +153,9 @@ class Worker
           else
             $io.puts "start:#{@id}:#{@pid}"
             pid,status = Process.wait2(@pid)
+            @pid = nil
             status_s = status_to_str(status)
-            x = "end:#{@id}:#{@pid}:#{status_s}"
-            $stderr.print "#{x}\n"
+            x = "end:#{@id}:#{pid}:#{status_s}"
             $io.puts x
           end
         end
@@ -196,7 +202,7 @@ class Worker
 
   def kill(sig)
     sig = sig.to_i if /^\d+$/=~sig
-    Process.kill(sig,@pid)
+    Process.kill(sig,@pid) if @pid
   end
 end
 
@@ -336,6 +342,7 @@ while line = $io.gets
     sig = $1
     sig = sig.to_i if /^\d+$/=~sig
     $io.puts "worker killed. signal=#{sig}"
+    # WorkerSet.kill(sig)
     Process.kill(sig, 0)
     #
   when /^exit_connection$/o
