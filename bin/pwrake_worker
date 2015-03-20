@@ -3,51 +3,266 @@
 require "thread"
 require "pathname"
 require "fileutils"
+require 'singleton'
 
-class Communicator
-  def initialize
-    @in = $stdin
-    @out = $stdout
-    @mutex = Mutex.new
-  end
+$dbg = true
+$log = File.open("worker.log","w") if $dbg
 
-  attr_reader :in, :out
+module Pwrake
 
-  def puts(s)
-    @mutex.synchronize do
-      @out.print s+"\n"
+  class Writer
+    include Singleton
+
+    def initialize
+      @out = $stdout
+      @mutex = Mutex.new
+    end
+
+    def puts(s)
+      @mutex.synchronize do
+        begin
+          @out.print s+"\n"
+          @out.flush
+        rescue Errno::EPIPE
+        end
+        $log.print "<#{s}\n"  if $dbg
+      end
+    end
+
+    def print(s)
+      @mutex.synchronize do
+        begin
+          @out.print s
+          @out.flush
+        rescue Errno::EPIPE
+        end
+        $log.print "<#{s}"  if $dbg
+      end
+    end
+
+    def flush
       @out.flush
+    end
+
+    def dputs(s)
+      puts(s) if $DEBUG
     end
   end
 
-  def print(s)
-    @mutex.synchronize do
-      @out.print s
-      @out.flush
+
+  class Worker
+
+    @@base_dir = '.'
+
+    def self.base_dir(d=nil)
+      if d
+        @@base_dir = d
+      end
+      @@base_dir
+    end
+
+    # instance methods
+
+    def dir
+      @current_dir || @@base_dir
+    end
+
+    def initialize(id)
+      @id = id
+      @queue = Queue.new
+      @current_dir = nil
+      @env = {}
+      @out = Writer.instance
+
+      pipe_in, @pipe_out = IO.pipe
+      @out_thread = Thread.new(pipe_in,"#{@id}:") do |pin,pre|
+        while s = pin.gets
+          @out.print pre+s
+        end
+      end
+
+      pipe_in2, @pipe_out2 = IO.pipe
+      @err_thread = Thread.new(pipe_in2,"#{@id}e:") do |pin,pre|
+        while s = pin.gets
+          @out.print pre+s
+        end
+      end
+
+      @exec_thread = Thread.new do
+        while cmd = @queue.deq
+          begin
+            run(cmd)
+          rescue => exc
+            @out.puts x="end:error:#{exc}"
+          end
+        end
+        @pipe_out.flush
+        @pipe_out2.flush
+        @pipe_out.close
+        @pipe_out2.close
+      end
+    end
+
+    def run(cmd)
+      case cmd
+      when Proc
+        cmd.call
+      when /^cd\s+(.*)$/
+        d = $1
+        # @out.puts "start:#{@id}:0"
+        cd(d)
+        @out.puts "end:#{@id}"
+      when /^exit$/
+        exit
+        @out.puts "end:#{@id}"
+      when /^export (\w+)=(.*)$/o
+        k,v = $1,$2
+        @env[k] = v
+      when String
+        @pid = spawn(@env,cmd,:out=>@pipe_out,:err=>@pipe_out2,:chdir=>dir)
+        @out.puts "start:#{@id}:#{@pid}"
+        pid,status = Process.wait2(@pid)
+        @pipe_out.flush
+        @pipe_out2.flush
+        @out_thread.run
+        @err_thread.run
+        # $stderr.puts "end: pid=#{@pid} : #{cmd}"
+        # $stderr.flush
+        status_s = status_to_str(status)
+        @out.puts x="end:#{@id}:#{@pid}:#{status_s}"
+      end
+    end
+
+    def status_to_str(s)
+      if s.exited?
+        x = "#{s.to_i},exited"
+      elsif s.signaled?
+        x = "#{s.to_i},signaled,signal=#{s.termsig}"
+      elsif s.stopped?
+        x = "#{s.to_i},stopped,signal=#{s.stopsig}"
+      elsif s.coredump?
+        x = "#{s.to_i},coredumped"
+      end
+      return x
+    end
+
+    def cd(d)
+      d = d.sub(/^\$HOME\b/,ENV['HOME'])
+      path = Pathname.new(d)
+      if path.relative?
+        d = (Pathname.new(dir)+path).to_s
+      end
+      raise "directory '#{d}' not found" if !File.directory?(d)
+      @current_dir = d
+    end
+
+    def execute(cmd)
+      @queue.enq(cmd)
+      @exec_thread.run
+    end
+
+    def exit
+      close
+      # Worker.delete(@id)
+    end
+
+    def close
+      @queue.enq(nil)
+      @exec_thread.run
+    end
+
+    def join
+      @out_thread.join if @out_thread
+      @err_thread.join if @err_thread
+      @exec_thread.join if @exec_thread
+    end
+
+    def kill(sig)
+      sig = sig.to_i if /^\d+$/=~sig
+      Process.kill(sig,@pid)
     end
   end
 
-  def gets
-    @in.gets
+
+  class GfarmWorker < Worker
+    @@gfarm_top = "/tmp"
+    @@gfarm_prefix = nil
+
+    class << self
+      def init
+        @@gfarm_prefix = "#{@@gfarm_top}/pwrake_#{ENV['USER']}_#{Process.pid}_"
+        #if !Dir.glob(@@gfarm_prefix+"*").empty?
+        #  raise "Already running worker:#{Process.pid}"
+        #end
+      end
+    end
+
+    def dir
+      @gfarm_mountpoint + super
+    end
+
+    def initialize(id)
+      super(id)
+      raise "Gfarm uninitialized" if @@gfarm_prefix.nil?
+      @gfarm_mountpoint = "#{@@gfarm_prefix}#{@id}"
+
+      execute proc{
+        FileUtils.mkdir_p @gfarm_mountpoint
+        pid = spawn("gfarm2fs "+@gfarm_mountpoint)
+        Process.wait(pid)
+      }
+    end
+
+    def close
+      if File.directory? @gfarm_mountpoint
+        execute proc{
+          pid = spawn("fusermount -u "+@gfarm_mountpoint)
+          Process.wait(pid)
+          system "sync"
+        }
+        execute proc{
+          FileUtils.rmdir @gfarm_mountpoint
+        }
+      end
+      super
+    end
+
+    def cd(dir)
+      dir = dir.sub(/^\$HOME\b/,ENV['HOME'])
+      pn = Pathname(dir)
+      if !pn.absolute?
+        pn = Pathname(@current_dir) + pn
+      end
+      real_path = Pathname(@gfarm_mountpoint) + pn
+      raise "directory #{real_path} not found" if !File.directory?(real_path.to_s)
+      @current_dir = pn.to_s
+    end
   end
 
-  def dputs(s)
-    puts(s) if $DEBUG
-  end
-end
 
-class Dummy
-  def method_missing(*args)
-  end
-end
+  class Invoker
 
-class Properties
-  @@current_dir = '.'
-  @@project = "#{Process.pid}"
+    def initialize(args)
+      @out = Writer.instance
+      @mutex = Mutex.new
+      @worker_class = Worker
+      @worker_list = {}
+      @node_id = ARGV[0]
+      @ncore = ARGV[1] ? ARGV[1].to_i : count_cpu
 
-  class << self
-    def current_dir; @@current_dir; end
-    def project; @@project; end
+      @out.puts "ncore:#{@ncore}"
+
+      at_exit{ close_all }
+
+      [:TERM,:INT].each do |sig|
+        Signal.trap(sig) do
+          #close_all # called at_exit
+          Kernel.exit
+        end
+      end
+
+      Signal.trap("PIPE", "EXIT")
+    end
 
     def count_cpu
       ncpu = 0
@@ -57,298 +272,75 @@ class Properties
       ncpu
     end
 
-    def chdir(dir)
-      # raise "directory #{dir} not found" if !File.directory?(dir)
-      @@current_dir = dir
-    end
-  end
-end
-
-class WorkerSet
-
-  @@workers = {}
-  @@dummy = Dummy.new
-
-  class << self
-    def p
-      puts "@@workers = #{@@workers.inspect}"
-    end
-
-    def add(id,worker)
-      @@workers[id] = worker
-    end
-
-    def delete(id)
-      @@workers.delete(id)
-    end
-
-    def [](id)
-      if @@workers.key?(id)
-        @@workers[id]
-      else
-        $io.puts "no worker id:#{id}"
-        @@dummy
+    def run
+      while line = gets
+        line.chomp!
+        line.strip!
+        $log.print ">#{line}\n"  if $dbg
+        case line
+        when /^(\d+):(.*)$/o
+          id,cmd = $1,$2
+          worker = @worker_list[id]
+          if worker.nil?
+            worker = @worker_list[id] = @worker_class.new(id)
+          end
+          worker.execute(cmd)
+          #
+        when /^p$/o
+          puts "@worker_list = #{@worker_list.inspect}"
+          #
+        when /^fs:gfarm$/o
+          @worker_class = GfarmWorker
+          GfarmWorker.init
+          #
+        when /^new:(.*)$/o
+          $1.split.each do |id|
+            @worker_class.new(id)
+          end
+          #
+        when /^cd:(.*)$/o
+          Worker.base_dir($1)
+          #
+        when /^export:(\w+)=(.*)$/o
+          k,v = $1,$2
+          ENV[k] = v
+          #
+        when /^exit$/o
+          #close_all # called at_exit
+          return
+          #
+        when /^kill:(\d+):(.*)$/o
+          id,signal = $1,$2
+          worker = @worker_list[id]
+          worker.kill(signal) if !worker.nil?
+          #
+        when /^kill:(.*)$/o
+          sig = $1
+          sig = sig.to_i if /^\d+$/=~sig
+          @out.puts "worker killed. signal=#{sig}"
+          Process.kill(sig, 0)
+          #
+        when /^exit_connection$/o
+          # @out.puts "exit"a
+          Kernel.exit
+          #
+        else
+          raise "invalid line: #{line}"
+        end
       end
     end
 
     def close_all
       Dir.chdir
-      @@workers.each{|id,ch| ch.close}
-      @@workers.each{|id,ch| ch.join}
-      id_list = @@workers.keys
-      $io.dputs "worker:end:#{id_list.inspect}"
-      Kernel.exit
+      @worker_list.each{|id,ch| ch.close}
+      @worker_list.each{|id,ch| ch.join}
+      id_list = @worker_list.keys
+      @out.puts "worker:end:#{id_list.inspect}"
+      @out.puts "exit"
+      $log.close if $dbg
     end
 
-    def kill(sig)
-      @@workers.each{|id,ch| ch.kill(sig)}
-      close_all
-    end
   end
 end
 
-
-class Worker
-  # instance methods
-
-  def initialize(id)
-    @id = id
-    WorkerSet.add(id,self)
-    @queue = Queue.new
-    @current_dir = nil
-    new_thread
-  end
-
-  # attr_accessor :dir, :queue, :thread
-
-  def dir
-    @current_dir || Properties.current_dir
-  end
-
-  def new_thread
-    pipe_in, pipe_out = IO.pipe
-    @pipe_thread = Thread.new(pipe_in,"#{@id}:") do |pin,pre|
-      while s = pin.gets
-        $io.print pre+s
-      end
-    end
-    @exec_thread = Thread.new do
-      while cmd = @queue.deq
-        case cmd
-        when Proc
-          begin
-            cmd.call
-          rescue => exc
-            $stderr.puts exc.message
-            $stderr.puts exc.backtrace
-          else
-            # $stderr.puts "end proc"
-          end
-        when String
-          begin
-            @pid = spawn(cmd,[:out,:err]=>pipe_out,:chdir=>dir)
-          rescue => exc
-            $io.puts x="end:error:#{exc}"
-            $stderr.print "pwrake_worker: #{x}\n"
-          else
-            $io.puts "start:#{@id}:#{@pid}"
-            pid,status = Process.wait2(@pid)
-            @pid = nil
-            status_s = status_to_str(status)
-            x = "end:#{@id}:#{pid}:#{status_s}"
-            $io.puts x
-          end
-        end
-      end
-      pipe_out.close
-    end
-  end
-
-  def status_to_str(s)
-    if s.exited?
-      x = "#{s.to_i},exited"
-    elsif s.signaled?
-      x = "#{s.to_i},signaled,signal=#{s.termsig}"
-    elsif s.stopped?
-      x = "#{s.to_i},stopped,signal=#{s.stopsig}"
-    elsif s.coredump?
-      x = "#{s.to_i},coredumped"
-    end
-    return x
-  end
-
-  def cd(d)
-    path = Pathname.new(d)
-    if path.relative?
-      d = (Pathname.new(dir)+path).to_s
-    end
-    raise "directory '#{d}' not found" if !File.directory?(d)
-    @current_dir = d
-  end
-
-  def execute(cmd)
-    @queue.enq(cmd)
-  end
-
-  def close
-    @queue.enq(nil)
-  end
-
-  def join
-    @pipe_thread.join if @pipe_thread
-    @exec_thread.join if @exec_thread
-    WorkerSet.delete(@id)
-  end
-
-  def kill(sig)
-    sig = sig.to_i if /^\d+$/=~sig
-    Process.kill(sig,@pid) if @pid
-  end
-end
-
-
-class GfarmWorker < Worker
-  @@gfarm_top = "/tmp"
-  @@gfarm_prefix = nil
-
-  class << self
-    def init
-      @@gfarm_prefix = "#{@@gfarm_top}/pwrake_#{ENV['USER']}_#{Properties.project}_"
-      if !Dir.glob(@@gfarm_prefix+"*").empty?
-        raise "Already running worker:#{Properties.project}"
-      end
-    end
-  end
-
-  def dir
-    @gfarm_mountpoint + (@current_dir || Properties.current_dir)
-  end
-
-  def initialize(id)
-    super(id)
-    raise "Gfarm uninitialized" if @@gfarm_prefix.nil?
-    @gfarm_mountpoint = "#{@@gfarm_prefix}#{@id}"
-
-    execute proc{
-      FileUtils.mkdir_p @gfarm_mountpoint
-      pid = spawn("gfarm2fs "+@gfarm_mountpoint)
-      Process.wait(pid)
-    }
-  end
-
-  def close
-    if File.directory? @gfarm_mountpoint
-      execute proc{
-        pid = spawn("fusermount -u "+@gfarm_mountpoint)
-        Process.wait(pid)
-        system "sync"
-      }
-      execute proc{
-        FileUtils.rmdir @gfarm_mountpoint
-      }
-    end
-    super
-  end
-
-  def cd(dir)
-    pn = Pathname(dir)
-    if !pn.absolute?
-      pn = Pathname(@current_dir) + pn
-    end
-    real_path = Pathname(@gfarm_mountpoint) + pn
-    raise "directory #{real_path} not found" if !File.directory?(real_path.to_s)
-    @current_dir = pn.to_s
-  end
-end
-
-
-# --- start ---
-
-$io = Communicator.new
-$worker_class = Worker
-
-# $opts = Marshal.load($io.in)
-
-@node_id = ARGV[0]
-@ncore = ARGV[1] ? ARGV[1].to_i : Properties.count_cpu
-
-$io.puts "ncore:#{@ncore}"
-
-END{ WorkerSet.close_all }
-
-[:TERM,:INT].each do |sig|
-  Signal.trap(sig) do
-    WorkerSet.close_all
-    Kernel.exit
-  end
-end
-
-# --- initialize ---
-
-while line = $io.gets
-  line.chomp!
-  line.strip!
-  case line
-  when /^p$/o
-    WorkerSet.p
-
-  when /^fs:gfarm$/o
-    $worker_class = GfarmWorker
-    GfarmWorker.init
-    #
-  when /^new:(.*)$/o
-    $1.split.each do |id|
-      $worker_class.new(id)
-    end
-    #
-  when /^cd:(.*)$/o
-    dir = $1
-    Properties.chdir(dir)
-    #
-  when /^export:(\w+)=(.*)$/o
-    k,v = $1,$2
-    ENV[k] = v
-    #
-  when /^start:$/o
-    break
-    #
-  when /^exit_connection$/o
-    $io.puts "worker_exit: #{line}"
-    Kernel.exit
-  else
-    raise "invalid line: #{line}"
-  end
-end
-
-# Worker.start_all
-# $io.puts "start"
-
-# --- event loop ---
-
-while line = $io.gets
-  line.chomp!
-  line.strip!
-  case line
-    #
-  when /^(\d+):(.*)$/o
-    id,cmd = $1,$2
-    WorkerSet[id].execute(cmd)
-    #
-  when /^kill:(\d+):(.*)$/o
-    id,signal = $1,$2
-    WorkerSet[id].kill(signal)
-    #
-  when /^kill:(.*)$/o
-    sig = $1
-    sig = sig.to_i if /^\d+$/=~sig
-    $io.puts "worker killed. signal=#{sig}"
-    # WorkerSet.kill(sig)
-    Process.kill(sig, 0)
-    #
-  when /^exit_connection$/o
-    Kernel.exit
-    #
-  else
-    raise "invalid line: #{line}"
-  end
-end
+Pwrake::Invoker.new(ARGV).run

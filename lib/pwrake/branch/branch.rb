@@ -83,6 +83,7 @@ module Pwrake
           cmd = "ssh -x -T -q #{host} '"+
             "PATH=#{dir}:${PATH} exec pwrake_worker #{id} #{ncore}'"
           cmd = "PATH=#{dir}:${PATH} pwrake_worker #{id} #{ncore}"
+          cmd = "PATH=#{dir}:${PATH} pwrake_worker"
           conn = Communicator.new(host,cmd,ncore)
 
           #Marshal.dump(@wk_opt,conn.iow)
@@ -147,7 +148,7 @@ module Pwrake
       end
 
       fiber_list.each{|f| f.resume}
-      @ioevent.each{|conn| conn.send_cmd "start:"}
+      #@ioevent.each{|conn| conn.send_cmd "start:"}
     end
 
     def execute
