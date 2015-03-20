@@ -3,7 +3,7 @@ N=10
 rule ".o" => ".c" do |t|
   #sh "sleep 0.1; echo --- #{t.name} $$ `hostname` `pwd` ---"
   sh "hostname >& /dev/null"
-  sh "sleep 2"
+  #sh "sleep 2"
   #sh "env"
 end
 

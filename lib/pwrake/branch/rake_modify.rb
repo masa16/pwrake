@@ -38,10 +38,10 @@ module FileUtils
     cmd_log = cmd.join(" ").inspect
     #tm = Pwrake.timer("sh",cmd_log)
     #
-    chan = Pwrake::Channel.current
-    if chan
-      res    = chan.system(*cmd)
-      status = Rake::PseudoStatus.new(chan.status)
+    shell = Pwrake::Shell.current
+    if shell
+      res    = shell.system(*cmd)
+      status = Rake::PseudoStatus.new(shell.status)
     else
       res    = system(*cmd)
       status = $?
@@ -60,10 +60,10 @@ module FileUtils
     cmd_log = cmd.inspect
     tm = Pwrake.timer("bq",cmd_log)
     #
-    chan = Pwrake::Channel.current
-    if chan
-      res    = chan.backquote(*cmd)
-      status = chan.status
+    shell = Pwrake::Shell.current
+    if shell
+      res    = shell.backquote(*cmd)
+      status = shell.status
     else
       res    = Kernel.backquote(cmd)
       if !res && status.nil?

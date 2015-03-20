@@ -12,7 +12,9 @@ module Pwrake
         init("pwrake_branch")
         opts = branch_options(r)
         @branch = Branch.new(opts,r,w)
-        load_rakefile if @role.nil?
+        if @role.nil?
+          load_rakefile
+        end
         @branch.run
       end
     end

@@ -1,4 +1,5 @@
 require "yaml"
+#$DEBUG=true
 
 module Pwrake
 
@@ -168,6 +169,7 @@ module Pwrake
             dir = File.absolute_path(File.dirname($PROGRAM_NAME))
             args = Shellwords.shelljoin(ARGV)
             cmd = "ssh -x -T -q #{sub_host} '" +
+              "cd \"#{Dir.pwd}\";"+
               "PATH=#{dir}:${PATH} exec pwrake_branch #{args}'"
             conn = Communicator.new(sub_host,cmd)
             @ioevent.add_io(conn.ior,conn)
@@ -232,6 +234,7 @@ module Pwrake
 
     def invoke(root, args)
       while task_hash = @tracer.fetch_tasks(root)
+        #p task_hash
         return if task_hash.empty?
 
         # scheduling
@@ -275,11 +278,11 @@ module Pwrake
       @ioevent.each do |conn|
         conn.close if conn # finish if conn.respond_to?(:finish)
       end
-      @ioevent.each_io do |io|
-        while s=io.gets
-          Util.print s
-        end
-      end
+      #@ioevent.each_io do |io|
+      #  while s=io.gets
+      #    Util.print s
+      #  end
+      #end
       Util.dputs "branch:finish"
 
       # @ioevent.finish "exit_branch"
