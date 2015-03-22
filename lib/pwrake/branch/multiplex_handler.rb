@@ -4,12 +4,9 @@ module Pwrake
 
     RE_ID='\d+'
 
-    def initialize(io)
-      @io = io
+    def initialize
       @channel = {}
     end
-
-    attr_reader :io
 
     def add_channel(id,channel)
       @channel[id] = channel
@@ -19,8 +16,8 @@ module Pwrake
       @channel.each{|k,ch| ch.resume}
     end
 
-    def on_read
-      s = @io.gets
+    def on_read(io)
+      s = io.gets
       # $chk.print ">#{s}" if $dbg
       case s
       when /^(#{RE_ID}):(.*)$/

@@ -108,7 +108,7 @@ module Pwrake
 
       @fiber_list.each{|f| f.resume}
 
-      bh = BranchHandler.new(@ior,@queue)
+      bh = BranchHandler.new(@queue)
       Shell::DISPATCHER.attach_read(@ior,bh)
 
       # @ioevent.event_each do |conn,s|

@@ -3,7 +3,7 @@ require "pwrake/log"
 require "pwrake/logger"
 
 #require "pwrake/ioevent.rb"
-require "pwrake/communicator"
+#require "pwrake/communicator"
 
 require "pwrake/branch/branch_application"
 require "pwrake/branch/rake_modify.rb"
@@ -18,5 +18,5 @@ require "pwrake/branch/channel.rb"
 require "pwrake/branch/branch_handler.rb"
 
 class Rake::Application
-  prepend Pwrake::BranchApplication
+  include Pwrake::BranchApplication
 end

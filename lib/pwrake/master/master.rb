@@ -1,214 +1,38 @@
-require "yaml"
-#$DEBUG=true
-
 module Pwrake
 
   class Master
 
-    DEFAULT_CONFFILES = ["pwrake_conf.yaml"]
-    DEFAULT_CONF = {
-      'PWRAKE_CONF'=>'pwrake_conf.yaml',
-      'HOSTFILE'=>'hosts.yaml',
-      'FILESYSTEM'=>nil,
-      'LOGFILE'=>"Pwrake-%Y%m%d%H%M%S-%$.log",
-      'TRACE'=>true,
-      'MAIN_HOSTNAME'=>`hostname -f`.chomp
-    }
-
     def initialize
       setup_options
+      @dispatcher = IODispatcher.new
+      @id_by_taskname = {}
+      @idle_cores = {}
+      @workers = {}
     end
-
-    # load_rakefile
 
     def init(hosts=nil)
       setup_pass_env
       setup_filesystem
 
       if hosts
-        @hosts = hosts.dup
+        hosts = hosts.dup
       else
-        @hosts = YAML.load(open(@confopt['HOSTFILE']))
+        hosts = YAML.load(open(@confopt['HOSTFILE']))
+        #hosts = YAML.load(open("../../../test/hosts.yaml"))
       end
-      if @hosts.kind_of? Hash
-        @hosts = [@hosts]
+      if hosts.kind_of? Hash
+        hosts = [hosts]
       end
-      Util.dputs "@hosts=#{@hosts.inspect}"
-
-      @branch_set = []
-      @worker_set = []
-
-      @scheduler = RoundRobinScheduler.new
-      @tracer = Tracer.new
-
-      @ioevent = IOEvent.new
-      @task_set = {}
+      @host_map = parse_hosts(hosts)
+      Util.dputs "@host_map=#{@host_map.inspect}"
     end
 
-    def setup_options
-      @pwrake_conf = Rake.application.options.pwrake_conf
-
-      if @pwrake_conf
-        if !File.exist?(@pwrake_conf)
-          raise "Configuration file not found: #{@pwrake_conf}"
-        end
-      else
-        @pwrake_conf = DEFAULT_CONFFILES.find{|fn| File.exist?(fn)}
-      end
-
-      if @pwrake_conf.nil?
-        @confopt = {}
-      else
-        Util.dputs "@pwrake_conf=#{@pwrake_conf}"
-        @confopt = YAML.load(open(@pwrake_conf))
-      end
-
-      DEFAULT_CONF.each do |key,value|
-        if !@confopt[key]
-          @confopt[key] = value
-        end
-        if value = ENV[key]
-          @confopt[key] = value
-        end
-      end
-
-      @confopt['TRACE'] = Rake.application.options.trace
-      @confopt['VERBOSE'] = true if Rake.verbose
-      @confopt['SILENT'] = true if !Rake.verbose
-      @confopt['DRY_RUN'] = Rake.application.options.dryrun
-      #@confopt['RAKEFILE'] =
-      #@confopt['LIBDIR'] =
-      @confopt['RAKELIBDIR'] = Rake.application.options.rakelib.join(':')
-    end
-
-    def setup_pass_env
-      if envs = @confopt['PASS_ENV']
-        pass_env = {}
-
-        case envs
-        when Array
-          envs.each do |k|
-            k = k.to_s
-            if v = ENV[k]
-              pass_env[k] = v
-            end
-          end
-        when Hash
-          envs.each do |k,v|
-            k = k.to_s
-            if v = ENV[k] || v
-              pass_env[k] = v
-            end
-          end
-        else
-          raise "invalid option for PASS_ENV in pwrake_conf.yaml"
-        end
-
-        if pass_env.empty?
-          @confopt.delete('PASS_ENV')
-        else
-          @confopt['PASS_ENV'] = pass_env
-        end
-      end
-    end
-
-    def setup_filesystem
-      @filesystem = @confopt['FILESYSTEM']
-
-      if @filesystem.nil?
-        # get mountpoint
-        path = Pathname.pwd
-        while ! path.mountpoint?
-          path = path.parent
-        end
-        @mount_point = path
-        # get filesystem
-        open('/etc/mtab','r') do |f|
-          f.each_line do |l|
-            if /#{@mount_point} (?:type )?(\S+)/o =~ l
-              @mount_type = $1
-              break
-            end
-          end
-        end
-        case @mount_type
-        when /gfarm2fs/
-          @filesystem = 'gfarm'
-        when 'nfs'
-          @filesystem = 'nfs'
-        else
-          # raise "unknown filesystem : #{@mount_point} type #{@mount_type}"
-          @filesystem = 'local'
-        end
-
-        @confopt['FILESYSTEM'] = @filesystem
-      end
-
-      puts "FILESYSTEM=#{@filesystem}"
-
-      case @filesystem
-      when 'gfarm'
-        @cwd = "/"+Pathname.pwd.relative_path_from(@mount_point).to_s
-      when 'nfs'
-        @cwd = Dir.pwd
-      else
-        @cwd = Dir.pwd
-      end
-      @confopt['DIRECTORY'] = @cwd
-
-      puts "@cwd=#{@cwd}"
-    end
-
-    def setup_branches
-      tm = Time.now
-      wk_count = 0
-      conn_by_host = {}
-      if !ENV["T"]
-        @hosts.each do |a|
-          a.each_key do |sub_host|
-            dir = File.absolute_path(File.dirname($PROGRAM_NAME))
-            args = Shellwords.shelljoin(ARGV)
-            cmd = "ssh -x -T -q #{sub_host} '" +
-              "cd \"#{Dir.pwd}\";"+
-              "PATH=#{dir}:${PATH} exec pwrake_branch #{args}'"
-            conn = Communicator.new(sub_host,cmd)
-            @ioevent.add_io(conn.ior,conn)
-            conn_by_host[sub_host] = conn
-          end
-        end
-      else
-        sub_host = "localhost"
-        conn = Communicator.new(sub_host) do |r,w|
-          Rake.application.run_branch(r,w)
-        end
-        @ioevent.add_io(conn.ior,conn)
-        conn_by_host[sub_host] = conn
-      end
-      puts "pass1 t=#{Time.now-tm}"
-      tm = Time.now
-
-      @ioevent.event_each do |conn,s|
-        if !s or s.chomp != "pwrake_branch started"
-          p s
-          raise "pwrake_branch start failed: conn=#{conn.inspect}"
-        end
-        puts conn.host
-      end
-      puts "pass2 t=#{Time.now-tm}"
-      tm = Time.now
-
-      @ioevent.each do |conn|
-        Marshal.dump(@confopt,conn.iow)
-        conn.send_cmd "begin_worker_list"
-      end
-
-      puts "pass3 t=#{Time.now-tm}"
-      tm = Time.now
-
-      @hosts.each do |a|
+    def parse_hosts(hosts)
+      host_map = {}
+      hosts.each do |a|
         a.each do |sub_host,wk_hosts|
-          conn = conn_by_host[sub_host]
-          wk_hosts.map do |s|
+          list = host_map[sub_host] || []
+          wk_hosts.each do |s|
             h, ncore = s.split
             ncore = ncore.to_i if ncore
             if /(.*)\[([^-]+)(?:-|\.\.)([^-]+)\](.*)/o =~ h
@@ -217,77 +41,112 @@ module Pwrake
               range = h..h
             end
             range.each do |host|
-              # puts "connecting #{host} #{ncore}"
-              wk = WorkerChannel.new(conn.iow,host,ncore)
-              @worker_set.push(wk)
-              wk.send_worker
-              wk_count += 1
+              list << [host,ncore]
             end
           end
-          conn.send_cmd "end_worker_list"
+          host_map[sub_host] = list
         end
       end
-      puts "wk_count=#{wk_count}"
-      puts "pass4 t=#{Time.now-tm}"
-      tm = Time.now
+      host_map
     end
 
-    def invoke(root, args)
-      while task_hash = @tracer.fetch_tasks(root)
-        #p task_hash
-        return if task_hash.empty?
+    def setup_branches
+      @conn_list = []
+      host_list = []
 
-        # scheduling
-        @scheduler.assign(task_hash,@worker_set)
-
-        # send tasks
-        @worker_set.each do |wk|
-          wk.send_tasks
+      @host_map.each do |sub_host, wk_hosts|
+        conn = BranchCommunicator.new(sub_host,@confopt)
+        @conn_list << conn
+        @dispatcher.attach_read(conn.ior)
+        wk_hosts.each do |host,ncore,|
+          # puts "connecting #{host} #{ncore}"
+          chan = WorkerChannel.new(conn,host,ncore)
+          @workers[chan.id] = chan
+          @idle_cores[chan.id] = chan.ncore
+          host_list << host
         end
-
-        @ioevent.each do |conn|
-          conn.send_cmd "end_task_list"
-        end
-
-        #$stderr.puts "send task: #{Time.now-t} sec"
-        #t= Time.now
-
-        # event loop
-        @ioevent.event_loop do |conn,s|
-          s.chomp!
-          if /^taskend:(.*)$/o =~ s
-            task_name = $1
-            if t = task_hash.delete(task_name)
-              t.already_invoked = true
-            end
-            break if task_hash.empty?
-          else
-            Util.puts s
-          end
-        end
-        task_hash = nil
+        conn.send_cmd "end_worker_list"
       end
+
+      @task_queue = TaskQueue.new(host_list)
     end
 
+    attr_reader :task_queue
 
     def finish
-      if defined?(measure)
-        measure
-      end
+      @task_queue.finish if @task_queue
       Util.dputs "main:exit_branch"
-      @ioevent.each do |conn|
-        conn.close if conn # finish if conn.respond_to?(:finish)
+      BranchCommunicator.close_all
+      @conn_list.each do |conn|
+        while s=conn.gets
+          Util.print s
+        end
       end
-      #@ioevent.each_io do |io|
-      #  while s=io.gets
-      #    Util.print s
-      #  end
-      #end
       Util.dputs "branch:finish"
+    end
 
-      # @ioevent.finish "exit_branch"
+    def invoke(t, args)
+      t.pw_search_tasks(args)
+      wake_idle_core
+      @dispatcher.event_loop do |io|
+        s = io.gets
+        s.chomp!
+        case s
+        when /^taskend:(.*)$/o
+          on_taskend($1)
+        when /^exit_connection$/o
+          p s
+          true
+        else
+          Util.puts s
+          nil
+        end
+      end
+    end
+
+    def on_taskend(task_name)
+      puts "taskend:"+task_name
+      id = @id_by_taskname.delete(task_name)
+      t = Rake.application[task_name]
+      t.pw_enq_subsequents
+      @idle_cores[id] += t.n_used_cores
+      if @id_by_taskname.empty? && Rake.application.task_queue.empty?
+        puts "End of all tasks"
+        return true
+      end
+      wake_idle_core
+      nil
+    end
+
+    def wake_idle_core
+      @idle_cores.keys.each do |id|
+        if t = @task_queue.deq(@workers[id].host)
+          puts "deq: #{t.name}"
+          if @idle_cores[id] < t.n_used_cores
+            @task_queue.enq(t)
+          else
+            @idle_cores[id] -= t.n_used_cores
+            @id_by_taskname[t.name] = id
+            @workers[id].send_cmd("#{id}:#{t.name}")
+            @workers[id].send_cmd("end_task_list")
+          end
+        end
+      end
     end
 
   end
-
 end
+
+module Rake
+  class Task
+    def n_used_cores
+      1
+    end
+  end
+  class Application
+    def task_queue
+      @role.task_queue
+    end
+  end
+end
+

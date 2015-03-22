@@ -5,25 +5,13 @@ module Pwrake
 
     RE_ID='\d+'
 
-    def initialize(io,queue)
-      @io = io
-      @channel = {}
+    def initialize(queue)
       @queue = queue
       @tasks = []
     end
 
-    attr_reader :io
-
-    def add_channel(id,channel)
-      @channel[id] = channel
-    end
-
-    def resume
-      @channel.each{|k,ch| ch.resume}
-    end
-
-    def on_read
-      s = @io.gets
+    def on_read(io)
+      s = io.gets
       #p s
       # receive command from main pwrake
       case s
@@ -46,13 +34,12 @@ module Pwrake
       when /^kill:(.*)$/o
         sig = $1
         # Util.puts "branch:kill:#{sig}"
-        Communicator.kill(sig)
         Kernel.exit
         return true
       else
         puts "Invalild item: #{s}"
       end
-      resume
+      #resume
       return false
     end
 

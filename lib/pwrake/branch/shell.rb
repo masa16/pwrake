@@ -86,7 +86,7 @@ module Pwrake
 
     def new_connection(path=nil)
       io = IO.popen(system_cmd,"r+")
-      mh = MultiplexHandler.new(io)
+      mh = MultiplexHandler.new
       DISPATCHER.attach_read(io,mh)
       MUX_HDL[io] = mh
 
