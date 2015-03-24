@@ -6,37 +6,39 @@ module Pwrake
     @@killed = false
 
     def initialize(host,opts,*args)
-      @ior,w1 = IO.pipe
+      @ior,w0 = IO.pipe
+      @ioe,w1 = IO.pipe
       r2,@iow = IO.pipe
       if host != "localhost" || /^(n|f)/i =~ ENV['T']
         dir = File.absolute_path(File.dirname($PROGRAM_NAME))
         args = Shellwords.shelljoin(ARGV)
         cmd = "ssh -x -T -q #{host} '" +
           "cd \"#{Dir.pwd}\";"+
-          "PATH=#{dir}:${PATH} exec pwrake_branch #{args}'"
-        @pid = spawn(cmd,:pgroup=>true,:out=>w1,:err=>$stderr,:in=>r2)
+          "PATH=#{dir}:${PATH} exec pwrake_branch'"
+        Log.debug("BranchCommunicator cmd=#{cmd}")
+        @pid = spawn(cmd,:pgroup=>true,:out=>w0,:err=>w1,:in=>r2)
+        w0.close
         w1.close
         r2.close
-        sleep 0.01
+        #sleep 0.01
+        wait_branch
+        Marshal.dump(opts,@iow)
       else
-        @thread = Thread.new(r2,w1) do |r,w|
-          Rake.application.run_branch(r,w)
+        @thread = Thread.new(r2,w0,opts) do |r,w,o|
+          Rake.application.run_branch_in_thread(r,w,o)
         end
       end
       @@communicators << self
-      start_branch(opts)
     end
 
-    attr_reader :ior, :iow, :host
+    attr_reader :ior, :ioe, :iow, :host
 
-    def start_branch(opts)
+    def wait_branch
       s = @ior.gets
-      if !s or s.chomp != "pwrake_branch started"
+      if !s or s.chomp != "pwrake_branch start"
         p s
         raise "pwrake_branch start failed: conn=#{self.inspect}"
       end
-      Marshal.dump(opts,@iow)
-      send_cmd "begin_worker_list"
     end
 
     def send_cmd(cmd)
@@ -45,7 +47,7 @@ module Pwrake
     end
 
     def print(x)
-      puts "<"+x
+      #puts "<"+x
       @iow.print x
     end
 

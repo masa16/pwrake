@@ -2,31 +2,19 @@ module Pwrake
 
   module TaskAlgorithm
 
-    def invoke_modify(*args)
-      return if @already_invoked
-      application.start_worker
-      pw_search_tasks(args)
-      application.task_queue.enq(nil)
-      IODispatcher.event_loop
-    end
-
-    def pw_invoke
-      return if @already_invoked
-      @already_invoked = true
-      pw_execute(@arg_data) if needed?
-      pw_enq_subsequents
-    end
-
-
     # Execute the actions associated with this task.
     def pw_execute(args=nil)
       args ||= Rake::EMPTY_TASK_ARGS
       if application.options.dryrun
-        Log.info "** Execute (dry run) #{name}"
+        #Log.info "** Execute (dry run) #{name}"
+        application.trace "** Execute (dry run) #{name}"
+        #puts "** Execute (dry run) #{name}"
         return
       end
       if application.options.trace
-        Log.info "** Execute #{name}"
+        #Log.info "** Execute #{name}"
+        application.trace "** Execute #{name}"
+        #puts "** Execute #{name}"
       end
       application.enhance_with_matching_rule(name) if @actions.empty?
       begin

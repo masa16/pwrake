@@ -18,11 +18,12 @@ module Pwrake
       when /^(\d+):(.+)$/o
         id, tname = $1,$2
         task = Rake.application[tname]
-        @tasks.push(task)
+        @queue.enq(task)
 
       when /^end_task_list$/o
-        @queue.enq(@tasks)
-        @tasks.clear
+        raise
+        #@queue.enq(@tasks)
+        #@tasks.clear
 
       when /^exit_connection$/o
         p s

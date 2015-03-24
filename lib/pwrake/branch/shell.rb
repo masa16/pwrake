@@ -33,6 +33,7 @@ module Pwrake
     end
 
     def initialize(host,opt={})
+      $stderr.puts "host=#{host}"
       @host = host || 'localhost'
       @lock = DummyMutex.new
       @@current_id = @@current_id.succ
@@ -85,6 +86,7 @@ module Pwrake
     end
 
     def new_connection(path=nil)
+      $stderr.puts system_cmd
       io = IO.popen(system_cmd,"r+")
       mh = MultiplexHandler.new
       DISPATCHER.attach_read(io,mh)

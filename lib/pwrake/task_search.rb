@@ -22,6 +22,7 @@ module Pwrake
       @lock.synchronize do
         if application.options.trace
           #Log.info "** Search #{name} #{format_search_flags}"
+          application.trace "** Search #{name} #{format_search_flags}"
         end
 
         return true if @already_finished # <<--- competition !!!

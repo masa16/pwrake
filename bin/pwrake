@@ -9,8 +9,18 @@ end
 
 libpath = File.absolute_path(File.dirname(__FILE__))+"/../lib"
 $LOAD_PATH.unshift libpath
+
 require "pwrake/master"
 require "pwrake/branch"
+class Rake::Application
+  prepend Pwrake::MasterApplication
+  prepend Pwrake::BranchApplication
+end
+class Rake::Task
+  include Pwrake::TaskAlgorithm
+  include Pwrake::TaskSearch
+end
+
 require "tracer"
 #Tracer.on
 Rake.application.run

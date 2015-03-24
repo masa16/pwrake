@@ -10,11 +10,9 @@ module Pwrake
       @ncore = ncore || 1
       @id = @@current_id
       @@current_id = @@current_id.succ
-      # @tasks = []
-      x = "#{@id}:#{@host} #{@ncore}\n"
-      @io.print(x)
-      @io.flush
-
+      #x = "#{@id}:#{@host} #{@ncore}\n"
+      #@io.print(x)
+      #@io.flush
     end
 
     attr_reader :io, :host, :id, :ncore

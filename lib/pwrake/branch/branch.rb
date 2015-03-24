@@ -15,11 +15,33 @@ module Pwrake
     end
 
     def init
+      #init_logger
       # setup_options
       # pp @options
       # set_env
       # setup_filesystem
     end
+
+    def init_logger(logfile=nil)
+      if logfile
+        dir = File.dirname(logfile)
+        if !File.directory?(dir)
+          mkdir_p dir
+        end
+        @logger = Logger.new(logfile)
+      else
+        @logger = Logger.new($stdout)
+      end
+
+      if @options['DEBUG']
+        @logger.level = Logger::DEBUG
+      elsif @options['TRACE']
+        @logger.level = Logger::INFO
+      else
+        @logger.level = Logger::WARN
+      end
+    end
+    attr_reader :logger
 
     # Rakefile is loaded after 'init' before 'run'
 
@@ -85,10 +107,10 @@ module Pwrake
             ncore = 1
           end
           ncore.times.map do
-            @shells << Pwrake::Shell.new(host)
+            @shells << @options.shell_class.new(host,@options.shell_option)
           end
         else
-          raise "invalid workers"
+          raise RuntimeError,"invalid workers: #{s}"
         end
       end
 
@@ -97,8 +119,8 @@ module Pwrake
           shell.start
           while task = @queue.deq
             #p task
-            task.execute
-            @queue.release(task.resource)
+            task.pw_execute
+            #@queue.release(task.resource)
             @iow.puts "taskend:#{task.name}"
             @iow.flush
           end

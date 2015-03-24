@@ -3,75 +3,84 @@ module Pwrake
   class Master
 
     def initialize
-      setup_options
       @dispatcher = IODispatcher.new
       @id_by_taskname = {}
       @idle_cores = {}
       @workers = {}
+      @writer = {}
+      @option = Option.new
+      init_logger(@option['LOGFILE'])
     end
+
+    attr_reader :task_queue
+    attr_reader :option
 
     def init(hosts=nil)
-      setup_pass_env
-      setup_filesystem
-
-      if hosts
-        hosts = hosts.dup
-      else
-        hosts = YAML.load(open(@confopt['HOSTFILE']))
-        #hosts = YAML.load(open("../../../test/hosts.yaml"))
-      end
-      if hosts.kind_of? Hash
-        hosts = [hosts]
-      end
-      @host_map = parse_hosts(hosts)
-      Util.dputs "@host_map=#{@host_map.inspect}"
+      @option.init
+      #init_option # Pwrake::Option
+      #setup_option # Pwrake::Option
+      #@host_map = @option.init_host_map
+      #@filesystem = @option.init_filesystem
     end
 
-    def parse_hosts(hosts)
-      host_map = {}
-      hosts.each do |a|
-        a.each do |sub_host,wk_hosts|
-          list = host_map[sub_host] || []
-          wk_hosts.each do |s|
-            h, ncore = s.split
-            ncore = ncore.to_i if ncore
-            if /(.*)\[([^-]+)(?:-|\.\.)([^-]+)\](.*)/o =~ h
-              range = ($1+$2+$4)..($1+$3+$4)
-            else
-              range = h..h
-            end
-            range.each do |host|
-              list << [host,ncore]
-            end
-          end
-          host_map[sub_host] = list
+    def init_logger(logfile=nil)
+      if logfile
+        logdir = File.dirname(logfile)
+        if !File.directory?(logdir)
+          mkdir_p logdir
         end
+        @logger = Logger.new(logfile)
+      else
+        @logger = Logger.new($stdout)
       end
-      host_map
+
+      if @option['DEBUG']
+        @logger.level = Logger::DEBUG
+      elsif @option['TRACE']
+        @logger.level = Logger::INFO
+      else
+        @logger.level = Logger::WARN
+      end
     end
+    attr_reader :logger
+
+    def init_tasklog
+      if @tasklog
+        @task_logger = File.open(@tasklog,'w')
+        h = %w[
+          task_id task_name start_time end_time elap_time preq preq_host
+          exec_host shell_id has_action executed file_size file_mtime file_host
+        ].join(',')+"\n"
+        @task_logger.print h
+      end
+    end
+
 
     def setup_branches
       @conn_list = []
       host_list = []
 
-      @host_map.each do |sub_host, wk_hosts|
-        conn = BranchCommunicator.new(sub_host,@confopt)
+      @option.host_map.each do |sub_host, wk_hosts|
+        conn = BranchCommunicator.new(sub_host,@option)
         @conn_list << conn
         @dispatcher.attach_read(conn.ior)
-        wk_hosts.each do |host,ncore,|
+        @writer[conn.ior] = $stdout
+        @dispatcher.attach_read(conn.ioe)
+        @writer[conn.ioe] = $stderr
+        conn.send_cmd "begin_worker_list"
+        wk_hosts.each do |host_info|
           # puts "connecting #{host} #{ncore}"
-          chan = WorkerChannel.new(conn,host,ncore)
+          chan = WorkerChannel.new(conn,host_info.name,host_info.ncore)
           @workers[chan.id] = chan
           @idle_cores[chan.id] = chan.ncore
-          host_list << host
+          host_list << host_info.name
+          conn.send_cmd "#{chan.id}:#{chan.host} #{chan.ncore}"
         end
         conn.send_cmd "end_worker_list"
       end
 
-      @task_queue = TaskQueue.new(host_list)
+      @task_queue = @option.queue_class.new(host_list)
     end
-
-    attr_reader :task_queue
 
     def finish
       @task_queue.finish if @task_queue
@@ -98,14 +107,14 @@ module Pwrake
           p s
           true
         else
-          Util.puts s
+          @writer[io].puts(s)
           nil
         end
       end
     end
 
     def on_taskend(task_name)
-      puts "taskend:"+task_name
+      puts "taskend: "+task_name
       id = @id_by_taskname.delete(task_name)
       t = Rake.application[task_name]
       t.pw_enq_subsequents
@@ -128,11 +137,12 @@ module Pwrake
             @idle_cores[id] -= t.n_used_cores
             @id_by_taskname[t.name] = id
             @workers[id].send_cmd("#{id}:#{t.name}")
-            @workers[id].send_cmd("end_task_list")
           end
         end
       end
     end
+
+
 
   end
 end
@@ -145,7 +155,7 @@ module Rake
   end
   class Application
     def task_queue
-      @role.task_queue
+      @master.task_queue
     end
   end
 end
