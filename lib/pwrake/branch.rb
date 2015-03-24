@@ -2,7 +2,7 @@ require "pwrake/util.rb"
 require "pwrake/logger"
 
 require "pwrake/branch/branch_application"
-require "pwrake/branch/rake_modify.rb"
+require "pwrake/branch/file_utils.rb"
 require "pwrake/branch/branch.rb"
 require "pwrake/branch/fiber_queue.rb"
 
