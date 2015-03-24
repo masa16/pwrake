@@ -95,6 +95,10 @@ module Pwrake
       s = @ior.gets
       raise if s.chomp != "begin_worker_list"
 
+      if fn = @options["PROFILE"]
+        Shell.profiler.open(fn,@options['GNU_TIME'],@options['PLOT_PARALLELISM'])
+      end
+
       while s = @ior.gets
         s.chomp!
         #p s

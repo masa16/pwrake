@@ -1,4 +1,4 @@
-require 'pwrake/profiler'
+require 'pwrake/branch/shell_profiler'
 require 'pwrake/io_dispatcher'
 
 module Pwrake
@@ -22,7 +22,7 @@ module Pwrake
     @@shell = "ruby "+File.expand_path(File.dirname(__FILE__))+"/../../../bin/pwrake_worker"
     @@nice = "nice"
     @@current_id = "0"
-    @@profiler = Profiler.new
+    @@profiler = ShellProfiler.new
 
     def self.profiler
       @@profiler
@@ -187,11 +187,11 @@ module Pwrake
       start_time = Time.now
       begin
         @chan.puts(cmd)
-        status = io_read_loop(&block)
+        @status = io_read_loop(&block)
       ensure
         end_time = Time.now
         @status = @@profiler.profile(@current_task, cmd,
-                                     start_time, end_time, host, status)
+                                     start_time, end_time, host, @status)
       end
     end
 

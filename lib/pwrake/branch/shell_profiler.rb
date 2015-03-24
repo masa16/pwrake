@@ -1,6 +1,6 @@
 module Pwrake
 
-  class Profiler
+  class ShellProfiler
 
     HEADER_FOR_PROFILE =
       %w[exec_id task_id task_name command

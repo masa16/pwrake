@@ -8,9 +8,6 @@ module Pwrake
     attr_reader :postprocess
 
     def setup_filesystem
-      if fn = self["PROFILE"]
-        Shell.profiler.open(fn,self['GNU_TIME'],self['PLOT_PARALLELISM'])
-      end
 
       @shell_option = {
         :work_dir  => self['WORK_DIR'],
