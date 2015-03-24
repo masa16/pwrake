@@ -132,7 +132,7 @@ module Pwrake
       command = command.join(' ')
       #puts command
       @lock.synchronize do
-        _execute(command){|x| puts "[#{@id}] #{x}"}
+        _execute(command){|x| print x+"\n"}
       end
       @status == 0
     end
@@ -196,23 +196,20 @@ module Pwrake
     end
 
     def io_read_loop
-      while x = @chan.gets
-        case x
-        when String
-          x.chomp!
-          yield x
-        when Array
-          case x[0]
-          when :end
-            status = x[2].to_i
-            break
-          end
+      while x = @chan.deq
+        case x[0]
+        when :start
+          @pid = x[1].to_i
+        when :out
+          yield x[1]
+        when :err
+          $stderr.print x[1]+"\n"
+        when :end
+          return x[2].to_i
         else
-          print "Invalid result: #{x.inspect}\n"
+          $stderr.print "Invalid result: #{x.inspect}\n"
         end
       end
-      #puts "status=#{status}"
-      return status
     end
 
   end

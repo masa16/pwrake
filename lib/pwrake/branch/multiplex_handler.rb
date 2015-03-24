@@ -22,11 +22,13 @@ module Pwrake
       case s
       when /^(#{RE_ID}):(.*)$/
         id,item = $1,$2
-        @channel[id].enq(item)
+        #@channel[id].enq(item)
+        @channel[id].enq([:out,item])
         #
       when /^(#{RE_ID})e:(.*)$/
         id,item = $1,$2
-        @channel[id].enq_err(item)
+        #@channel[id].enq_err(item)
+        @channel[id].enq([:err,item])
         #
       when /^end:(#{RE_ID})(?::(\d+):([^,]*),(.*))?$/
         id,pid,stat_val,stat_cond = $1,$2,$3,$4

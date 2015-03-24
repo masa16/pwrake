@@ -21,7 +21,12 @@ module Pwrake
       @io.flush
     end
 
-    def gets
+    def enq(item)
+      @queue.push(item)
+      resume
+    end
+
+    def deq
       @fiber = Fiber.current
       while @queue.empty?
         Fiber.yield
@@ -30,27 +35,8 @@ module Pwrake
       @queue.shift
     end
 
-    def gets_err
-      @fiber = Fiber.current
-      while @queue_err.empty?
-        Fiber.yield
-      end
-      @fiber = nil
-      @queue_err.shift
-    end
-
     def resume
       @fiber.resume if @fiber
-    end
-
-    def enq(item)
-      @queue.push(item)
-      resume
-    end
-
-    def enq_err(item)
-      @queue_err.push(item)
-      resume
     end
 
   end
