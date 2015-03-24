@@ -15,7 +15,7 @@ module Pwrake
           raise "opts is not a Hash: opts=#{opts.inspect}"
         end
         @branch = Branch.new(opts,r,w)
-        @branch.init_logger
+        #@branch.init_logger
         opts.feedback_options
         load_rakefile
         @branch.run

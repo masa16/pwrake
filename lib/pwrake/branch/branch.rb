@@ -11,37 +11,7 @@ module Pwrake
       @shells = []
       @ior = r
       @iow = w
-      init
     end
-
-    def init
-      #init_logger
-      # setup_options
-      # pp @options
-      # set_env
-      # setup_filesystem
-    end
-
-    def init_logger(logfile=nil)
-      if logfile
-        dir = File.dirname(logfile)
-        if !File.directory?(dir)
-          mkdir_p dir
-        end
-        @logger = Logger.new(logfile)
-      else
-        @logger = Logger.new($stdout)
-      end
-
-      if @options['DEBUG']
-        @logger.level = Logger::DEBUG
-      elsif @options['TRACE']
-        @logger.level = Logger::INFO
-      else
-        @logger.level = Logger::WARN
-      end
-    end
-    attr_reader :logger
 
     # Rakefile is loaded after 'init' before 'run'
 
@@ -49,8 +19,6 @@ module Pwrake
       begin
         begin
           setup_shells
-          # setup_fibers
-          # execute
           Shell::DISPATCHER.event_loop
         rescue => e
           $stderr.puts e.message

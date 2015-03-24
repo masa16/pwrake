@@ -14,7 +14,6 @@ module Pwrake
     OPEN_LIST={}
     HOST_IO={}
     BY_FIBER={}
-    #@@shell = "sh"
     MUX_HDL={}
 
     DISPATCHER=IODispatcher.new
@@ -57,7 +56,6 @@ module Pwrake
     end
 
     def start
-      #Pwrake.current_shell = self
       BY_FIBER[Fiber.current] = self
       open()
       cd_work_dir
@@ -77,12 +75,6 @@ module Pwrake
       MUX_HDL[@io].add_channel(@id,@chan)
 
       OPEN_LIST[__id__] = self
-      #_system "export PATH='#{path}'"
-      #if @pass_env
-      #  @pass_env.each do |k,v|
-      #    _system "export #{k}='#{v}'"
-      #  end
-      #end
     end
 
     def new_connection(path=nil)
@@ -130,7 +122,6 @@ module Pwrake
 
     def system(*command)
       command = command.join(' ')
-      #puts command
       @lock.synchronize do
         _execute(command){|x| print x+"\n"}
       end
@@ -162,22 +153,10 @@ module Pwrake
       @cmd = cmd
       raise "@io is closed" if @io.closed?
       @lock.synchronize do
-        #p cmd
         @chan.puts(cmd)
         status = io_read_loop{}
         Integer(status||1) == 0
       end
-    end
-
-    def _backquote(cmd)
-      @cmd = cmd
-      raise "@io is closed" if @io.closed?
-      a = []
-      @lock.synchronize do
-        @chan.puts(cmd)
-        status = io_read_loop{|x| a << x}
-      end
-      a.join("\n")
     end
 
     def _execute(cmd,quote=nil,&block)
@@ -212,7 +191,7 @@ module Pwrake
       end
     end
 
-  end
+  end # class Pwrake::Shell
 
 
   class NoActionShell < Shell
@@ -227,4 +206,4 @@ module Pwrake
     end
   end
 
-end # module Pwrake
+end
