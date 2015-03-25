@@ -17,10 +17,6 @@ module Pwrake
 
     def init(hosts=nil)
       @option.init
-      #init_option # Pwrake::Option
-      #setup_option # Pwrake::Option
-      #@host_map = @option.init_host_map
-      #@filesystem = @option.init_filesystem
     end
 
     def init_logger(logfile=nil)
@@ -42,6 +38,7 @@ module Pwrake
         @logger.level = Logger::WARN
       end
     end
+
     attr_reader :logger
 
     def init_tasklog
@@ -69,7 +66,7 @@ module Pwrake
         @writer[conn.ioe] = $stderr
         conn.send_cmd "begin_worker_list"
         wk_hosts.each do |host_info|
-          # puts "connecting #{host} #{ncore}"
+          $stderr.puts "connecting #{host_info.name} #{host_info.ncore}"
           chan = WorkerChannel.new(conn,host_info.name,host_info.ncore)
           @workers[chan.id] = chan
           @idle_cores[chan.id] = chan.ncore
@@ -114,7 +111,7 @@ module Pwrake
     end
 
     def on_taskend(task_name)
-      puts "taskend: "+task_name
+      #puts "taskend: "+task_name
       id = @id_by_taskname.delete(task_name)
       t = Rake.application[task_name]
       t.pw_enq_subsequents
@@ -130,7 +127,7 @@ module Pwrake
     def wake_idle_core
       @idle_cores.keys.each do |id|
         if t = @task_queue.deq(@workers[id].host)
-          puts "deq: #{t.name}"
+          #puts "deq: #{t.name}"
           if @idle_cores[id] < t.n_used_cores
             @task_queue.enq(t)
           else
@@ -141,8 +138,6 @@ module Pwrake
         end
       end
     end
-
-
 
   end
 end

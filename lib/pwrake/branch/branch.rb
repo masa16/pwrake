@@ -7,7 +7,6 @@ module Pwrake
       @queue = FiberQueue.new
       @timeout = 10
       @exit_cmd = "exit_connection"
-      #@ioevent = IOEvent.new
       @shells = []
       @ior = r
       @iow = w

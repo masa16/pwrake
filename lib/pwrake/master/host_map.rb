@@ -1,7 +1,7 @@
 module Pwrake
 
   class HostInfo
-    def initialize(name,ncore=1,weight=1,group=nil)
+    def initialize(name,ncore,weight,group=nil)
       @name = name
       @ncore = ncore
       @weight = weight
@@ -12,8 +12,20 @@ module Pwrake
       if @name != info.name || @group != info.group
         raise RuntimeError, "Cannot merge different host or group"
       end
-      @ncore += info.ncore
-      @weight += info.weight
+      if info.ncore
+        if @ncore
+          @ncore += info.ncore
+        else
+          @ncore = info.ncore
+        end
+      end
+      if info.weight
+        if @weight
+          @weight += info.weight
+        else
+          @weight = info.weight
+        end
+      end
     end
 
     attr_reader :name, :ncore, :weight, :group
@@ -93,8 +105,9 @@ module Pwrake
           rescue
             Log.info "-- FQDN not resoved : #{host}"
           end
-          ncore = (ncore || 1).to_i
-          weight = (weight || 1).to_f
+          ncore &&= ncore.to_i
+          weitht &&= weight.to_i
+          #weight = (weight || 1).to_f
           list << HostInfo.new(host,ncore,weight)
         end
       end

@@ -141,8 +141,11 @@ module Pwrake
     end
 
     at_exit {
-      OPEN_LIST.map do |k,v|
-        v.close
+      OPEN_LIST.map do |id,sh|
+        sh.close
+      end
+      HOST_IO.each do |h,io|
+        io.close
       end
       Shell.profiler.close
     }
