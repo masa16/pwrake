@@ -77,7 +77,7 @@ module Pwrake
           id, host, ncore = $1,$2,$3
           ncore &&= ncore.to_i
           #$stderr.puts "ncore=#{ncore}"
-          comm = WorkerCommunicator.new(id,host,ncore)
+          comm = WorkerCommunicator.new(id,host,ncore,@options.worker_option)
           @wk_comm[comm.ior] = comm
           @dispatcher.attach_communicator(comm)
           ios << comm.ior
@@ -99,7 +99,7 @@ module Pwrake
         @iow.flush
         #$stderr.puts "comm.ncore=#{comm.ncore}"
         comm.ncore.times do
-          @shells << @options.shell_class.new(comm,@options.shell_option)
+          @shells << @options.shell_class.new(comm)
         end
       end
 

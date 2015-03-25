@@ -55,31 +55,6 @@ module Pwrake
       end
     end
 
-    def event_once(timeout=10,&block)
-      ios = @rd_io.dup
-      $stderr.puts ios.inspect
-      while !ios.empty? and io_sel = select(ios,nil,nil,timeout)
-        for io in io_sel[0]
-          if io.eof?
-            detach_read(io)
-          else
-            yield(io)
-          end
-          ios.delete(io)
-        end
-      end
-      $stderr.puts "pass1"
-      # worker timeout
-      ios.each do |io|
-        Util.puts "timeout: #{io.inspect}"
-      end
-      # error check
-      if !ios.empty?
-        raise RuntimeError,"Error in connecting to worker"
-      end
-      $stderr.puts "end: event_once"
-    end
-
 
     def self.event_once(ios,timeout)
       while !ios.empty? and io_sel = select(ios,nil,nil,timeout)

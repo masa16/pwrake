@@ -24,7 +24,7 @@ module Pwrake
       BY_FIBER[Fiber.current]
     end
 
-    def initialize(comm,opt={})
+    def initialize(comm)
       @comm = comm
       @host = comm.host
       #$stderr.puts "@host=#{@host}"
@@ -32,8 +32,8 @@ module Pwrake
       @@current_id = @@current_id.succ
       @id = @@current_id
       #
-      @option = opt
-      @work_dir = @option[:work_dir] || Dir.pwd
+      #@option = opt
+      #@work_dir = @option[:work_dir] || Dir.pwd
     end
 
     attr_reader :id, :host, :status, :profile
@@ -44,9 +44,9 @@ module Pwrake
       @chan = Channel.new(@comm,@id)
       @comm.add_channel(@id,@chan)
       OPEN_LIST[__id__] = self
-      if @work_dir
-        _system("cd #{@work_dir}") or die
-      end
+      #if @work_dir
+      #  _system("cd #{@work_dir}") or die
+      #end
     end
 
     def finish

@@ -2,14 +2,14 @@ module Pwrake
 
   class Option
 
-    attr_reader :shell_option
+    attr_reader :worker_option
     attr_reader :shell_class
     attr_reader :queue_class
     attr_reader :postprocess
 
     def setup_filesystem
 
-      @shell_option = {
+      @worker_option = {
         :work_dir  => self['WORK_DIR'],
         :pass_env  => self['PASS_ENV'],
         :ssh_opt   => self['SSH_OPTION']
@@ -31,7 +31,7 @@ module Pwrake
         GfarmPath.subdir = self['GFARM_SUBDIR']
         @filesystem  = 'gfarm'
         @shell_class = GfarmShell
-        @shell_option.merge!({
+        @worker_option.merge!({
           :work_dir  => Dir.pwd,
           :single_mp => self['GFARM_SINGLE_MP'],
           :basedir   => self['GFARM_BASEDIR'],
