@@ -26,7 +26,7 @@ module Pwrake
         #@tasks.clear
 
       when /^exit_connection$/o
-        p s
+        #p s
         #@queue.enq([false])
         #@queue.finish
         Util.dputs "branch:exit_connection"

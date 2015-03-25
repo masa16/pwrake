@@ -6,7 +6,7 @@ module Pwrake
       @io = io
       @id = id
       @queue = []
-      @queue_err = []
+      #@queue_err = []
       @fiber = nil
     end
 
@@ -17,13 +17,17 @@ module Pwrake
       @io.flush
     end
 
-    def flush
-      @io.flush
+    def close
+      puts "exit"
+    end
+
+    def closed?
+      @io.closed?
     end
 
     def enq(item)
       @queue.push(item)
-      resume
+      @fiber.resume if @fiber
     end
 
     def deq
@@ -33,10 +37,6 @@ module Pwrake
       end
       @fiber = nil
       @queue.shift
-    end
-
-    def resume
-      @fiber.resume if @fiber
     end
 
   end

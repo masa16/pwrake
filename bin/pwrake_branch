@@ -18,6 +18,9 @@ class Rake::Task
   include Pwrake::TaskAlgorithm
 end
 
+require "tracer"
+#Tracer.on
+
 # $stderr = $stdout
 Rake.application.run_branch($stdin,$stdout)
 

@@ -7,6 +7,7 @@ require "pwrake/io_dispatcher"
 require "pwrake/util"
 require "pwrake/logger"
 
+require "pwrake/communicator"
 require "pwrake/master/branch_communicator"
 require "pwrake/master/option"
 require "pwrake/master/option_filesystem"

@@ -60,9 +60,8 @@ module Pwrake
       @option.host_map.each do |sub_host, wk_hosts|
         conn = BranchCommunicator.new(sub_host,@option)
         @conn_list << conn
-        @dispatcher.attach_read(conn.ior)
+        @dispatcher.attach_communicator(conn)
         @writer[conn.ior] = $stdout
-        @dispatcher.attach_read(conn.ioe)
         @writer[conn.ioe] = $stderr
         conn.send_cmd "begin_worker_list"
         wk_hosts.each do |host_info|

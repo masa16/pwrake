@@ -12,14 +12,7 @@ module Pwrake
   class Shell
 
     OPEN_LIST={}
-    HOST_IO={}
     BY_FIBER={}
-    MUX_HDL={}
-
-    DISPATCHER=IODispatcher.new
-
-    @@shell = "ruby "+File.expand_path(File.dirname(__FILE__))+"/../../../bin/pwrake_worker"
-    @@nice = "nice"
     @@current_id = "0"
     @@profiler = ShellProfiler.new
 
@@ -31,71 +24,30 @@ module Pwrake
       BY_FIBER[Fiber.current]
     end
 
-    def initialize(host,opt={})
-      $stderr.puts "host=#{host}"
-      @host = host || 'localhost'
+    def initialize(comm,opt={})
+      @comm = comm
+      @host = comm.host
+      $stderr.puts "@host=#{@host}"
       @lock = DummyMutex.new
       @@current_id = @@current_id.succ
       @id = @@current_id
       #
       @option = opt
       @work_dir = @option[:work_dir] || Dir.pwd
-      @pass_env = @option[:pass_env]
-      @ssh_opt = @option[:ssh_opt]
     end
 
-    attr_reader :id, :host
+    attr_reader :id, :host, :status, :profile
     attr_accessor :current_task
-
-    def system_cmd(*arg)
-      if ['localhost','localhost.localdomain','127.0.0.1'].include? @host
-        [@@nice,@@shell].join(' ')
-      else
-        "ssh -x -T -q #{@ssh_opt} #{@host} #{@@nice} #{@@shell}"
-      end
-    end
 
     def start
       BY_FIBER[Fiber.current] = self
-      open()
-      cd_work_dir
-    end
-
-    def cd_work_dir
-      _execute("cd #{@work_dir}") or die
-    end
-
-    def open(path=nil)
-      if io = HOST_IO[@host]
-        @io = io
-      else
-        @io = HOST_IO[@host] = new_connection(path)
-      end
-      @chan = Channel.new(@io,@id)
-      MUX_HDL[@io].add_channel(@id,@chan)
-
+      @chan = Channel.new(@comm,@id)
+      @comm.add_channel(@id,@chan)
       OPEN_LIST[__id__] = self
-    end
-
-    def new_connection(path=nil)
-      $stderr.puts system_cmd
-      io = IO.popen(system_cmd,"r+")
-      mh = MultiplexHandler.new
-      DISPATCHER.attach_read(io,mh)
-      MUX_HDL[io] = mh
-
-      if path
-        io.puts "export:PATH='#{path}'"
+      if @work_dir
+        _system("cd #{@work_dir}") or die
       end
-      if @pass_env
-        @pass_env.each do |k,v|
-          io.puts "export:#{k}='#{v}'"
-        end
-      end
-      return io
     end
-
-    attr_reader :host, :status, :profile
 
     def finish
       close
@@ -103,9 +55,10 @@ module Pwrake
 
     def close
       @lock.synchronize do
-        if !@io.closed?
-          @io.puts("exit")
-          # @io.close
+        @chan.close
+        if !@chan.closed?
+          #@io.puts("exit")
+          @chan.close
         end
         OPEN_LIST.delete(__id__)
       end
@@ -128,10 +81,6 @@ module Pwrake
       @status == 0
     end
 
-    def cd_work_dir
-      _system("cd #{@work_dir}") or die
-    end
-
     def cd(dir="")
       _system("cd #{dir}") or die
     end
@@ -144,9 +93,6 @@ module Pwrake
       OPEN_LIST.map do |id,sh|
         sh.close
       end
-      HOST_IO.each do |h,io|
-        io.close
-      end
       Shell.profiler.close
     }
 
@@ -154,7 +100,7 @@ module Pwrake
 
     def _system(cmd)
       @cmd = cmd
-      raise "@io is closed" if @io.closed?
+      raise "@chan is closed" if @chan.closed?
       @lock.synchronize do
         @chan.puts(cmd)
         status = io_read_loop{}
@@ -164,7 +110,7 @@ module Pwrake
 
     def _execute(cmd,quote=nil,&block)
       @cmd = cmd
-      raise "@io is closed" if @io.closed?
+      raise "@chan is closed" if @chan.closed?
       status = nil
       start_time = Time.now
       begin

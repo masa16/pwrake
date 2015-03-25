@@ -10,6 +10,7 @@ module Pwrake
       @shells = []
       @ior = r
       @iow = w
+      @wk_comm = {}
     end
 
     # Rakefile is loaded after 'init' before 'run'
@@ -17,8 +18,9 @@ module Pwrake
     def run
       begin
         begin
+          @dispatcher = IODispatcher.new
           setup_shells
-          Shell::DISPATCHER.event_loop
+          @dispatcher.event_loop
         rescue => e
           $stderr.puts e.message
           $stderr.puts e.backtrace
@@ -66,6 +68,7 @@ module Pwrake
         Shell.profiler.open(fn,@options['GNU_TIME'],@options['PLOT_PARALLELISM'])
       end
 
+      ios = []
       while s = @ior.gets
         s.chomp!
         #p s
@@ -77,11 +80,34 @@ module Pwrake
           else
             ncore = 1
           end
-          ncore.times.map do
-            @shells << @options.shell_class.new(host,@options.shell_option)
+          comm = WorkerCommunicator.new(id,host,ncore)
+          @wk_comm[comm.ior] = comm
+          @dispatcher.attach_communicator(comm)
+          ios << comm.ior
+        end
+      end
+
+      timeout = 10
+      while !ios.empty? and io_sel = select(ios,nil,nil,timeout)
+        for io in io_sel[0]
+          if io.eof?
+            break
+          else
+            if /ncore:(\d+)/ =~ s
+              @wk_comm[io].set_ncore($1.to_i)
+            end
           end
-        else
-          raise RuntimeError,"invalid workers: #{s}"
+          ios.delete(io)
+        end
+      end
+      if !ios.empty?
+        raise RuntimeError, "Connection error: from Branch to Worker"
+      end
+
+      @shells = []
+      @wk_comm.each_value do |comm|
+        comm.ncore.times do
+          @shells << @options.shell_class.new(comm,@options.shell_option)
         end
       end
 
@@ -102,26 +128,8 @@ module Pwrake
       @fiber_list.each{|f| f.resume}
 
       bh = BranchHandler.new(@queue)
-      Shell::DISPATCHER.attach_read(@ior,bh)
+      @dispatcher.attach_handler(@ior,bh)
 
-      # @ioevent.event_each do |conn,s|
-      #   if /ncore:(\d+)/ =~ s
-      #     conn.ncore = $1.to_i
-      #   end
-      # end
-      #
-      # if !@ioevent.closed.empty?
-      #   raise "Error in communicator setup from Branch to Worker"
-      # end
-      #
-      # if pass_env = @options['PASS_ENV']
-      #   @ioevent.each do |conn|
-      #     pass_env.each do |k,v|
-      #       conn.send_cmd "export:#{k}=#{v}"
-      #     end
-      #   end
-      # end
-      #
       # if @options['FILESYSTEM']=='gfarm'
       #   gfarm = true
       # end
@@ -135,79 +143,6 @@ module Pwrake
       #   conn.send_cmd "cd:#{@cwd}"
       # end
     end
-
-
-#    def setup_fibers
-#      fiber_list = []
-#
-#      @ioevent.each do |conn|
-#        conn.ncore.times do
-#
-#          f = Fiber.new do
-#            shell = Pwrake::Shell.new(conn)
-#            while task = @queue.deq
-#              task.execute
-#              @queue.release(task.resource)
-#              @iow.puts "taskend:#{task.name}"
-#              @iow.flush
-#            end
-#            shell.close
-#          end
-#
-#          fiber_list.push(f)
-#        end
-#      end
-#
-#      fiber_list.each{|f| f.resume}
-#      #@ioevent.each{|conn| conn.send_cmd "start:"}
-#    end
-#
-#    def execute
-#      tasks = []
-#
-#      @ioevent.add_io(@ior)
-#      @ioevent.event_loop do |conn,s|
-#        s.chomp!
-#        s.strip!
-#
-#        if conn==@ior
-#
-#          # receive command from main pwrake
-#          case s
-#
-#          when /^(\d+):(.+)$/o
-#            id, tname = $1,$2
-#            task = Rake.application[tname]
-#            tasks.push(task)
-#
-#          when /^end_task_list$/o
-#            @queue.enq(tasks)
-#            tasks.clear
-#
-#          when /^exit_connection$/o
-#            Util.dputs "branch:exit_connection"
-#            break
-#
-#          when /^kill:(.*)$/o
-#            sig = $1
-#            # Util.puts "branch:kill:#{sig}"
-#            Communicator.kill(sig)
-#            Kernel.exit
-#
-#          else
-#            @iow.puts "unknown command:#{s.inspect}"
-#          end
-#
-#        else
-#
-#          # read from worker
-#          if !Channel.check_line(s)
-#            @iow.puts '??:'+s
-#          end
-#        end
-#      end
-#      @queue.finish
-#    end
 
     def finish
       #@ioevent.delete_io(@ior)
@@ -229,5 +164,5 @@ module Pwrake
       @ior.close
     end
 
-  end # Branch
-end # Pwrake
+  end # Pwrake::Branch
+end
