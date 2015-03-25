@@ -5,8 +5,7 @@ module Pwrake
     def initialize(io,id)
       @io = io
       @id = id
-      @queue = []
-      #@queue_err = []
+      @queue = FiberQueue.new
       @fiber = nil
     end
 
@@ -25,18 +24,12 @@ module Pwrake
       @io.closed?
     end
 
-    def enq(item)
-      @queue.push(item)
-      @fiber.resume if @fiber
+    def enq(x)
+      @queue.enq(x)
     end
 
     def deq
-      @fiber = Fiber.current
-      while @queue.empty?
-        Fiber.yield
-      end
-      @fiber = nil
-      @queue.shift
+      @queue.deq
     end
 
   end

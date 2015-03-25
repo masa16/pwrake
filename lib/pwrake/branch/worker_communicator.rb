@@ -5,7 +5,7 @@ module Pwrake
     @@worker_command = "ruby "+File.expand_path(File.dirname(__FILE__))+
       "/../../../bin/pwrake_worker"
     RE_ID='\d+'
-    attr_reader :ncore
+    attr_reader :id, :host, :ncore
 
     def initialize(id,host,ncore,opt={})
       super(host)
@@ -64,6 +64,7 @@ module Pwrake
     def on_read(io)
       s = io.gets
       # $chk.print ">#{s}" if $dbg
+      # $stderr.puts s
       case s
       when /^(#{RE_ID}):(.*)$/
         id,item = $1,$2

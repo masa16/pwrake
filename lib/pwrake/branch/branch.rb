@@ -75,11 +75,8 @@ module Pwrake
         break if s == "end_worker_list"
         if /^(\d+):(\S+) (\d+)?$/ =~ s
           id, host, ncore = $1,$2,$3
-          if ncore
-            ncore = ncore.to_i
-          else
-            ncore = 1
-          end
+          ncore &&= ncore.to_i
+          #$stderr.puts "ncore=#{ncore}"
           comm = WorkerCommunicator.new(id,host,ncore)
           @wk_comm[comm.ior] = comm
           @dispatcher.attach_communicator(comm)
@@ -87,25 +84,20 @@ module Pwrake
         end
       end
 
-      timeout = 10
-      while !ios.empty? and io_sel = select(ios,nil,nil,timeout)
-        for io in io_sel[0]
-          if io.eof?
-            break
-          else
-            if /ncore:(\d+)/ =~ s
-              @wk_comm[io].set_ncore($1.to_i)
-            end
-          end
-          ios.delete(io)
+      # receive ncore from worker node
+      IODispatcher.event_once(ios,90) do |io|
+        s = io.gets
+        if /ncore:(\d+)/ =~ s
+          @wk_comm[io].set_ncore($1.to_i)
         end
-      end
-      if !ios.empty?
-        raise RuntimeError, "Connection error: from Branch to Worker"
       end
 
       @shells = []
       @wk_comm.each_value do |comm|
+        # set WorkerChannel#ncore at Master
+        @iow.puts "ncore:#{comm.id}:#{comm.ncore}"
+        @iow.flush
+        #$stderr.puts "comm.ncore=#{comm.ncore}"
         comm.ncore.times do
           @shells << @options.shell_class.new(comm,@options.shell_option)
         end
@@ -115,7 +107,7 @@ module Pwrake
         Fiber.new do
           shell.start
           while task = @queue.deq
-            #p task
+            #$stderr.puts "task=#{task.name} @queue=#{@queue.inspect} fiber=#{Fiber.current.inspect}"
             task.pw_execute
             #@queue.release(task.resource)
             @iow.puts "taskend:#{task.name}"
@@ -125,10 +117,12 @@ module Pwrake
         end
       end
 
-      @fiber_list.each{|f| f.resume}
+      #$stderr.puts @fiber_list.inspect
 
       bh = BranchHandler.new(@queue)
       @dispatcher.attach_handler(@ior,bh)
+
+      @fiber_list.each{|fb| fb.resume}
 
       # if @options['FILESYSTEM']=='gfarm'
       #   gfarm = true
@@ -156,8 +150,8 @@ module Pwrake
       #    end
       #  end
       #end
-      @shells.each do |shl|
-        shl.close
+      @shells.each do |s|
+        s.close
       end
       Util.dputs "branch:finish"
       @iow.close

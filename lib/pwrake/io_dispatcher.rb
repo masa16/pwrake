@@ -80,5 +80,22 @@ module Pwrake
       $stderr.puts "end: event_once"
     end
 
+
+    def self.event_once(ios,timeout)
+      while !ios.empty? and io_sel = select(ios,nil,nil,timeout)
+        for io in io_sel[0]
+          if io.eof?
+            break
+          else
+            yield(io)
+          end
+          ios.delete(io)
+        end
+      end
+      if !ios.empty?
+        raise RuntimeError, "Connection timeout"
+      end
+    end
+
   end
 end

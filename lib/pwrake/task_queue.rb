@@ -93,7 +93,7 @@ module Pwrake
         #t_inspect = t.inspect[0..1000]
         return t
       end
-      puts "deq: no items"
+      #puts "deq: no items"
       nil
     end
 

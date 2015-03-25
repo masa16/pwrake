@@ -6,20 +6,20 @@ module Pwrake
 
     def initialize
       @q = []
-      @empty = []
+      @waiter = []
       @finished = false
     end
 
     def enq(x)
       @q.push(x)
-      f = @empty.shift
+      f = @waiter.shift
       f.resume if f
     end
 
     def deq
       while @q.empty?
         return nil if @finished
-        @empty.push(Fiber.current)
+        @waiter.push(Fiber.current)
         Fiber.yield
       end
       return @q.shift
@@ -27,7 +27,7 @@ module Pwrake
 
     def finish
       @finished = true
-      f = @empty.shift
+      f = @waiter.shift
       f.resume if f
     end
 

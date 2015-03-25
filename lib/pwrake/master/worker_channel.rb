@@ -7,7 +7,7 @@ module Pwrake
     def initialize(io,host,ncore)
       @io = io
       @host = host
-      @ncore = ncore || 1
+      @ncore = ncore # || 1
       @id = @@current_id
       @@current_id = @@current_id.succ
       #x = "#{@id}:#{@host} #{@ncore}\n"
@@ -15,7 +15,8 @@ module Pwrake
       #@io.flush
     end
 
-    attr_reader :io, :host, :id, :ncore
+    attr_reader :io, :host, :id
+    attr_accessor :ncore
 
     def send_cmd(x)
       @io.print(x+"\n")

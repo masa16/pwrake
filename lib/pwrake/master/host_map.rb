@@ -33,16 +33,19 @@ module Pwrake
 
   class HostMap < Hash
 
-    def initialize(file=nil)
-      @file = file
+    def initialize(arg=nil)
       require "socket"
-      case @file
+      case arg
       when /\.yaml$/
-        read_yaml(@file)
+        read_yaml(arg)
       when String
-        read_host(@file)
+        read_host(arg)
+      when Integer
+        parse_hosts(["localhost #{arg}"])
+      when NilClass
+        parse_hosts(["localhost"])
       else
-        parse_hosts(['localhost'])
+        raise ArgumentError, "arg=#{arg.inspect}"
         #@num_threads = 1 if !@num_threads
         #@core_list = ['localhost'] * @num_threads
       end
@@ -65,7 +68,7 @@ module Pwrake
     end
 
     def parse_hosts(hosts)
-      p hosts
+      #p hosts
       if hosts.kind_of? Array
         hosts = {"localhost"=>hosts}
       end

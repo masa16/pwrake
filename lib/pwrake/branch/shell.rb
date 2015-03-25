@@ -27,7 +27,7 @@ module Pwrake
     def initialize(comm,opt={})
       @comm = comm
       @host = comm.host
-      $stderr.puts "@host=#{@host}"
+      #$stderr.puts "@host=#{@host}"
       @lock = DummyMutex.new
       @@current_id = @@current_id.succ
       @id = @@current_id
@@ -125,6 +125,7 @@ module Pwrake
 
     def io_read_loop
       while x = @chan.deq
+        #$stderr.puts "x=#{x.inspect}"
         case x[0]
         when :start
           @pid = x[1].to_i

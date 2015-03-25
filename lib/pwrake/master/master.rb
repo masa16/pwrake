@@ -56,6 +56,7 @@ module Pwrake
     def setup_branches
       @conn_list = []
       host_list = []
+      ios = []
 
       @option.host_map.each do |sub_host, wk_hosts|
         conn = BranchCommunicator.new(sub_host,@option)
@@ -65,14 +66,26 @@ module Pwrake
         @writer[conn.ioe] = $stderr
         conn.send_cmd "begin_worker_list"
         wk_hosts.each do |host_info|
-          $stderr.puts "connecting #{host_info.name} #{host_info.ncore}"
-          chan = WorkerChannel.new(conn,host_info.name,host_info.ncore)
+          name = host_info.name
+          ncore = host_info.ncore
+          $stderr.puts "connecting #{name} ncore=#{ncore}"
+          chan = WorkerChannel.new(conn,name,ncore)
           @workers[chan.id] = chan
-          @idle_cores[chan.id] = chan.ncore
-          host_list << host_info.name
-          conn.send_cmd "#{chan.id}:#{chan.host} #{chan.ncore}"
+          host_list << name
+          conn.send_cmd "#{chan.id}:#{name} #{ncore}"
+          ios << conn.ior
         end
         conn.send_cmd "end_worker_list"
+      end
+
+      # receive ncore from WorkerCommunicator at Branch
+      IODispatcher.event_once(ios,10) do |io|
+        s = io.gets
+        if /ncore:(\d+):(\d+)/ =~ s
+          id, ncore = $1.to_i, $2.to_i
+          @workers[id].ncore = ncore
+          @idle_cores[id] = ncore
+        end
       end
 
       @task_queue = @option.queue_class.new(host_list)
@@ -124,17 +137,24 @@ module Pwrake
     end
 
     def wake_idle_core
-      @idle_cores.keys.each do |id|
-        if t = @task_queue.deq(@workers[id].host)
-          #puts "deq: #{t.name}"
-          if @idle_cores[id] < t.n_used_cores
-            @task_queue.enq(t)
-          else
-            @idle_cores[id] -= t.n_used_cores
-            @id_by_taskname[t.name] = id
-            @workers[id].send_cmd("#{id}:#{t.name}")
+      while true
+        count = 0
+        @idle_cores.keys.each do |id|
+          if @idle_cores[id] > 0
+            if t = @task_queue.deq(@workers[id].host)
+              #puts "deq: #{t.name}"
+              if @idle_cores[id] < t.n_used_cores
+                @task_queue.enq(t)
+              else
+                @idle_cores[id] -= t.n_used_cores
+                @id_by_taskname[t.name] = id
+                @workers[id].send_cmd("#{id}:#{t.name}")
+                count += 1
+              end
+            end
           end
         end
+        break if count == 0
       end
     end
 
