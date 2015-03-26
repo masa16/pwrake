@@ -13,11 +13,10 @@ require "pwrake/master/option"
 require "pwrake/master/option_filesystem"
 require "pwrake/master/master"
 require "pwrake/master/host_map"
-require "pwrake/master/rake_modify"
 require "pwrake/master/master_application"
 require "pwrake/master/worker_channel"
 
 require "pwrake/task_queue"
 require "pwrake/task_algorithm"
 require "pwrake/task_search"
-
+require "pwrake/pwrake_task"

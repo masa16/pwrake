@@ -17,6 +17,15 @@ module Pwrake
 
     def init
       #init_tasklog
+      if @tasklog
+        @task_logger = File.open(@tasklog,'w')
+        h = %w[
+          task_id task_name start_time end_time elap_time preq preq_host
+          exec_host shell_id has_action executed file_size file_mtime file_host
+        ].join(',')+"\n"
+        @task_logger.print h
+      end
+
       #
       Log.debug "Options:"
       self.each do |k,v|

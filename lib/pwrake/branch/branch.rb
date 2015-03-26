@@ -108,7 +108,7 @@ module Pwrake
           shell.start
           while task = @queue.deq
             #$stderr.puts "task=#{task.name} @queue=#{@queue.inspect} fiber=#{Fiber.current.inspect}"
-            task.pw_execute
+            task.pw_invoke
             #@queue.release(task.resource)
             @iow.puts "taskend:#{task.name}"
             @iow.flush

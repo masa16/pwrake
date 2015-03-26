@@ -31,8 +31,7 @@ module Pwrake
 
         if ! @already_searched
           @already_searched = true
-          @arg_data = task_args
-          @lock_rank = Monitor.new
+          #@pw_task = PwrakeTask.new(self,task_args)
           if @prerequisites.empty?
             @unfinished_prereq = {}
           else

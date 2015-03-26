@@ -2,34 +2,15 @@ module Pwrake
 
   module TaskAlgorithm
 
-    # Execute the actions associated with this task.
-    def pw_execute(args=nil)
-      args ||= Rake::EMPTY_TASK_ARGS
-      if application.options.dryrun
-        #Log.info "** Execute (dry run) #{name}"
-        application.trace "** Execute (dry run) #{name}"
-        #puts "** Execute (dry run) #{name}"
-        return
+    attr_reader :pw_task
+
+    def pw_invoke
+      @lock.synchronize do
+        return if @already_invoked
+        @already_invoked = true
       end
-      if application.options.trace
-        #Log.info "** Execute #{name}"
-        application.trace "** Execute #{name}"
-        #puts "** Execute #{name}"
-      end
-      application.enhance_with_matching_rule(name) if @actions.empty?
-      begin
-        @actions.each do |act|
-          case act.arity
-          when 1
-            act.call(self)
-          else
-            act.call(self, args)
-          end
-        end
-      rescue Exception=>e
-        raise e
-      end
-      @executed = true if !@actions.empty?
+      @pw_task = PwrakeTask.new(self)
+      @pw_task.execute if needed?
     end
 
     def pw_enq_subsequents
