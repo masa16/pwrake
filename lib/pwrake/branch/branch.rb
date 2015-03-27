@@ -22,6 +22,7 @@ module Pwrake
           setup_shells
           @dispatcher.event_loop
         rescue => e
+          $stderr.puts "Error!!!"
           $stderr.puts e.message
           $stderr.puts e.backtrace
         end
@@ -108,8 +109,14 @@ module Pwrake
           shell.start
           while task = @queue.deq
             #$stderr.puts "task=#{task.name} @queue=#{@queue.inspect} fiber=#{Fiber.current.inspect}"
-            task.pw_invoke
-            #@queue.release(task.resource)
+            begin
+              task.execute
+            rescue Exception=>e
+              if task.kind_of?(Rake::FileTask) && File.exist?(task.name)
+                failprocess(task.name)
+              end
+              raise e
+            end
             @iow.puts "taskend:#{task.name}"
             @iow.flush
           end
@@ -138,6 +145,21 @@ module Pwrake
       # end
     end
 
+    def failprocess(name)
+      case @options['FAILED_TARGET']
+      when /rename/i, NilClass
+        dst = name+"._fail_"
+        ::FileUtils.mv(name,dst)
+        msg = "Rename failed target file '#{name}' to '#{dst}'"
+        $stderr.puts(msg)
+      when /delete/i
+        ::FileUtils.rm(name)
+        msg = "Delete failed target file '#{name}'"
+        $stderr.puts(msg)
+      when /leave/i
+      end
+    end
+
     def finish
       #@ioevent.delete_io(@ior)
       #@ioevent.each do |conn|
@@ -154,8 +176,12 @@ module Pwrake
         s.close
       end
       Util.dputs "branch:finish"
-      @iow.close
+      @iow.puts "exit_connection"
+      @iow.flush
+      #$stderr.puts @ior.gets
+      $stderr.flush
       @ior.close
+      @iow.close
     end
 
   end # Pwrake::Branch

@@ -1,6 +1,6 @@
 module Pwrake
 
-  class PwrakeTask
+  class TaskWrapper
 
     @@current_id = 1
 
@@ -22,42 +22,19 @@ module Pwrake
       @priority
       @lock_rank = Monitor.new
       @executed = false
+      @n_used_cores = 1
     end
 
     #@task.prerequisites
     #@task.subsequents
     #@task.actions
 
-    attr_reader :task_id, :group, :group_id, :file_stat
+    attr_reader :name, :task_id, :group, :group_id, :file_stat
     attr_reader :location
-    attr_accessor :executed
+    attr_accessor :executed, :n_used_cores
 
-
-    def execute
-      preprocess
-      @task.execute(@task_args)
-      postprocess
-    rescue Exception=>e
-      if @task.kind_of?(Rake::FileTask) && File.exist?(@name)
-        failprocess
-      end
-      raise e
-    end
-
-    def failprocess
-      opt = Rake.application.pwrake_options['FAILED_TARGET']||"rename"
-      case opt
-      when /rename/i
-        dst = @name+"._fail_"
-        ::FileUtils.mv(@name,dst)
-        msg = "Rename failed target file '#{@name}' to '#{dst}'"
-        $stderr.puts(msg)
-      when /delete/i
-        ::FileUtils.rm(@name)
-        msg = "Delete failed target file '#{@name}'"
-        $stderr.puts(msg)
-      when /leave/i
-      end
+    def actions
+      @task.actions
     end
 
     def preprocess
@@ -69,15 +46,16 @@ module Pwrake
 
     def postprocess
       @executed = true if !@task.actions.empty?
-      if kind_of?(Rake::FileTask)
+      if @task.kind_of?(Rake::FileTask)
         t = Time.now
-        Rake.application.postprocess(@task)
+        #Rake.application.postprocess(@task)
         if File.exist?(@name)
           @file_stat = File::Stat.new(@name)
         end
       end
       log_task
       @shell.current_task = nil if @shell
+      @task.pw_enq_subsequents
     end
 
     def log_task
@@ -86,13 +64,13 @@ module Pwrake
       loc = suggest_location()
       shell = Pwrake::Shell.current
       #
-      if loc && !loc.empty? && shell && !@actions.empty?
+      if loc && !loc.empty? && shell && !@task.actions.empty?
         Rake.application.count( loc, shell.host )
       end
       return if !Rake.application.options.task_logger
       #
       elap = time_end - @time_start
-      if !@actions.empty? && kind_of?(Rake::FileTask)
+      if !@task.actions.empty? && @task.kind_of?(Rake::FileTask)
         RANK_STAT.add_sample(rank,elap)
       end
       #
@@ -155,7 +133,7 @@ module Pwrake
         @suggest_location = []
         loc_fsz = Hash.new(0)
         @task.prerequisites.each do |preq|
-          t = Rake.application[preq].pw_info
+          t = Rake.application[preq].wrapper
           loc = t.location
           fsz = t.file_size
           if loc && fsz > 0
@@ -190,7 +168,7 @@ module Pwrake
                 max_rank = r
               end
             end
-            if @task.actions.empty? || !kind_of?(Rake::FileTask)
+            if @task.actions.empty? || !@task.kind_of?(Rake::FileTask)
               step = 0
             else
               step = 1
@@ -215,7 +193,7 @@ module Pwrake
       unless @input_file_size
         @input_file_size = 0
         @task.prerequisites.each do |preq|
-          @input_file_size += Rake.application[preq].pw_info.file_size
+          @input_file_size += Rake.application[preq].wrapper.file_size
         end
       end
       @input_file_size
@@ -226,7 +204,7 @@ module Pwrake
         hash = Hash.new
         max_sz = 0
         @task.prerequisites.each do |preq|
-          t = Rake.application[preq].pw_info
+          t = Rake.application[preq].wrapper
           sz = t.file_size
           if sz > 0
             hash[t] = sz
@@ -253,7 +231,7 @@ module Pwrake
         sum_tm = 0
         sum_sz = 0
         @task.prerequisites.each do |preq|
-          pq = Rake.application[preq].pw_info
+          pq = Rake.application[preq].wrapper
           sz = pq.file_size
           if sz > 0
             tm = pq.file_mtime - START_TIME

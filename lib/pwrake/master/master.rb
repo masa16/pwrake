@@ -125,8 +125,8 @@ module Pwrake
     def on_taskend(task_name)
       #puts "taskend: "+task_name
       id = @id_by_taskname.delete(task_name)
-      t = Rake.application[task_name]
-      t.pw_enq_subsequents
+      t = Rake.application[task_name].wrapper
+      t.postprocess
       @idle_cores[id] += t.n_used_cores
       if @id_by_taskname.empty? && Rake.application.task_queue.empty?
         puts "End of all tasks"
@@ -146,6 +146,7 @@ module Pwrake
               if @idle_cores[id] < t.n_used_cores
                 @task_queue.enq(t)
               else
+                t.preprocess
                 @idle_cores[id] -= t.n_used_cores
                 @id_by_taskname[t.name] = id
                 @workers[id].send_cmd("#{id}:#{t.name}")

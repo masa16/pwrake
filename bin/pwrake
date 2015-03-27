@@ -18,7 +18,6 @@ class Rake::Application
 end
 class Rake::Task
   include Pwrake::TaskAlgorithm
-  include Pwrake::TaskSearch
 end
 
 require "tracer"

@@ -14,9 +14,6 @@ require "pwrake/branch"
 class Rake::Application
   include Pwrake::BranchApplication
 end
-class Rake::Task
-  include Pwrake::TaskAlgorithm
-end
 
 require "tracer"
 #Tracer.on

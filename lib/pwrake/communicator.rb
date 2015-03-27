@@ -51,7 +51,10 @@ module Pwrake
     end
 
     def close
-      @iow.puts "exit_connection" if !@@killed
+      begin
+        @iow.puts "exit_connection" if !@@killed
+      rescue
+      end
       @iow.close
       @@communicators.delete(self)
     end
