@@ -16,17 +16,6 @@ module Pwrake
     end
 
     def init
-      #init_tasklog
-      if @tasklog
-        @task_logger = File.open(@tasklog,'w')
-        h = %w[
-          task_id task_name start_time end_time elap_time preq preq_host
-          exec_host shell_id has_action executed file_size file_mtime file_host
-        ].join(',')+"\n"
-        @task_logger.print h
-      end
-
-      #
       Log.debug "Options:"
       self.each do |k,v|
 	Log.debug " #{k} = #{v.inspect}"
@@ -42,7 +31,6 @@ module Pwrake
 
     attr_reader :counter
     #attr_reader :logfile
-    attr_reader :task_logger
     attr_reader :logger
 
     DEFAULT_CONFFILES = ["pwrake_conf.yaml","PwrakeConf.yaml"]
@@ -322,7 +310,6 @@ module Pwrake
     # ----- finish -----
 
     def finish_option
-      @task_logger.close if @task_logger
       Log.close
     end
 

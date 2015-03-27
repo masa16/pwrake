@@ -14,10 +14,8 @@ module Pwrake
 
     attr_reader :task_queue
     attr_reader :option
-
-    def init(hosts=nil)
-      @option.init
-    end
+    attr_reader :logger
+    attr_reader :task_logger
 
     def init_logger(logfile=nil)
       if logfile
@@ -39,19 +37,21 @@ module Pwrake
       end
     end
 
-    attr_reader :logger
+
+    def init(hosts=nil)
+      @option.init
+      init_tasklog
+    end
 
     def init_tasklog
-      if @tasklog
-        @task_logger = File.open(@tasklog,'w')
-        h = %w[
+      if tasklog = @option['TASKLOG']
+        @task_logger = File.open(tasklog,'w')
+        @task_logger.print %w[
           task_id task_name start_time end_time elap_time preq preq_host
           exec_host shell_id has_action executed file_size file_mtime file_host
         ].join(',')+"\n"
-        @task_logger.print h
       end
     end
-
 
     def setup_branches
       @conn_list = []
@@ -100,6 +100,7 @@ module Pwrake
           Util.print s
         end
       end
+      @task_logger.close if @task_logger
       Util.dputs "branch:finish"
     end
 
@@ -161,17 +162,3 @@ module Pwrake
 
   end
 end
-
-module Rake
-  class Task
-    def n_used_cores
-      1
-    end
-  end
-  class Application
-    def task_queue
-      @master.task_queue
-    end
-  end
-end
-

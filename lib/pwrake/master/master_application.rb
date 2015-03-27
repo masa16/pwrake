@@ -7,6 +7,14 @@ module Pwrake
       @role.logger
     end
 
+    def task_logger
+      @role.task_logger
+    end
+
+    def task_queue
+      @role.task_queue
+    end
+
     # Run the Pwrake application.
     def run
       standard_exception_handling do

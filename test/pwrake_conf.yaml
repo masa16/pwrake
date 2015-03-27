@@ -12,3 +12,6 @@ SCHEDULER : gfarm_affinity
 
 GFARM_MOUNT_DIR : /tmp
 GFARM_MOUNT_SUBDIR : /tmp
+
+#TASKLOG: true
+#PROFILE: true

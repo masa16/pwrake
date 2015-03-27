@@ -33,6 +33,10 @@ module Pwrake
     attr_reader :location
     attr_accessor :executed, :n_used_cores
 
+    def self.format_time(t)
+      t.strftime("%F %T.%L")
+    end
+
     def actions
       @task.actions
     end
@@ -67,14 +71,14 @@ module Pwrake
       if loc && !loc.empty? && shell && !@task.actions.empty?
         Rake.application.count( loc, shell.host )
       end
-      return if !Rake.application.options.task_logger
+      return if !Rake.application.task_logger
       #
-      elap = time_end - @time_start
+      elap = @time_end - @time_start
       if !@task.actions.empty? && @task.kind_of?(Rake::FileTask)
-        RANK_STAT.add_sample(rank,elap)
+        #RANK_STAT.add_sample(rank,elap)
       end
       #
-      row = [ @task_id, @name, @time_start, time_end, elap, @task.prerequisites.join('|') ]
+      row = [ @task_id, @name, @time_start, @time_end, elap, @task.prerequisites.join('|') ]
       #
       if loc
         row << loc.join('|')
@@ -99,7 +103,7 @@ module Pwrake
       #
       s = row.map do |x|
         if x.kind_of?(Time)
-          Profiler.format_time(x)
+          TaskWrapper.format_time(x)
         elsif x.kind_of?(String) && x!=''
           '"'+x+'"'
         else
@@ -109,7 +113,7 @@ module Pwrake
       #
       # task_id task_name start_time end_time elap_time preq preq_host
       # exec_host shell_id has_action executed file_size file_mtime file_host
-      Rake.application.options.task_logger.print s+"\n"
+      Rake.application.task_logger.print s+"\n"
     end
 
     def has_input_file?
