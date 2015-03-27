@@ -3,6 +3,10 @@ module Pwrake
   # a mixin for managing Rake application.
   module MasterApplication
 
+    def pwrake_options
+      @role.option
+    end
+
     def logger
       @role.logger
     end

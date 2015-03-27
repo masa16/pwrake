@@ -23,6 +23,7 @@ module Pwrake
       @lock_rank = Monitor.new
       @executed = false
       @n_used_cores = 1
+      @assigned = []
     end
 
     #@task.prerequisites
@@ -31,6 +32,7 @@ module Pwrake
 
     attr_reader :name, :task_id, :group, :group_id, :file_stat
     attr_reader :location
+    attr_reader :assigned
     attr_accessor :executed, :n_used_cores
 
     def self.format_time(t)

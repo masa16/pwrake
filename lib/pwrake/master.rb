@@ -16,6 +16,7 @@ require "pwrake/master/host_map"
 require "pwrake/master/master_application"
 require "pwrake/master/worker_channel"
 
-require "pwrake/task_queue"
+require "pwrake/queue/task_queue"
+require "pwrake/queue/locality_aware_queue"
 require "pwrake/task_algorithm"
 require "pwrake/task_wrapper"

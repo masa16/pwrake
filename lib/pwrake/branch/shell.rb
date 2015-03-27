@@ -108,6 +108,17 @@ module Pwrake
       end
     end
 
+    def _backquote(cmd)
+      @cmd = cmd
+      raise "@chan is closed" if @chan.closed?
+      a = []
+      @lock.synchronize do
+        @chan.puts(cmd)
+        status = io_read_loop{|x| a << x}
+      end
+      a.join("\n")
+    end
+
     def _execute(cmd,quote=nil,&block)
       @cmd = cmd
       raise "@chan is closed" if @chan.closed?

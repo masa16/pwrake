@@ -86,10 +86,11 @@ module Pwrake
           return false
         end
       end
+      n = 0
       if !@q_no_action.empty?
         return @q_no_action.shift
       end
-      if t = deq_impl(hint)
+      if t = deq_impl(hint, n)
         #t_inspect = t.inspect[0..1000]
         return t
       end

@@ -51,6 +51,14 @@ module Pwrake
       end
     end
 
+    def host_count
+      count = Hash.new{0}
+      self.each do |sub,list|
+        list.each{|h| count[h] += 1}
+      end
+      count
+    end
+
     private
 
     def read_host(file)

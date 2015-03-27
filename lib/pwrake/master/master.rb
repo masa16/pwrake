@@ -55,7 +55,7 @@ module Pwrake
 
     def setup_branches
       @conn_list = []
-      host_list = []
+      #host_list = []
       ios = []
 
       @option.host_map.each do |sub_host, wk_hosts|
@@ -71,7 +71,7 @@ module Pwrake
           $stderr.puts "connecting #{name} ncore=#{ncore}"
           chan = WorkerChannel.new(conn,name,ncore)
           @workers[chan.id] = chan
-          host_list << name
+          #host_list << name
           conn.send_cmd "#{chan.id}:#{name} #{ncore}"
           ios << conn.ior
         end
@@ -88,7 +88,7 @@ module Pwrake
         end
       end
 
-      @task_queue = @option.queue_class.new(host_list)
+      @task_queue = @option.queue_class.new(@option.host_map)
     end
 
     def finish
@@ -143,7 +143,8 @@ module Pwrake
         @idle_cores.keys.each do |id|
           if @idle_cores[id] > 0
             if t = @task_queue.deq(@workers[id].host)
-              #puts "deq: #{t.name}"
+              $stderr.puts "deq: #{t.inspect}"
+              $stderr.flush
               if @idle_cores[id] < t.n_used_cores
                 @task_queue.enq(t)
               else

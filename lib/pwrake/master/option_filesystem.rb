@@ -48,7 +48,8 @@ module Pwrake
       else
         @filesystem  = 'nfs'
         @shell_class = Shell
-        @queue_class = TaskQueue
+        #@queue_class = TaskQueue
+        @queue_class = LocalityAwareQueue
         #@num_noaction_threads = (n_noaction_th || 1).to_i
       end
     end

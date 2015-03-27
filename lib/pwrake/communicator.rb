@@ -78,6 +78,7 @@ module Pwrake
       [:TERM,:INT].each do |sig|
         Signal.trap(sig) do
           $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid} thread=#{Thread.current})"
+          $stderr.puts caller
           self.kill(sig)
           Kernel.exit
         end
