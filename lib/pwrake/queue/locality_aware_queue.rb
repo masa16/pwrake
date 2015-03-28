@@ -1,253 +1,14 @@
 module Pwrake
 
-#  module TaskAlgorithm
-#    def assigned
-#      @assigned ||= []
-#    end
-#  end
-#
-#  # copy from ruby's thread.rb
-#  class ConditionVariable
-#    #
-#    # Creates a new ConditionVariable
-#    #
-#    def initialize
-#      @waiters = {}
-#      @waiters_mutex = Mutex.new
-#    end
-#
-#    #
-#    # Releases the lock held in +mutex+ and waits; reacquires the lock on wakeup.
-#    #
-#    # If +timeout+ is given, this method returns after +timeout+ seconds passed,
-#    # even if no other thread doesn't signal.
-#    #
-#    def wait(mutex, timeout=nil)
-#      Thread.handle_interrupt(StandardError => :never) do
-#        begin
-#          Thread.handle_interrupt(StandardError => :on_blocking) do
-#            @waiters_mutex.synchronize do
-#              @waiters[Thread.current] = true
-#            end
-#            mutex.sleep timeout
-#          end
-#        ensure
-#          @waiters_mutex.synchronize do
-#            @waiters.delete(Thread.current)
-#          end
-#        end
-#      end
-#      self
-#    end
-#
-#    #
-#    # Wakes up the first thread in line waiting for this lock.
-#    #
-#    def signal
-#      Thread.handle_interrupt(StandardError => :on_blocking) do
-#        begin
-#          t, _ = @waiters_mutex.synchronize { @waiters.shift }
-#          t.run if t
-#        rescue ThreadError
-#          retry # t was already dead?
-#        end
-#      end
-#      self
-#    end
-#
-#    #
-#    # Wakes up all threads waiting for this lock.
-#    #
-#    def broadcast
-#      Thread.handle_interrupt(StandardError => :on_blocking) do
-#        threads = nil
-#        @waiters_mutex.synchronize do
-#          threads = @waiters.keys
-#          @waiters.clear
-#        end
-#        for t in threads
-#          begin
-#            t.run
-#          rescue ThreadError
-#          end
-#        end
-#      end
-#      self
-#    end
-#  end
-
-#  class LocalityConditionVariable < ConditionVariable
-#
-#    def signal(hints=nil)
-#      if hints.nil?
-#        super()
-#      elsif Array===hints
-#          thread = nil
-#          @waiters_mutex.synchronize do
-#            @waiters.each do |t,v|
-#              if hints.include?(t[:hint])
-#                thread = t
-#                break
-#              end
-#            end
-#            if thread
-#              @waiters.delete(thread)
-#            else
-#              thread,_ = @waiters.shift
-#            end
-#          end
-#          Log.debug "--- LCV#signal: hints=#{hints.inspect} thread_to_run=#{thread.inspect} @waiters.size=#{@waiters.size}"
-#          begin
-#            thread.run if thread
-#          rescue ThreadError
-#            retry # t was already dead?
-#          end
-#      else
-#        raise ArgumentError,"argument must be an Array"
-#      end
-#      self
-#    end
-#
-#
-#    def signal_with_hints(hints)
-#      if !Array===hints
-#        raise ArgumentError,"argument must be an Array"
-#      end
-#      thread =
-#        @waiters_mutex.synchronize do
-#        th = nil
-#        @waiters.each do |t,v|
-#          Log.debug "--- LCV#signal_with_hints: t[:hint]=#{t[:hint]}"
-#          if hints.include?(t[:hint])
-#            th = t
-#            break
-#          end
-#        end
-#        Log.debug "--- LCV#signal_with_hints: hints=#{hints.inspect} thread_to_run=#{th.inspect} @waiters.size=#{@waiters.size}"
-#        if th
-#          @waiters.delete(th)
-#        end
-#        th
-#      end
-#      begin
-#        thread.run if thread
-#      rescue ThreadError
-#        retry # t was already dead?
-#      end
-#      thread
-#    end
-#
-#
-#    def broadcast(hints=nil)
-#      if hints.nil?
-#        super()
-#      elsif Array===hints
-#          threads = []
-#          @waiters_mutex.synchronize do
-#            hints.each do |h|
-#              @waiters.each do |t,v|
-#                if t[:hint] == h
-#                  threads << t
-#                  break
-#                end
-#              end
-#            end
-#            threads.each do |t|
-#              @waiters.delete(t)
-#            end
-#          end
-#          Log.debug "--- LCV#broadcast: hints=#{hints.inspect} threads_to_run=#{threads.inspect} @waiters.size=#{@waiters.size}"
-#          threads.each do |t|
-#            begin
-#              t.run
-#            rescue ThreadError
-#            end
-#          end
-#      else
-#        raise ArgumentError,"argument must be an Array"
-#      end
-#      self
-#    end
-#  end
-
-
   class LocalityAwareQueue < TaskQueue
-
-#    class Throughput
-#
-#      def initialize(list=nil)
-#        @interdomain_list = {}
-#        @interhost_list = {}
-#        if list
-#          values = []
-#          list.each do |x,y,v|
-#            hash_x = (@interdomain_list[x] ||= {})
-#            hash_x[y] = n = v.to_f
-#            values << n
-#          end
-#          @min_value = values.min
-#        else
-#          @min_value = 1
-#        end
-#      end
-#
-#      def interdomain(x,y)
-#        hash_x = (@interdomain_list[x] ||= {})
-#        if v = hash_x[y]
-#          return v
-#        elsif v = (@interdomain_list[y] || {})[x]
-#          hash_x[y] = v
-#        else
-#          if x == y
-#            hash_x[y] = 1
-#          else
-#            hash_x[y] = 0.1
-#          end
-#        end
-#        hash_x[y]
-#      end
-#
-#      def interhost(x,y)
-#        return @min_value if !x
-#        hash_x = (@interhost_list[x] ||= {})
-#        if v = hash_x[y]
-#          return v
-#        elsif v = (@interhost_list[y] || {})[x]
-#          hash_x[y] = v
-#        else
-#          x_short, x_domain = parse_hostname(x)
-#          y_short, y_domain = parse_hostname(y)
-#          v = interdomain(x_domain,y_domain)
-#          hash_x[y] = v
-#        end
-#        hash_x[y]
-#      end
-#
-#      def parse_hostname(host)
-#        /^([^.]*)\.?(.*)$/ =~ host
-#        [$1,$2]
-#      end
-#
-#    end # class Throughput
-
 
     def init_queue(host_map)
       @host_map = host_map
-      #@cv = LocalityConditionVariable.new
       @size = 0
       @q = {}
       host_count = @host_map.host_count
       host_count.each{|h,n| @q[h] = @array_class.new(n)}
       @q_group = {}
-      #@host_map.group_hosts.each do |g|
-      #  other = @host_map.host_count.dup
-      #  q1 = {}
-      #  g.each{|h| q1[h] = @q[h]; other.delete(h)}
-      #  q2 = {}
-      #  other.each{|h,v| q2[h] = @q[h]}
-      #  a = [q1,q2]
-      #  g.each{|h| @q_group[h] = a}
-      #end
       @host_map.each do |sub,grp|
         other = host_count.dup
         q1 = {}
@@ -390,7 +151,7 @@ module Pwrake
           s += "[#{q.first.name},.. #{q.last.name}]\n"
         end
       }
-      b.call("noaction",@q_noaction)
+      b.call("noaction",@q_no_action)
       @q.each(&b)
       b.call("remote",@q_remote)
       b.call("later",@q_later)
@@ -402,7 +163,7 @@ module Pwrake
     end
 
     def clear
-      @q_noaction.clear
+      @q_no_action.clear
       @q.each{|h,q| q.clear}
       @q_remote.clear
       @q_later.clear
@@ -410,7 +171,7 @@ module Pwrake
 
     def empty?
       @q.all?{|h,q| q.empty?} &&
-        @q_noaction.empty? &&
+        @q_no_action.empty? &&
         @q_remote.empty? &&
         @q_later.empty?
     end

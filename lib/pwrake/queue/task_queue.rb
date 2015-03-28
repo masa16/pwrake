@@ -15,25 +15,25 @@ module Pwrake
       @enable_steal = true
       @q_no_action = Array.new
 
-      #pri = Pwrake.application.pwrake_options['QUEUE_PRIORITY'] || "FIFO"#"RANK"
-      #case pri
-      #when /prio/i
-      #  @array_class = PriorityQueueArray
-      #when /fifo/i
-      #  @array_class = FifoQueueArray # Array # Fifo
-      #when /lifo/i
-      #  @array_class = LifoQueueArray
-      #when /lihr/i
-      #  @array_class = LifoHrfQueueArray
-      #when /prhr/i
-      #  @array_class = PriorityHrfQueueArray
-      #when /rank/i
-      #  @array_class = RankQueueArray
-      #else
-      #  raise RuntimeError,"unknown option for QUEUE_PRIORITY: "+pri
-      #end
-      ##Log.debug "--- TQ#initialize @array_class=#{@array_class.inspect}"
-      @array_class = Array
+      pri = Rake.application.pwrake_options['QUEUE_PRIORITY'] || "FIFO"#"RANK"
+      case pri
+      when /prio/i
+        @array_class = PriorityQueueArray
+      when /fifo/i
+        @array_class = FifoQueueArray # Array # Fifo
+      when /lifo/i
+        @array_class = LifoQueueArray
+      when /lihr/i
+        @array_class = LifoHrfQueueArray
+      when /prhr/i
+        @array_class = PriorityHrfQueueArray
+      when /rank/i
+        @array_class = RankQueueArray
+      else
+        raise RuntimeError,"unknown option for QUEUE_PRIORITY: "+pri
+      end
+      #Log.debug "--- TQ#initialize @array_class=#{@array_class.inspect}"
+      #@array_class = Array
       init_queue(host_list)
     end
 

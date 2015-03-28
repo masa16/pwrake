@@ -30,7 +30,7 @@ module Pwrake
     #@task.subsequents
     #@task.actions
 
-    attr_reader :name, :task_id, :group, :group_id, :file_stat
+    attr_reader :task, :name, :task_id, :group, :group_id, :file_stat
     attr_reader :location
     attr_reader :assigned
     attr_accessor :executed, :n_used_cores

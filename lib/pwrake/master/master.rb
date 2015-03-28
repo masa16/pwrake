@@ -9,6 +9,7 @@ module Pwrake
       @workers = {}
       @writer = {}
       @option = Option.new
+      @exit_task = []
       init_logger(@option['LOGFILE'])
     end
 
@@ -105,6 +106,7 @@ module Pwrake
     end
 
     def invoke(t, args)
+      @exit_task << t
       t.pw_search_tasks(args)
       wake_idle_core
       @dispatcher.event_loop do |io|
@@ -112,9 +114,9 @@ module Pwrake
         s.chomp!
         case s
         when /^taskend:(.*)$/o
-          on_taskend($1)
+          on_taskend($1) # returns true if @exit_task.empty?
         when /^exit_connection$/o
-          p s
+          $stderr.puts "receive exit_connection from worker"
           true
         else
           @writer[io].puts(s)
@@ -129,8 +131,8 @@ module Pwrake
       t = Rake.application[task_name].wrapper
       t.postprocess
       @idle_cores[id] += t.n_used_cores
-      if @id_by_taskname.empty? && Rake.application.task_queue.empty?
-        puts "End of all tasks"
+      @exit_task.delete(t.task)
+      if @exit_task.empty?
         return true
       end
       wake_idle_core
@@ -143,8 +145,6 @@ module Pwrake
         @idle_cores.keys.each do |id|
           if @idle_cores[id] > 0
             if t = @task_queue.deq(@workers[id].host)
-              $stderr.puts "deq: #{t.inspect}"
-              $stderr.flush
               if @idle_cores[id] < t.n_used_cores
                 @task_queue.enq(t)
               else
