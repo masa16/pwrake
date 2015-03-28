@@ -6,7 +6,12 @@ require "fileutils"
 require 'singleton'
 
 $dbg = true
-$log = File.open("worker.log","w") if $dbg
+if $dbg
+  $log = File.open("worker.log","w")
+  #$stderr = $log
+else
+  $log = $stderr
+end
 
 module Pwrake
 
@@ -25,7 +30,7 @@ module Pwrake
           @out.flush
         rescue Errno::EPIPE
         end
-        $log.print "<#{s}\n"  if $dbg
+        $log.print "<#{s}\n" if $dbg
       end
     end
 
@@ -52,28 +57,34 @@ module Pwrake
 
   class Worker
 
-    @@base_dir = '.'
+    @@base_dir = ENV['HOME']
+    @@work_dir = nil
+    LIST = {}
 
-    def self.base_dir(d=nil)
-      if d
-        @@base_dir = d
-      end
-      @@base_dir
+    def self.base_dir=(d)
+      @@base_dir = d
+    end
+
+    def self.work_dir=(d)
+      @@work_dir = d
     end
 
     # instance methods
 
     def dir
-      @current_dir || @@base_dir
+      @current_path.to_s
     end
 
     def initialize(id)
       @id = id
       @queue = Queue.new
-      @current_dir = nil
       @env = {}
       @out = Writer.instance
+      setup_threads
+      execute "setup_directory"
+    end
 
+    def setup_threads
       pipe_in, @pipe_out = IO.pipe
       @out_thread = Thread.new(pipe_in,"#{@id}:") do |pin,pre|
         while s = pin.gets
@@ -94,6 +105,8 @@ module Pwrake
             run(cmd)
           rescue => exc
             @out.puts x="end:error:#{exc}"
+            $log.puts exc
+            $log.puts exc.backtrace.join("\n")
           end
         end
         @pipe_out.flush
@@ -103,23 +116,34 @@ module Pwrake
       end
     end
 
+    def setup_directory
+      @current_path = home_path + @@work_dir
+    end
+
     def run(cmd)
       case cmd
       when Proc
         cmd.call
-      when /^cd\s+(.*)$/
-        d = $1
-        # @out.puts "start:#{@id}:0"
-        cd(d)
+      when "setup_directory"
+        setup_directory
+      when "cd"
+        cd
         @out.puts "end:#{@id}"
-      when /^exit$/
-        exit
+      when /^cd\s+(.*)$/
+        cd($1)
+        @out.puts "end:#{@id}"
+      when "exit"
+        close
         @out.puts "end:#{@id}"
       when /^export (\w+)=(.*)$/o
         k,v = $1,$2
         @env[k] = v
       when String
-        @pid = spawn(@env,cmd,:out=>@pipe_out,:err=>@pipe_out2,:chdir=>dir)
+        d = dir()
+        if !Dir.exist?(d)
+          raise "Directory '#{d}' does not exsit"
+        end
+        @pid = spawn(@env,cmd,:out=>@pipe_out,:err=>@pipe_out2,:chdir=>d)
         @out.puts "start:#{@id}:#{@pid}"
         pid,status = Process.wait2(@pid)
         @pipe_out.flush
@@ -146,14 +170,23 @@ module Pwrake
       return x
     end
 
-    def cd(d)
-      d = d.sub(/^\$HOME\b/,ENV['HOME'])
-      path = Pathname.new(d)
-      if path.relative?
-        d = (Pathname.new(dir)+path).to_s
+    def cd(d='')
+      if d==''
+        @current_path = home_path
+      else
+        pn = Pathname(d.sub(/^\$HOME\b/,ENV['HOME']))
+        if pn.relative?
+          pn = @current_path + pn
+        end
+        if !Dir.exist?(pn)
+          raise "Cannot chdir to #{pn}"
+        end
+        @current_path = pn.realpath
       end
-      raise "directory '#{d}' not found" if !File.directory?(d)
-      @current_dir = d
+    end
+
+    def home_path
+      Pathname.new(ENV['HOME'])
     end
 
     def execute(cmd)
@@ -168,12 +201,20 @@ module Pwrake
 
     def close
       @queue.enq(nil)
-      @exec_thread.run
+      #if !@pipe_out.closed?
+      #  @pipe_out.flush
+      #  @pipe_out.close
+      #end
+      #if !@pipe_out2.closed?
+      #  @pipe_out2.flush
+      #  @pipe_out2.close
+      #end
+      LIST.delete(@id)
     end
 
     def join
-      @out_thread.join if @out_thread
-      @err_thread.join if @err_thread
+      @out_thread.join  if @out_thread
+      @err_thread.join  if @err_thread
       @exec_thread.join if @exec_thread
     end
 
@@ -188,54 +229,42 @@ module Pwrake
     @@gfarm_top = "/tmp"
     @@gfarm_prefix = nil
 
-    class << self
-      def init
-        @@gfarm_prefix = "#{@@gfarm_top}/pwrake_#{ENV['USER']}_#{Process.pid}_"
-        #if !Dir.glob(@@gfarm_prefix+"*").empty?
-        #  raise "Already running worker:#{Process.pid}"
-        #end
-      end
-    end
-
-    def dir
-      @gfarm_mountpoint + super
+    def self.init(prefix)
+      @@gfarm_prefix = prefix
+      Dir.chdir(ENV['HOME'])
+      #@@gfarm_prefix = "#{@@gfarm_top}/pwrake_#{ENV['USER']}_#{Process.pid}_"
+      #if !Dir.glob(@@gfarm_prefix+"*").empty?
+      #  raise "Already running worker:#{Process.pid}"
+      #end
     end
 
     def initialize(id)
-      super(id)
-      raise "Gfarm uninitialized" if @@gfarm_prefix.nil?
-      @gfarm_mountpoint = "#{@@gfarm_prefix}#{@id}"
+      @gfarm_mountpoint = @@gfarm_prefix % id
+      super
+    end
 
-      execute proc{
-        FileUtils.mkdir_p @gfarm_mountpoint
-        pid = spawn("gfarm2fs "+@gfarm_mountpoint)
-        Process.wait(pid)
-      }
+    def setup_directory
+      # use "proc" to avoid chdir and status
+      #execute proc{
+      FileUtils.mkdir_p @gfarm_mountpoint
+      system "gfarm2fs #{@gfarm_mountpoint} >& /dev/null"
+      @current_path = home_path + @@work_dir
+      #}
     end
 
     def close
+      #$log.puts "GfarmWorker.close #{@gfarm_mountpoint}"
       if File.directory? @gfarm_mountpoint
-        execute proc{
-          pid = spawn("fusermount -u "+@gfarm_mountpoint)
-          Process.wait(pid)
-          system "sync"
-        }
-        execute proc{
-          FileUtils.rmdir @gfarm_mountpoint
-        }
+        cd ENV['HOME']
+        system "fusermount -u #{@gfarm_mountpoint} >& /dev/null"
+        system "sync"
+        FileUtils.rmdir @gfarm_mountpoint
       end
       super
     end
 
-    def cd(dir)
-      dir = dir.sub(/^\$HOME\b/,ENV['HOME'])
-      pn = Pathname(dir)
-      if !pn.absolute?
-        pn = Pathname(@current_dir) + pn
-      end
-      real_path = Pathname(@gfarm_mountpoint) + pn
-      raise "directory #{real_path} not found" if !File.directory?(real_path.to_s)
-      @current_dir = pn.to_s
+    def home_path
+      Pathname.new(@gfarm_mountpoint)
     end
   end
 
@@ -246,13 +275,15 @@ module Pwrake
       @out = Writer.instance
       @mutex = Mutex.new
       @worker_class = Worker
-      @worker_list = {}
       @node_id = ARGV[0]
       @ncore = ARGV[1] ? ARGV[1].to_i : count_cpu
 
       @out.puts "ncore:#{@ncore}"
 
-      at_exit{ close_all }
+      at_exit{
+        $log.puts "at_exit"
+        close_all
+      }
 
       [:TERM,:INT].each do |sig|
         Signal.trap(sig) do
@@ -280,18 +311,18 @@ module Pwrake
         case line
         when /^(\d+):(.*)$/o
           id,cmd = $1,$2
-          worker = @worker_list[id]
+          worker = Worker::LIST[id]
           if worker.nil?
-            worker = @worker_list[id] = @worker_class.new(id)
+            worker = Worker::LIST[id] = @worker_class.new(id)
           end
           worker.execute(cmd)
           #
         when /^p$/o
-          puts "@worker_list = #{@worker_list.inspect}"
+          puts "Worker::LIST = #{Worker::LIST.inspect}"
           #
-        when /^fs:gfarm$/o
+        when /^fs:gfarm:(.*)$/o
+          GfarmWorker.init($1)
           @worker_class = GfarmWorker
-          GfarmWorker.init
           #
         when /^new:(.*)$/o
           $1.split.each do |id|
@@ -299,7 +330,10 @@ module Pwrake
           end
           #
         when /^cd:(.*)$/o
-          Worker.base_dir($1)
+          Worker.base_dir=$1
+          #
+        when /^wd:(.*)$/o
+          Worker.work_dir=$1
           #
         when /^export:(\w+)=(.*)$/o
           k,v = $1,$2
@@ -311,7 +345,7 @@ module Pwrake
           #
         when /^kill:(\d+):(.*)$/o
           id,signal = $1,$2
-          worker = @worker_list[id]
+          worker = Worker::LIST[id]
           worker.kill(signal) if !worker.nil?
           #
         when /^kill:(.*)$/o
@@ -331,16 +365,28 @@ module Pwrake
     end
 
     def close_all
+      $log.puts "close_all"
       Dir.chdir
-      @worker_list.each{|id,ch| ch.close}
-      @worker_list.each{|id,ch| ch.join}
-      id_list = @worker_list.keys
+      id_list = Worker::LIST.keys
+      wk_list = Worker::LIST.values
+      wk_list.each {|worker| worker.close}
+      wk_list.each {|worker| worker.join}
       @out.puts "worker:end:#{id_list.inspect}"
       @out.puts "exit"
-      $log.close if $dbg
+      #$log.close if $dbg
     end
 
   end
 end
 
-Pwrake::Invoker.new(ARGV).run
+
+begin
+  Pwrake::Invoker.new(ARGV).run
+rescue => exc
+  $log.puts exc
+  $log.puts exc.backtrace.join("\n")
+  #$log.close
+ensure
+  $log.flush
+end
+

@@ -24,7 +24,7 @@ module Pwrake
       BY_FIBER[Fiber.current]
     end
 
-    def initialize(comm)
+    def initialize(comm,opt={})
       @comm = comm
       @host = comm.host
       #$stderr.puts "@host=#{@host}"
@@ -32,8 +32,8 @@ module Pwrake
       @@current_id = @@current_id.succ
       @id = @@current_id
       #
-      #@option = opt
-      #@work_dir = @option[:work_dir] || Dir.pwd
+      @option = opt
+      @work_dir = @option[:work_dir] || Dir.pwd
     end
 
     attr_reader :id, :host, :status, :profile
@@ -55,10 +55,10 @@ module Pwrake
 
     def close
       @lock.synchronize do
-        @chan.close
+        #@chan.close
         if !@chan.closed?
           #@io.puts("exit")
-          @chan.close
+          #@chan.close
         end
         OPEN_LIST.delete(__id__)
       end

@@ -31,34 +31,34 @@ module Pwrake
       end
     end
 
-    def set_env
-      case envs = @options['PASS_ENV']
-      when Hash
-        envs.each do |k,v|
-          ENV[k] = v
-        end
-      end
-    end
+    #def set_env
+    #  case envs = @options['PASS_ENV']
+    #  when Hash
+    #    envs.each do |k,v|
+    #      ENV[k] = v
+    #    end
+    #  end
+    #end
 
-    def setup_filesystem
-      @cwd = @options['DIRECTORY']
-      fs = @options['FILESYSTEM']
-      #puts "fs=#{fs}"
-      case fs
-      when /gfarm/io
-        require 'pwrake/gfarm'
-        @fs = GfarmPath.new
-        @fs.chdir(@cwd)
-        # Dir.chdir(@cwd)
-      when /nfs/io
-        Dir.chdir(@cwd)
-      when /local/io
-        Dir.chdir(@cwd)
-      else
-        raise "unknown filesystem: #{fs}"
-      end
-      # p Dir.pwd
-    end
+    #def setup_filesystem
+    #  @cwd = @options['DIRECTORY']
+    #  fs = @options['FILESYSTEM']
+    #  #puts "fs=#{fs}"
+    #  case fs
+    #  when /gfarm/io
+    #    require 'pwrake/gfarm'
+    #    @fs = GfarmPath.new
+    #    @fs.chdir(@cwd)
+    #    # Dir.chdir(@cwd)
+    #  when /nfs/io
+    #    Dir.chdir(@cwd)
+    #  when /local/io
+    #    Dir.chdir(@cwd)
+    #  else
+    #    raise "unknown filesystem: #{fs}"
+    #  end
+    #  # p Dir.pwd
+    #end
 
 
     def setup_shells
@@ -100,7 +100,7 @@ module Pwrake
         @iow.flush
         #$stderr.puts "comm.ncore=#{comm.ncore}"
         comm.ncore.times do
-          @shells << @options.shell_class.new(comm)
+          @shells << @options.shell_class.new(comm,@options.worker_option)
         end
       end
 

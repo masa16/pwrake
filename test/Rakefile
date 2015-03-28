@@ -2,7 +2,8 @@ N=10
 
 rule ".o" => ".c" do |t|
   #sh "sleep 0.1; echo --- #{t.name} $$ `hostname` `pwd` ---"
-  sh "hostname >& /dev/null"
+  sh "pwd"
+  sh "hostname"
   sh "ls hoge || echo"
   #sh "sleep 2; echo -n '#{t.name} : '; hostname"
   #sh "sleep 2"

@@ -5,7 +5,7 @@ module Pwrake
   class GfarmPostprocess
 
     def initialize
-      max = Pwrake.application.pwrake_options['MAX_GFWHERE_WORKER']
+      max = Rake.application.pwrake_options['MAX_GFWHERE_WORKER']
       @gfwhere_pool = WorkerPool.new(GfwhereWorker,max)
     end
 

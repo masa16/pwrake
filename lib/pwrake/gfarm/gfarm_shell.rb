@@ -25,8 +25,9 @@ module Pwrake
     end
 
     def start
-      Log.debug "--- mountpoint=#{@remote_mountpoint}"
-      open(system_cmd)
+      super
+      #Log.debug "--- mountpoint=#{@remote_mountpoint}"
+      #open(system_cmd)
       cd
       if not _system "test -d #{@remote_mountpoint}"
         _system "mkdir -p #{@remote_mountpoint}" or die
@@ -39,6 +40,7 @@ module Pwrake
       end
       subdir = GfarmPath.subdir
       if ["/","",nil].include?(subdir)
+        $stderr.puts "gfarm2fs #{@remote_mountpoint}"
         _system "gfarm2fs #{@remote_mountpoint}"
       else
         _system "gfarm2fs -o modules=subdir,subdir=#{subdir} #{@remote_mountpoint}"

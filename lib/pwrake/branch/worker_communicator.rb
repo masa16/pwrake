@@ -8,15 +8,17 @@ module Pwrake
     attr_reader :id, :host, :ncore
 
     def initialize(id,host,ncore,opt={})
-      super(host)
       @id = id
       @ncore = @n_total_core = ncore
       @channel = {}
       #
+      #$stderr.puts "opt=#{opt.inspect}"
       @option = opt
       @work_dir = @option[:work_dir] || Dir.pwd
       @pass_env = @option[:pass_env]
       @ssh_opt  = @option[:ssh_opt]
+      @filesystem = @option[:filesystem]
+      super(host)
     end
 
     def setup_connection(w0,w1,r2)
@@ -30,20 +32,27 @@ module Pwrake
       if @pass_env
         @pass_env.each do |k,v|
           @iow.puts "export:#{k}='#{v}'"
-          $stderr.puts "export:#{k}='#{v}'"
+          #$stderr.puts "export:#{k}='#{v}'"
         end
+      end
+      if @filesystem
+        #$stderr.puts "fs:#{@filesystem}"
+        @iow.puts "fs:#{@filesystem}"
+      end
+      if @work_dir
+        @iow.puts "wd:#{@work_dir}"
       end
       #$stderr.puts "setup_connection"
     end
 
     def system_cmd
-      if @work_dir
-        cmd = "cd #{@work_dir}; #{@@worker_command}"
-      else
-        cmd = @@worker_command
-      end
+      #if @work_dir
+      #  cmd = "cd #{@work_dir}; #{@@worker_command}"
+      #else
+      #  cmd = @@worker_command
+      #end
       if ['localhost','localhost.localdomain','127.0.0.1'].include? @host
-        @@worker_command
+        "cd;"+@@worker_command
       else
         "ssh -x -T -q #{@ssh_opt} #{@host} '#{@@worker_command}'"
       end

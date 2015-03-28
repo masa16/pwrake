@@ -98,7 +98,7 @@ module Pwrake
       nil
     end
 
-    def deq_impl(hint)
+    def deq_impl(hint,n)
       @q_input.shift || @q_no_input.shift
     end
 

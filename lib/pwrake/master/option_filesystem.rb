@@ -26,17 +26,20 @@ module Pwrake
 
       case @filesystem
       when 'gfarm'
-        require "pwrake/locality_aware_queue"
-        require "pwrake/gfarm_feature"
+        require "pwrake/queue/locality_aware_queue"
+        require "pwrake/gfarm"
         GfarmPath.subdir = self['GFARM_SUBDIR']
         @filesystem  = 'gfarm'
-        @shell_class = GfarmShell
+        @shell_class = Shell
+        base = self['GFARM_BASEDIR']
+        prefix = self['GFARM_PREFIX']
+        mntpnt = "#{base}/#{prefix}_%02d"
         @worker_option.merge!({
-          :work_dir  => Dir.pwd,
-          :single_mp => self['GFARM_SINGLE_MP'],
-          :basedir   => self['GFARM_BASEDIR'],
-          :prefix    => self['GFARM_PREFIX']
+          :work_dir  => GfarmPath.pwd.to_s,
+          :filesystem => "gfarm:"+mntpnt,
+          :single_mp => self['GFARM_SINGLE_MP']
         })
+
 	if self['DISABLE_AFFINITY']
 	  @queue_class = TaskQueue
 	else
@@ -48,8 +51,8 @@ module Pwrake
       else
         @filesystem  = 'nfs'
         @shell_class = Shell
-        #@queue_class = TaskQueue
-        @queue_class = LocalityAwareQueue
+        @queue_class = TaskQueue
+        #@queue_class = LocalityAwareQueue
         #@num_noaction_threads = (n_noaction_th || 1).to_i
       end
     end
