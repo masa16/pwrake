@@ -14,7 +14,7 @@ module Pwrake
       r2,@iow = IO.pipe
       setup_connection(w0,w1,r2)
       @@communicators << self
-      @close_command = "exit_connection"
+      @close_command = "change_me"
     end
 
     def setup_connection(w0,w1,r2)

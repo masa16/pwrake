@@ -93,16 +93,15 @@ module Pwrake
     def finish
       @task_queue.finish if @task_queue
       @conn_list.each do |conn|
-        conn.puts "exit_branch"
+        conn.close
       end
       @dispatcher.event_loop do |io|
         s = io.gets
-        $stderr.puts "master receive: "+s
         if /^branch_end$/o =~ s
           @dispatcher.detach_communicator(@comm_by_io[io])
           @comm_by_io.delete(io)
         end
-        @comm_by_io.empty?
+        @comm_by_io.empty? # exit condition
       end
       @task_logger.close if @task_logger
       Util.dputs "branch:finish"
