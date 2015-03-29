@@ -27,8 +27,9 @@ module Pwrake
 
     def finish
       @finished = true
-      f = @waiter.shift
-      f.resume if f
+      while f = @waiter.shift
+        f.resume
+      end
     end
 
   end

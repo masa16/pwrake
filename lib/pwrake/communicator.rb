@@ -14,6 +14,7 @@ module Pwrake
       r2,@iow = IO.pipe
       setup_connection(w0,w1,r2)
       @@communicators << self
+      @close_command = "exit_connection"
     end
 
     def setup_connection(w0,w1,r2)
@@ -44,18 +45,17 @@ module Pwrake
 
     def kill(sig)
       $stderr.puts "#{self.class.to_s}#kill sig=#{sig} pid=#{Process.pid} thread=#{Thread.current} self=#{self.inspect}"
-      #$stderr.puts "#{self.class.to_s}#kill:#{sig}"
       send_cmd "kill:#{sig}"
       @iow.flush
       Process.kill(sig,@pid) if @pid
     end
 
     def close
-      begin
-        @iow.puts "exit_connection" if !@@killed
-      rescue
+      if !@iow.closed?
+        @iow.puts @close_command if !@@killed
+        #@iow.close
+        @iow.flush
       end
-      @iow.close
       @@communicators.delete(self)
     end
 

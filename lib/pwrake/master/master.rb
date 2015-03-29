@@ -56,8 +56,7 @@ module Pwrake
 
     def setup_branches
       @conn_list = []
-      #host_list = []
-      ios = []
+      @comm_by_io = {}
 
       @option.host_map.each do |sub_host, wk_hosts|
         conn = BranchCommunicator.new(sub_host,@option)
@@ -65,6 +64,7 @@ module Pwrake
         @dispatcher.attach_communicator(conn)
         @writer[conn.ior] = $stdout
         @writer[conn.ioe] = $stderr
+        @comm_by_io[conn.ior] = conn
         conn.send_cmd "begin_worker_list"
         wk_hosts.each do |host_info|
           name = host_info.name
@@ -72,15 +72,13 @@ module Pwrake
           $stderr.puts "connecting #{name} ncore=#{ncore}"
           chan = WorkerChannel.new(conn,name,ncore)
           @workers[chan.id] = chan
-          #host_list << name
           conn.send_cmd "#{chan.id}:#{name} #{ncore}"
-          ios << conn.ior
         end
         conn.send_cmd "end_worker_list"
       end
 
       # receive ncore from WorkerCommunicator at Branch
-      IODispatcher.event_once(ios,10) do |io|
+      IODispatcher.event_once(@comm_by_io.keys,10) do |io|
         s = io.gets
         if /ncore:(\d+):(\d+)/ =~ s
           id, ncore = $1.to_i, $2.to_i
@@ -94,12 +92,17 @@ module Pwrake
 
     def finish
       @task_queue.finish if @task_queue
-      Util.dputs "main:exit_branch"
-      BranchCommunicator.close_all
       @conn_list.each do |conn|
-        while s=conn.gets
-          Util.print s
+        conn.puts "exit_branch"
+      end
+      @dispatcher.event_loop do |io|
+        s = io.gets
+        $stderr.puts "master receive: "+s
+        if /^branch_end$/o =~ s
+          @dispatcher.detach_communicator(@comm_by_io[io])
+          @comm_by_io.delete(io)
         end
+        @comm_by_io.empty?
       end
       @task_logger.close if @task_logger
       Util.dputs "branch:finish"

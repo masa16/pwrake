@@ -40,7 +40,6 @@ module Pwrake
       if block_given?
         b = block
       else
-        #b = proc{|io| @rd_hdl[io].read_handler(io)}
         b = proc{|io| @rd_hdl[io].on_read(io)}
       end
       while !@rd_io.empty?
@@ -54,7 +53,6 @@ module Pwrake
         end
       end
     end
-
 
     def self.event_once(ios,timeout)
       while !ios.empty? and io_sel = select(ios,nil,nil,timeout)

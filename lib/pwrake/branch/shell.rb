@@ -55,13 +55,16 @@ module Pwrake
 
     def close
       @lock.synchronize do
-        #@chan.close
         if !@chan.closed?
-          #@io.puts("exit")
-          #@chan.close
+          _system "exit"
         end
         OPEN_LIST.delete(__id__)
+        @comm.delete_channel(@id)
       end
+    end
+
+    def communicator
+      @comm
     end
 
     def backquote(*command)

@@ -7,7 +7,7 @@ require 'singleton'
 
 $dbg = true
 if $dbg
-  $log = File.open("worker.log","w")
+  $log = File.open("worker-#{`hostname`.chomp}-#{Process.pid}.log","w")
   #$stderr = $log
 else
   $log = $stderr
@@ -80,6 +80,7 @@ module Pwrake
       @queue = Queue.new
       @env = {}
       @out = Writer.instance
+      LIST[@id] = self
       setup_threads
       execute "setup_directory"
     end
@@ -259,6 +260,7 @@ module Pwrake
         system "fusermount -u #{@gfarm_mountpoint} >& /dev/null"
         system "sync"
         FileUtils.rmdir @gfarm_mountpoint
+        $log.puts "#{@gfarm_mountpoint} is removed"
       end
       super
     end
@@ -311,11 +313,16 @@ module Pwrake
         case line
         when /^(\d+):(.*)$/o
           id,cmd = $1,$2
-          worker = Worker::LIST[id]
-          if worker.nil?
-            worker = Worker::LIST[id] = @worker_class.new(id)
+          wk = Worker::LIST[id]
+          if wk.nil?
+            if cmd=="exit"
+              @out.puts "end:#{id}"
+              next
+            else
+              wk = @worker_class.new(id)
+            end
           end
-          worker.execute(cmd)
+          wk.execute(cmd)
           #
         when /^p$/o
           puts "Worker::LIST = #{Worker::LIST.inspect}"
@@ -346,7 +353,7 @@ module Pwrake
         when /^kill:(\d+):(.*)$/o
           id,signal = $1,$2
           worker = Worker::LIST[id]
-          worker.kill(signal) if !worker.nil?
+          worker.kill(signal) if worker
           #
         when /^kill:(.*)$/o
           sig = $1
@@ -354,9 +361,9 @@ module Pwrake
           @out.puts "worker killed. signal=#{sig}"
           Process.kill(sig, 0)
           #
-        when /^exit_connection$/o
-          # @out.puts "exit"a
-          Kernel.exit
+        when /^exit_worker$/o
+          #Kernel.exit
+          return
           #
         else
           raise "invalid line: #{line}"
@@ -369,11 +376,11 @@ module Pwrake
       Dir.chdir
       id_list = Worker::LIST.keys
       wk_list = Worker::LIST.values
-      wk_list.each {|worker| worker.close}
-      wk_list.each {|worker| worker.join}
-      @out.puts "worker:end:#{id_list.inspect}"
-      @out.puts "exit"
-      #$log.close if $dbg
+      wk_list.each {|wk| wk.close}
+      wk_list.each {|wk| wk.join}
+      $log.puts "worker:end:#{id_list.inspect}"
+      @out.puts "worker_end"
+      $log.flush
     end
 
   end
@@ -385,8 +392,4 @@ begin
 rescue => exc
   $log.puts exc
   $log.puts exc.backtrace.join("\n")
-  #$log.close
-ensure
-  $log.flush
 end
-

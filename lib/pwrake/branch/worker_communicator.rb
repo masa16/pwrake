@@ -6,6 +6,9 @@ module Pwrake
       "/../../../bin/pwrake_worker"
     RE_ID='\d+'
     attr_reader :id, :host, :ncore
+    attr_reader :channel
+
+    @@worker_communicators = []
 
     def initialize(id,host,ncore,opt={})
       @id = id
@@ -19,6 +22,8 @@ module Pwrake
       @ssh_opt  = @option[:ssh_opt]
       @filesystem = @option[:filesystem]
       super(host)
+      @close_command = "exit_worker"
+      @@worker_communicators << self
     end
 
     def setup_connection(w0,w1,r2)
@@ -58,6 +63,11 @@ module Pwrake
       end
     end
 
+    def close
+      super
+      @@worker_communicators.delete(self)
+    end
+
     def set_ncore(ncore)
       @ncore = ncore if @ncore.nil?
     end
@@ -66,14 +76,18 @@ module Pwrake
       @channel[id] = channel
     end
 
-    #def resume
-    #  @channel.each{|k,ch| ch.resume}
-    #end
+    def delete_channel(id)
+      @channel.delete(id)
+    end
+
+    def channel_empty?
+      @channel.empty?
+    end
 
     def on_read(io)
       s = io.gets
       # $chk.print ">#{s}" if $dbg
-      # $stderr.puts s
+      # $stderr.puts ">"+s
       case s
       when /^(#{RE_ID}):(.*)$/
         id,item = $1,$2
@@ -95,13 +109,13 @@ module Pwrake
         @n_total_core = $1
         #@channel[id].enq([:ncore,ncore])
         #
-      when /^exit$/
-        $stderr.puts "exit"
-        return true
+      when /^worker_end$/
+        $stderr.puts s
+        close
+        return @@worker_communicators.empty?
       else
-        puts "Invalild item: #{s}"
+        $stderr.puts "Invalid item: #{s}"
       end
-      #resume
       return false
     end
 

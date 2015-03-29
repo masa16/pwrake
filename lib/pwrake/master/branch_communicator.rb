@@ -2,6 +2,11 @@ module Pwrake
 
   class BranchCommunicator < Communicator
 
+    def initialize(host,opts={})
+      super
+      @close_command = "exit_branch"
+    end
+
     def setup_connection(w0,w1,r2)
       if @host != "localhost" || /^(n|f)/i =~ ENV['T']
         dir = File.absolute_path(File.dirname($PROGRAM_NAME))
