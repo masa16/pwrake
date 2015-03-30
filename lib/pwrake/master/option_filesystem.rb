@@ -47,7 +47,6 @@ module Pwrake
 	end
         #@num_noaction_threads = (n_noaction_th || [8,@host_map.num_threads].max).to_i
         @postprocess = GfarmPostprocess.new
-        Log.debug "--- @queue_class=#{@queue_class}"
       else
         @filesystem  = 'nfs'
         @shell_class = Shell
@@ -55,6 +54,7 @@ module Pwrake
         #@queue_class = LocalityAwareQueue
         #@num_noaction_threads = (n_noaction_th || 1).to_i
       end
+      Log.debug "@queue_class=#{@queue_class}"
     end
 
     def mount_type(d=nil)

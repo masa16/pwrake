@@ -78,12 +78,20 @@ module Pwrake
       end
 
       # receive ncore from WorkerCommunicator at Branch
+      #Log.debug "@comm_by_io.keys: #{@comm_by_io.keys.inspect}"
       IODispatcher.event_once(@comm_by_io.keys,10) do |io|
-        s = io.gets
-        if /ncore:(\d+):(\d+)/ =~ s
-          id, ncore = $1.to_i, $2.to_i
-          @workers[id].ncore = ncore
-          @idle_cores[id] = ncore
+        while true
+          case s = io.gets
+          when /ncore:done/
+            break
+          when /ncore:(\d+):(\d+)/
+            id, ncore = $1.to_i, $2.to_i
+            Log.debug "worker-id:#{id} ncore:#{ncore}"
+            @workers[id].ncore = ncore
+            @idle_cores[id] = ncore
+          else
+            raise "Invalid return: #{s}"
+          end
         end
       end
 
@@ -125,11 +133,14 @@ module Pwrake
     end
 
     def wake_idle_core
+      queued = 0
       while true
         count = 0
         @idle_cores.keys.each do |id|
           if @idle_cores[id] > 0
             if t = @task_queue.deq(@workers[id].host)
+              Log.debug "deq: #{t.name}"
+              #Log.debug "@task.queue: #{@task_queue.inspect}"
               if @idle_cores[id] < t.n_used_cores
                 @task_queue.enq(t)
               else
@@ -138,12 +149,17 @@ module Pwrake
                 @id_by_taskname[t.name] = id
                 @workers[id].send_cmd("#{id}:#{t.name}")
                 count += 1
+                queued += 1
               end
             end
           end
         end
         break if count == 0
       end
+      if queued>0
+        Log.debug "queued:#{queued} @idle_cores:#{@idle_cores.inspect}"
+      end
+      #Log.debug "wake_idle_core: end"
     end
 
     def finish

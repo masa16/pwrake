@@ -70,6 +70,7 @@ module Pwrake
           @shells << @options.shell_class.new(comm,@options.worker_option)
         end
       end
+      @iow.puts "ncore:done"
     end
 
     def setup_fibers
