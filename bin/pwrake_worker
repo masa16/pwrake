@@ -127,18 +127,23 @@ module Pwrake
         cmd.call
       when "setup_directory"
         setup_directory
+        #
       when "cd"
         cd
         @out.puts "end:#{@id}"
+        #
       when /^cd\s+(.*)$/
         cd($1)
         @out.puts "end:#{@id}"
+        #
       when "exit"
         close
         @out.puts "end:#{@id}"
+        #
       when /^export (\w+)=(.*)$/o
         k,v = $1,$2
         @env[k] = v
+        #
       when String
         d = dir()
         if !Dir.exist?(d)
@@ -151,8 +156,6 @@ module Pwrake
         @pipe_out2.flush
         @out_thread.run
         @err_thread.run
-        # $stderr.puts "end: pid=#{@pid} : #{cmd}"
-        # $stderr.flush
         status_s = status_to_str(status)
         @out.puts x="end:#{@id}:#{@pid}:#{status_s}"
       end
@@ -197,19 +200,10 @@ module Pwrake
 
     def exit
       close
-      # Worker.delete(@id)
     end
 
     def close
-      @queue.enq(nil)
-      #if !@pipe_out.closed?
-      #  @pipe_out.flush
-      #  @pipe_out.close
-      #end
-      #if !@pipe_out2.closed?
-      #  @pipe_out2.flush
-      #  @pipe_out2.close
-      #end
+      execute(nil)
       LIST.delete(@id)
     end
 
@@ -245,16 +239,13 @@ module Pwrake
     end
 
     def setup_directory
-      # use "proc" to avoid chdir and status
-      #execute proc{
       FileUtils.mkdir_p @gfarm_mountpoint
       system "gfarm2fs #{@gfarm_mountpoint} >& /dev/null"
       @current_path = home_path + @@work_dir
-      #}
     end
 
     def close
-      #$log.puts "GfarmWorker.close #{@gfarm_mountpoint}"
+      # $log.puts "GfarmWorker.close #{@gfarm_mountpoint}"
       if File.directory? @gfarm_mountpoint
         cd ENV['HOME']
         system "fusermount -u #{@gfarm_mountpoint} >& /dev/null"
@@ -347,7 +338,9 @@ module Pwrake
           ENV[k] = v
           #
         when /^exit$/o
-          #close_all # called at_exit
+          return
+          #
+        when "exit_worker"
           return
           #
         when /^kill:(\d+):(.*)$/o
@@ -358,12 +351,8 @@ module Pwrake
         when /^kill:(.*)$/o
           sig = $1
           sig = sig.to_i if /^\d+$/=~sig
-          @out.puts "worker killed. signal=#{sig}"
+          @out.puts "worker_killed:signal=#{sig}"
           Process.kill(sig, 0)
-          #
-        when /^exit_worker$/o
-          #Kernel.exit
-          return
           #
         else
           raise "invalid line: #{line}"

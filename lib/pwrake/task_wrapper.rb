@@ -1,12 +1,14 @@
+require 'forwardable'
+
 module Pwrake
 
   class TaskWrapper
+    extend Forwardable
 
     @@current_id = 1
 
     def initialize(task,task_args=nil)
       @task = task
-      @name = task.name
       @task_args = task_args
       #@arg_data = task_args
       @task_id = @@current_id
@@ -26,21 +28,15 @@ module Pwrake
       @assigned = []
     end
 
-    #@task.prerequisites
-    #@task.subsequents
-    #@task.actions
+    def_delegators :@task, :name, :actions, :prerequisites, :subsequents
 
-    attr_reader :task, :name, :task_id, :group, :group_id, :file_stat
+    attr_reader :task, :task_id, :group, :group_id, :file_stat
     attr_reader :location
     attr_reader :assigned
     attr_accessor :executed, :n_used_cores
 
     def self.format_time(t)
       t.strftime("%F %T.%L")
-    end
-
-    def actions
-      @task.actions
     end
 
     def preprocess
@@ -55,8 +51,8 @@ module Pwrake
       if @task.kind_of?(Rake::FileTask)
         t = Time.now
         #Rake.application.postprocess(@task)
-        if File.exist?(@name)
-          @file_stat = File::Stat.new(@name)
+        if File.exist?(name)
+          @file_stat = File::Stat.new(name)
         end
       end
       log_task
@@ -80,7 +76,7 @@ module Pwrake
         #RANK_STAT.add_sample(rank,elap)
       end
       #
-      row = [ @task_id, @name, @time_start, @time_end, elap, @task.prerequisites.join('|') ]
+      row = [ @task_id, name, @time_start, @time_end, elap, @task.prerequisites.join('|') ]
       #
       if loc
         row << loc.join('|')
@@ -181,7 +177,7 @@ module Pwrake
             end
             @rank = max_rank + step
           end
-          #Log.debug "--- Task[#{@name}] rank=#{@rank.inspect}"
+          #Log.debug "--- Task[#{name}] rank=#{@rank.inspect}"
         end
       end
       @rank
@@ -250,7 +246,7 @@ module Pwrake
         else
           @priority = 0
         end
-        #Log.debug "--- task_name=#{@name} priority=#{@priority} sum_file_size=#{sum_sz}"
+        #Log.debug "--- task_name=#{name} priority=#{@priority} sum_file_size=#{sum_sz}"
       end
       @priority || 0
     end

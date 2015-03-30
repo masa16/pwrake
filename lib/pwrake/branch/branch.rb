@@ -43,12 +43,10 @@ module Pwrake
 
       while s = @ior.gets
         s.chomp!
-        #p s
         break if s == "end_worker_list"
         if /^(\d+):(\S+) (\d+)?$/ =~ s
           id, host, ncore = $1,$2,$3
           ncore &&= ncore.to_i
-          #$stderr.puts "ncore=#{ncore}"
           comm = WorkerCommunicator.new(id,host,ncore,@options.worker_option)
           @wk_comm[comm.ior] = comm
           @dispatcher.attach_communicator(comm)
@@ -68,7 +66,6 @@ module Pwrake
         # set WorkerChannel#ncore at Master
         @iow.puts "ncore:#{comm.id}:#{comm.ncore}"
         @iow.flush
-        #$stderr.puts "comm.ncore=#{comm.ncore}"
         comm.ncore.times do
           @shells << @options.shell_class.new(comm,@options.worker_option)
         end
@@ -101,8 +98,6 @@ module Pwrake
         end
       end
 
-      #$stderr.puts @fiber_list.inspect
-
       bh = BranchHandler.new(@queue)
       @dispatcher.attach_handler(@ior,bh)
 
@@ -127,8 +122,6 @@ module Pwrake
     def finish
       @iow.puts "branch_end"
       @iow.flush
-      #$stderr.puts @ior.gets
-      $stderr.flush
       @ior.close
       @iow.close
     end
