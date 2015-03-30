@@ -80,7 +80,7 @@ module Pwrake
           while task = @queue.deq
             #$stderr.puts "task=#{task.name} @queue=#{@queue.inspect} fiber=#{Fiber.current.inspect}"
             begin
-              task.execute
+              task.execute if task.needed?
             rescue Exception=>e
               if task.kind_of?(Rake::FileTask) && File.exist?(task.name)
                 failprocess(task.name)

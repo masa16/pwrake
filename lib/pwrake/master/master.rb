@@ -122,8 +122,8 @@ module Pwrake
       #puts "taskend: "+task_name
       id = @id_by_taskname.delete(task_name)
       t = Rake.application[task_name].wrapper
-      t.postprocess
       @idle_cores[id] += t.n_used_cores
+      t.postprocess
       @exit_task.delete(t.task)
       if @exit_task.empty?
         return true
@@ -140,9 +140,9 @@ module Pwrake
           if @idle_cores[id] > 0
             if t = @task_queue.deq(@workers[id].host)
               Log.debug "deq: #{t.name}"
-              #Log.debug "@task.queue: #{@task_queue.inspect}"
+              #if t.needed?
               if @idle_cores[id] < t.n_used_cores
-                @task_queue.enq(t)
+                @task_queue.enq(t) # check me
               else
                 t.preprocess
                 @idle_cores[id] -= t.n_used_cores
@@ -151,6 +151,7 @@ module Pwrake
                 count += 1
                 queued += 1
               end
+              #if not t.needed?
             end
           end
         end
