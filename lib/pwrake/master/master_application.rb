@@ -19,6 +19,12 @@ module Pwrake
       @role.task_queue
     end
 
+    def postprocess(t)
+      if @role.option.postprocess
+        @role.option.postprocess.postprocess(t)
+      end
+    end
+
     # Run the Pwrake application.
     def run
       standard_exception_handling do

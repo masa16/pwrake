@@ -16,7 +16,7 @@ module Pwrake
       @location = []
       @group = []
       @group_id
-      @suggest_location = []
+      @suggest_location = nil
       @file_stat
       @input_file_size
       @input_file_mtime
@@ -26,6 +26,7 @@ module Pwrake
       @executed = false
       @n_used_cores = 1
       @assigned = []
+      @exec_host = nil
     end
 
     def_delegators :@task, :name, :actions, :prerequisites, :subsequents
@@ -34,6 +35,7 @@ module Pwrake
     attr_reader :location
     attr_reader :assigned
     attr_accessor :executed, :n_used_cores
+    attr_accessor :exec_host
 
     def self.format_time(t)
       t.strftime("%F %T.%L")
@@ -50,7 +52,7 @@ module Pwrake
       @executed = true if !@task.actions.empty?
       if @task.kind_of?(Rake::FileTask)
         t = Time.now
-        #Rake.application.postprocess(@task)
+        Rake.application.postprocess(@task)
         if File.exist?(name)
           @file_stat = File::Stat.new(name)
         end
@@ -66,17 +68,17 @@ module Pwrake
       loc = suggest_location()
       shell = Pwrake::Shell.current
       #
-      if loc && !loc.empty? && shell && !@task.actions.empty?
+      if loc && !loc.empty? && shell && !actions.empty?
         Rake.application.count( loc, shell.host )
       end
       return if !Rake.application.task_logger
       #
       elap = @time_end - @time_start
-      if !@task.actions.empty? && @task.kind_of?(Rake::FileTask)
+      if !actions.empty? && @task.kind_of?(Rake::FileTask)
         #RANK_STAT.add_sample(rank,elap)
       end
       #
-      row = [ @task_id, name, @time_start, @time_end, elap, @task.prerequisites.join('|') ]
+      row = [ @task_id, name, @time_start, @time_end, elap, prerequisites.join('|') ]
       #
       if loc
         row << loc.join('|')
@@ -84,13 +86,10 @@ module Pwrake
         row << ''
       end
       #
-      if shell
-        row.concat [shell.host, shell.id]
-      else
-        row.concat ['','']
-      end
+      row << @exec_host
+      row << ((shell) ? shell.id : '')
       #
-      row << ((@task.actions.empty?) ? 0 : 1)
+      row << ((actions.empty?) ? 0 : 1)
       row << ((@executed) ? 1 : 0)
       #
       if @file_stat
@@ -115,15 +114,15 @@ module Pwrake
     end
 
     def has_input_file?
-      @task.kind_of?(Rake::FileTask) && !@task.prerequisites.empty?
+      @task.kind_of?(Rake::FileTask) && !prerequisites.empty?
     end
 
     def location=(a)
       @location = a
       @group = []
-      @location.each do |host|
-        @group |= [Rake.application.host_list.host2group[host]]
-      end
+      #@location.each do |host|
+      #  @group |= [Rake.application.host_list.host2group[host]]
+      #end
     end
 
     def suggest_location=(a)
@@ -134,7 +133,7 @@ module Pwrake
       if has_input_file? && @suggest_location.nil?
         @suggest_location = []
         loc_fsz = Hash.new(0)
-        @task.prerequisites.each do |preq|
+        prerequisites.each do |preq|
           t = Rake.application[preq].wrapper
           loc = t.location
           fsz = t.file_size
@@ -160,17 +159,17 @@ module Pwrake
     def rank
       @lock_rank.synchronize do
         if @rank.nil?
-          if @task.subsequents.nil? || @task.subsequents.empty?
+          if subsequents.nil? || subsequents.empty?
             @rank = 0
           else
             max_rank = 0
-            @task.subsequents.each do |subsq|
+            subsequents.each do |subsq|
               r = subsq.rank
               if max_rank < r
                 max_rank = r
               end
             end
-            if @task.actions.empty? || !@task.kind_of?(Rake::FileTask)
+            if actions.empty? || !@task.kind_of?(Rake::FileTask)
               step = 0
             else
               step = 1
@@ -194,7 +193,7 @@ module Pwrake
     def input_file_size
       unless @input_file_size
         @input_file_size = 0
-        @task.prerequisites.each do |preq|
+        prerequisites.each do |preq|
           @input_file_size += Rake.application[preq].wrapper.file_size
         end
       end
@@ -205,7 +204,7 @@ module Pwrake
       if has_input_file? && @input_file_mtime.nil?
         hash = Hash.new
         max_sz = 0
-        @task.prerequisites.each do |preq|
+        prerequisites.each do |preq|
           t = Rake.application[preq].wrapper
           sz = t.file_size
           if sz > 0
@@ -232,7 +231,7 @@ module Pwrake
       if has_input_file? && @priority.nil?
         sum_tm = 0
         sum_sz = 0
-        @task.prerequisites.each do |preq|
+        prerequisites.each do |preq|
           pq = Rake.application[preq].wrapper
           sz = pq.file_size
           if sz > 0

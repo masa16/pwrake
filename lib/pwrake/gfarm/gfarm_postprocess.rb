@@ -10,8 +10,8 @@ module Pwrake
     end
 
     def postprocess(t)
-      if t.kind_of?(Rake::FileTask) && t.location.empty?
-        t.location = @gfwhere_pool.work(t.name)
+      if t.kind_of?(Rake::FileTask) && t.wrapper.location.empty?
+        t.wrapper.location = @gfwhere_pool.work(t.name)
       end
     end
 
@@ -25,7 +25,7 @@ module Pwrake
        gfwhere_result = GfarmPath.gfwhere(list)
        tasks.each do |t|
          if t.kind_of? Rake::FileTask
-           t.location = gfwhere_result[GfarmPath.local_to_fs(t.name)]
+           t.wrapper.location = gfwhere_result[GfarmPath.local_to_fs(t.name)]
          end
        end
        #puts "'#{self.name}' exist? => #{File.exist?(self.name)} loc => #{loc}"

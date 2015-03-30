@@ -148,6 +148,7 @@ module Pwrake
                 @idle_cores[id] -= t.n_used_cores
                 @id_by_taskname[t.name] = id
                 @workers[id].send_cmd("#{id}:#{t.name}")
+                t.exec_host = @workers[id].host
                 count += 1
                 queued += 1
               end
