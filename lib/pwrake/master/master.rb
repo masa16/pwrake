@@ -1,11 +1,30 @@
 module Pwrake
 
+  class IdleCores < Hash
+    def increase(k,n)
+      if x = self[k]
+        n += x
+      end
+      self[k] = n
+    end
+    def decrease(k,n)
+      x = (self[k]||0) - n
+      if x == 0
+        delete(k)
+      elsif x < 0
+        raise "# of cores must be non-negative"
+      else
+        self[k] = x
+      end
+    end
+  end
+
   class Master
 
     def initialize
       @dispatcher = IODispatcher.new
       @id_by_taskname = {}
-      @idle_cores = {}
+      @idle_cores = IdleCores.new
       @workers = {}
       @writer = {}
       @option = Option.new
@@ -72,7 +91,7 @@ module Pwrake
           $stderr.puts "connecting #{name} ncore=#{ncore}"
           chan = WorkerChannel.new(conn,name,ncore)
           @workers[chan.id] = chan
-          conn.send_cmd "#{chan.id}:#{name} #{ncore}"
+          #conn.send_cmd "#{chan.id}:#{name} #{ncore}"
         end
         conn.send_cmd "end_worker_list"
       end
@@ -118,43 +137,27 @@ module Pwrake
       end
     end
 
-    def on_taskend(task_name)
-      #puts "taskend: "+task_name
-      id = @id_by_taskname.delete(task_name)
-      t = Rake.application[task_name].wrapper
-      @idle_cores[id] += t.n_used_cores
-      t.postprocess
-      @exit_task.delete(t.task)
-      if @exit_task.empty?
-        return true
-      end
-      wake_idle_core
-      nil
-    end
-
     def wake_idle_core
       queued = 0
       while true
         count = 0
         @idle_cores.keys.each do |id|
-          if @idle_cores[id] > 0
-            if t = @task_queue.deq(@workers[id].host)
-              Log.debug "deq: #{t.name}"
-              #if t.needed?
-              if @idle_cores[id] < t.n_used_cores
-                @task_queue.enq(t) # check me
-              else
-                t.preprocess
-                @idle_cores[id] -= t.n_used_cores
-                @id_by_taskname[t.name] = id
-                @workers[id].send_cmd("#{id}:#{t.name}")
-                t.exec_host = @workers[id].host
-                count += 1
-                queued += 1
-              end
-              #if not t.needed?
+          if t = @task_queue.deq(@workers[id].host)
+            Log.debug "deq: #{t.name}"
+            #if t.needed?
+            if @idle_cores[id] < t.n_used_cores
+              @task_queue.enq(t) # check me
+            else
+              t.preprocess
+              @idle_cores.decrease(id, t.n_used_cores)
+              @id_by_taskname[t.name] = id
+              @workers[id].send_task(t)
+              t.exec_host = @workers[id].host
+              count += 1
+              queued += 1
             end
           end
+          #if not t.needed?
         end
         break if count == 0
       end
@@ -162,6 +165,20 @@ module Pwrake
         Log.debug "queued:#{queued} @idle_cores:#{@idle_cores.inspect}"
       end
       #Log.debug "wake_idle_core: end"
+    end
+
+    def on_taskend(task_name)
+      #puts "taskend: "+task_name
+      id = @id_by_taskname.delete(task_name)
+      t = Rake.application[task_name].wrapper
+      @idle_cores.increase(id, t.n_used_cores)
+      t.postprocess
+      @exit_task.delete(t.task)
+      if @exit_task.empty?
+        return true
+      end
+      wake_idle_core
+      nil
     end
 
     def finish

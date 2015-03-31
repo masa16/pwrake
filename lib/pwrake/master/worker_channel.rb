@@ -13,6 +13,7 @@ module Pwrake
       #x = "#{@id}:#{@host} #{@ncore}\n"
       #@io.print(x)
       #@io.flush
+      send_cmd "#{@id}:#{@host} #{@ncore}"
     end
 
     attr_reader :io, :host, :id
@@ -21,6 +22,10 @@ module Pwrake
     def send_cmd(x)
       @io.print(x+"\n")
       @io.flush
+    end
+
+    def send_task(t)
+      send_cmd("#{@id}:#{t.name}")
     end
   end
 
