@@ -18,11 +18,11 @@ module Pwrake
       when /^(\d+):(.+)$/o
         id, tname = $1,$2
         task = Rake.application[tname]
-        @queue.enq(task)
+        @queue[id].enq(task)
         #$stderr.puts @queue.inspect
 
       when /^exit_branch$/
-        @queue.finish
+        @queue.each_value{|q| q.finish}
         #return true
 
       when /^kill:(.*)$/o

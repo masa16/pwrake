@@ -4,7 +4,7 @@ module Pwrake
 
     def initialize(opts,r,w)
       @options = opts
-      @queue = FiberQueue.new
+      @queue = {} # FiberQueue.new
       @timeout = 10
       @exit_cmd = "exit_connection"
       @shells = []
@@ -50,6 +50,7 @@ module Pwrake
           comm = WorkerCommunicator.new(id,host,ncore,@options.worker_option)
           @wk_comm[comm.ior] = comm
           @dispatcher.attach_communicator(comm)
+          @queue[id] = FiberQueue.new
         end
       end
 
@@ -77,7 +78,9 @@ module Pwrake
       @fiber_list = @shells.map do |shell|
         Fiber.new do
           shell.start
-          while task = @queue.deq
+          comm = shell.communicator
+          queue = @queue[comm.id]
+          while task = queue.deq
             #$stderr.puts "task=#{task.name} @queue=#{@queue.inspect} fiber=#{Fiber.current.inspect}"
             begin
               task.execute if task.needed?
@@ -92,7 +95,6 @@ module Pwrake
           end
           shell.close
           # if comm is no longer used, close comm
-          comm = shell.communicator
           if comm.channel_empty?
             comm.close
           end
