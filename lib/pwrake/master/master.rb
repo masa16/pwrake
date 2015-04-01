@@ -127,6 +127,8 @@ module Pwrake
         case s
         when /^taskend:(.*)$/o
           on_taskend($1) # returns true if @exit_task.empty?
+        when /^taskfail:(.*)$/o
+          on_taskfail($1) # returns true
         when /^exit_connection$/o
           $stderr.puts "receive exit_connection from worker"
           true
@@ -179,6 +181,16 @@ module Pwrake
       end
       wake_idle_core
       nil
+    end
+
+    def on_taskfail(task_name)
+      #puts "taskfail: "+task_name
+      id = @id_by_taskname.delete(task_name)
+      t = Rake.application[task_name].wrapper
+      @idle_cores.increase(id, t.n_used_cores)
+      t.postprocess
+      @exit_task.delete(t.task)
+      return true
     end
 
     def finish

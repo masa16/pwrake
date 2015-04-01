@@ -80,23 +80,29 @@ module Pwrake
           shell.start
           comm = shell.communicator
           queue = @queue[comm.id]
-          while task = queue.deq
-            #$stderr.puts "task=#{task.name} @queue=#{@queue.inspect} fiber=#{Fiber.current.inspect}"
-            begin
-              task.execute if task.needed?
-            rescue Exception=>e
-              if task.kind_of?(Rake::FileTask) && File.exist?(task.name)
-                failprocess(task.name)
+          begin
+            while task = queue.deq
+              #$stderr.puts "task=#{task.name} @queue=#{@queue.inspect} fiber=#{Fiber.current.inspect}"
+              begin
+                task.execute if task.needed?
+              rescue Exception=>e
+                if task.kind_of?(Rake::FileTask) && File.exist?(task.name)
+                  failprocess(task.name)
+                end
+                @iow.puts "taskfail:#{task.name}"
+                @iow.flush
+                raise e
               end
-              raise e
+              @iow.puts "taskend:#{task.name}"
+              @iow.flush
             end
-            @iow.puts "taskend:#{task.name}"
-            @iow.flush
-          end
-          shell.close
-          # if comm is no longer used, close comm
-          if comm.channel_empty?
-            comm.close
+          ensure
+            queue.finish
+            shell.close
+            # if comm is no longer used, close comm
+            if comm.channel_empty?
+              comm.close
+            end
           end
         end
       end
