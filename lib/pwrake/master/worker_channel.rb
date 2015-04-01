@@ -3,6 +3,7 @@ module Pwrake
   class WorkerChannel
 
     @@current_id = 0
+    HOST2ID = {}
 
     def initialize(io,host,ncore)
       @io = io
@@ -10,6 +11,7 @@ module Pwrake
       @ncore = ncore # || 1
       @id = @@current_id
       @@current_id = @@current_id.succ
+      HOST2ID[@host] = @id
       #x = "#{@id}:#{@host} #{@ncore}\n"
       #@io.print(x)
       #@io.flush

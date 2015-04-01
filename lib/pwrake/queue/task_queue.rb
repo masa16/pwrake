@@ -2,18 +2,15 @@ module Pwrake
 
   class TaskQueue
 
-    def initialize(host_list)
+    def initialize(core_map, group_map=nil)
       @q = []
       @empty = []
-      #@fibuf = []
       @finished = false
-
-      #@halt = false
-      #@mutex = Mutex.new
-      #@th_end = {}
 
       @enable_steal = true
       @q_no_action = Array.new
+
+      @idle_cores = core_map.dup
 
       pri = Rake.application.pwrake_options['QUEUE_PRIORITY'] || "FIFO"#"RANK"
       case pri
@@ -32,13 +29,12 @@ module Pwrake
       else
         raise RuntimeError,"unknown option for QUEUE_PRIORITY: "+pri
       end
-      #Log.debug "--- TQ#initialize @array_class=#{@array_class.inspect}"
-      #@array_class = Array
-      init_queue(host_list)
+      #Log.debug "@array_class=#{@array_class.inspect}"
+      init_queue(core_map, group_map)
     end
 
-    def init_queue(host_list)
-      # @q_input = @array_class.new(host_list.size)
+    def init_queue(core_map, group_map=nil)
+      #@q_input = @array_class.new(core_map.size)
       @q_input = Array.new
       @q_no_input = Array.new
     end
@@ -46,60 +42,62 @@ module Pwrake
     #attr_reader :mutex
     attr_accessor :enable_steal
 
-    def halt
-      @halt = true
-    end
-
-    def resume
-      @halt = false
-    end
-
-    def synchronize(condition)
-      yield
-    end
-
     # enq
-    def enq(item)
-      if item.nil? || item.actions.empty?
-        @q_no_action.push(item)
+    def enq(tw)
+      if tw.nil? || tw.actions.empty?
+        @q_no_action.push(tw)
       else
-        enq_body(item)
+        enq_body(tw)
       end
     end
 
-    def enq_body(item)
-      enq_impl(item)
+    def enq_body(tw)
+      enq_impl(tw)
     end
 
-    def enq_impl(t)
-      if t.kind_of?(Rake::FileTask) and !t.prerequisites.empty?
-        @q_input.push(t)
+    def enq_impl(tw)
+      if tw.task.kind_of?(Rake::FileTask) and !tw.prerequisites.empty?
+        @q_input.push(tw)
       else
-        @q_no_input.push(t)
+        @q_no_input.push(tw)
       end
     end
 
-    # deq
-    def deq(hint=nil)
-      if empty? # no item in queue
-        if @finished
-          return false
+
+    def deq_task(&block) # simple version
+      queued = deq_loop(&block)
+      if queued>0
+        Log.debug "queued:#{queued} @idle_cores:#{@idle_cores.inspect}"
+      end
+    end
+
+    def deq_loop(steal,&block)
+      queued = 0
+      while true
+        count = 0
+        @idle_cores.keys.each do |hid|
+          #if t = deq(@workers[hid].host)
+          if tw = deq_impl(hid,steal)
+            Log.debug "deq: #{tw.name}"
+            if @idle_cores[hid] < tw.n_used_cores
+              enq(tw) # check me
+            else
+              @idle_cores.decrease(hid, tw.n_used_cores)
+              yield(tw,hid)
+              count += 1
+              queued += 1
+            end
+          end
         end
+        break if count == 0
       end
-      n = 0
-      if !@q_no_action.empty?
-        return @q_no_action.shift
-      end
-      if t = deq_impl(hint, n)
-        #t_inspect = t.inspect[0..1000]
-        return t
-      end
-      #puts "deq: no items"
-      nil
+      queued
     end
 
-    def deq_impl(hint,n)
-      @q_input.shift || @q_no_input.shift
+    def deq_impl(hint=nil, steal=nil)
+      @q_no_action.shift ||
+        @q_input.shift ||
+        @q_no_input.shift
     end
 
     def clear
@@ -114,23 +112,8 @@ module Pwrake
         @q_no_input.empty?
     end
 
-    def finish
-      @finished = true
-    end
-
-    def stop
-      #@mutex.synchronize do
-        clear
-        finish
-      #end
-    end
-
-    def thread_end(th)
-      @th_end[th] = true
-    end
-
-    def after_check(tasks)
-      # implimented at subclass
+    def task_end(tw, hid)
+      @idle_cores.increase(hid, tw.n_used_cores)
     end
 
   end

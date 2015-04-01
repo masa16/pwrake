@@ -145,7 +145,7 @@ module Pwrake
         end
         if !loc_fsz.empty?
           half_max_fsz = loc_fsz.values.max / 2
-          #Log.debug "--- loc_fsz=#{loc_fsz.inspect} half_max_fsz=#{half_max_fsz}"
+          Log.debug "loc_fsz=#{loc_fsz.inspect} half_max_fsz=#{half_max_fsz}"
           loc_fsz.each do |h,sz|
             if sz > half_max_fsz
               @suggest_location << h
@@ -176,7 +176,7 @@ module Pwrake
             end
             @rank = max_rank + step
           end
-          #Log.debug "--- Task[#{name}] rank=#{@rank.inspect}"
+          Log.debug "Task[#{name}] rank=#{@rank.inspect}"
         end
       end
       @rank

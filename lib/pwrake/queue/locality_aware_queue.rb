@@ -2,30 +2,28 @@ module Pwrake
 
   class LocalityAwareQueue < TaskQueue
 
-    def init_queue(host_map)
-      @host_map = host_map
+    def init_queue(core_map,group_map=nil)
+      # core_map = {hid1=>ncore1, ...}
+      # group_map = {gid1=>[hid1,hid2,...], ...}
       @size = 0
       @q = {}
-      host_count = @host_map.host_count
-      host_count.each{|h,n| @q[h] = @array_class.new(n)}
+      core_map.each{|hid,ncore| @q[hid] = @array_class.new(ncore)}
       @q_group = {}
-      @host_map.each do |sub,grp|
-        other = host_count.dup
-        q1 = {}
-        grp.each{|info| h=info.name; q1[h] = @q[h]; other.delete(h)}
-        q2 = {}
-        other.each{|h,v| q2[h] = @q[h]}
+      group_map = {1=>core_map.keys} if group_map.nil?
+      group_map.each do |gid,ary|
+        other = core_map.dup
+        q1 = {} # same group
+        ary.each{|hid| q1[hid] = @q[hid]; other.delete(hid)}
+        q2 = {} # other groups
+        other.each{|hid,nc| q2[hid] = @q[hid]}
         a = [q1,q2]
-        grp.each{|info| @q_group[info.name] = a}
+        ary.each{|hid| @q_group[hid] = a}
       end
       @q_remote = @array_class.new(0)
       @q_later = Array.new
-      @enable_steal = !Rake.application.pwrake_options['DISABLE_STEAL']
-      @steal_wait = (Rake.application.pwrake_options['STEAL_WAIT'] || 0).to_i
-      @steal_wait_max = (Rake.application.pwrake_options['STEAL_WAIT_MAX'] || 10).to_i
-      @steal_wait_after_enq = (Rake.application.pwrake_options['STEAL_WAIT_AFTER_ENQ'] || 0.1).to_f
+      @idle_cores = core_map.dup
+      @disable_steal = Rake.application.pwrake_options['DISABLE_STEAL']
       @last_enq_time = Time.now
-      Log.info("-- @enable_steal=#{@enable_steal.inspect} @steal_wait=#{@steal_wait} @steal_wait_max=#{@steal_wait_max} @steal_wait_after_enq={@steal_wait_after_enq}")
     end
 
     attr_reader :size
@@ -38,8 +36,9 @@ module Pwrake
       else
         stored = false
         hints.each do |h|
-          if q = @q[h]
-            t.assigned.push(h)
+          id = WorkerChannel::HOST2ID[h]
+          if q = @q[id]
+            t.assigned.push(id)
             q.push(t)
             stored = true
           end
@@ -53,49 +52,50 @@ module Pwrake
     end
 
 
-    def deq_impl(host,n)
-      if t = deq_locate(host)
-        #Log.info "-- deq_locate n=#{n} task=#{t&&t.name} host=#{host}"
-        #Log.debug "--- deq_impl\n#{inspect_q}"
+    def deq_task(&block) # locality version
+      return super if @disable_steal
+      queued = deq_loop(false,&block) + deq_loop(true,&block)
+      if queued>0
+        Log.debug "queued:#{queued} @idle_cores:#{@idle_cores.inspect}"
+      end
+    end
+
+
+    def deq_impl(host, steal=nil)
+      if t = @q_no_action.shift
+        Log.debug "deq_no_action task=#{t&&t.name} host=#{host}"
         return t
       end
-
-      #hints = []
-      #@q.each do |h,q|
-      #  hints << h if !q.empty?
-      #end
-      #if (!hints.empty?) && @cv.signal_with_hints(hints)
-      #  return nil
-      #end
-
+      #
+      if t = deq_locate(host)
+        Log.debug "deq_locate steal=#{steal} task=#{t&&t.name} host=#{host}"
+        Log.debug "deq_impl\n#{inspect_q}"
+        return t
+      end
+      #
       if !@q_remote.empty?
         t = @q_remote.shift
-        #Log.info "-- deq_remote n=#{n} task=#{t&&t.name} host=#{host}"
-        #Log.debug "--- deq_impl\n#{inspect_q}"
+        Log.debug "deq_remote task=#{t&&t.name} host=#{host}"
+        Log.debug "deq_impl\n#{inspect_q}"
         return t
       end
-
+      #
       if !@q_later.empty?
         t = @q_later.shift
-        #Log.info "-- deq_later n=#{n} task=#{t&&t.name} host=#{host}"
-        #Log.debug "--- deq_impl\n#{inspect_q}"
+        Log.debug "deq_later task=#{t&&t.name} host=#{host}"
+        Log.debug "deq_impl\n#{inspect_q}"
         return t
       end
-
-      if @enable_steal && n > 0 && Time.now-@last_enq_time > @steal_wait_after_enq
+      #
+      if steal
         if t = deq_steal(host)
-          #Log.info "-- deq_steal n=#{n} task=#{t&&t.name} host=#{host}"
-          #Log.debug "--- deq_impl\n#{inspect_q}"
+          Log.debug "deq_steal task=#{t&&t.name} host=#{host}"
+          Log.debug "deq_impl\n#{inspect_q}"
           return t
         end
       end
-
-      #m = [@steal_wait*(2**n), @steal_wait_max].min
-      #@cv.wait(@mutex,m)
-      #@cv.wait(@mutex)
       nil
     end
-
 
     def deq_locate(host)
       q = @q[host]
@@ -128,7 +128,7 @@ module Pwrake
           end
         end
         if max_num > 0
-          Log.info "-- deq_steal max_host=#{max_host} max_num=#{max_num}"
+          Log.debug "deq_steal max_host=#{max_host} max_num=#{max_num}"
           t = deq_locate(max_host)
           return t if t
         end

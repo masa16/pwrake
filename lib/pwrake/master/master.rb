@@ -88,7 +88,7 @@ module Pwrake
         wk_hosts.each do |host_info|
           name = host_info.name
           ncore = host_info.ncore
-          $stderr.puts "connecting #{name} ncore=#{ncore}"
+          Log.debug "connecting #{name} ncore=#{ncore}"
           chan = WorkerChannel.new(conn,name,ncore)
           @workers[chan.id] = chan
           #conn.send_cmd "#{chan.id}:#{name} #{ncore}"
@@ -98,6 +98,7 @@ module Pwrake
 
       # receive ncore from WorkerCommunicator at Branch
       #Log.debug "@comm_by_io.keys: #{@comm_by_io.keys.inspect}"
+      sum_ncore = 0
       IODispatcher.event_once(@comm_by_io.keys,10) do |io|
         while true
           case s = io.gets
@@ -105,16 +106,21 @@ module Pwrake
             break
           when /ncore:(\d+):(\d+)/
             id, ncore = $1.to_i, $2.to_i
-            Log.debug "worker-id:#{id} ncore:#{ncore}"
+            Log.debug "worker_id=#{id} ncore=#{ncore}"
             @workers[id].ncore = ncore
             @idle_cores[id] = ncore
+            sum_ncore += ncore
           else
             raise "Invalid return: #{s}"
           end
         end
       end
 
-      @task_queue = @option.queue_class.new(@option.host_map)
+      Log.info "num_cores=#{sum_ncore}"
+      @workers.each do |id,wk|
+        Log.info "#{wk.host} id=#{wk.id} ncore=#{wk.ncore}"
+      end
+      @task_queue = @option.queue_class.new(@idle_cores)
     end
 
     def invoke(t, args)
@@ -140,42 +146,22 @@ module Pwrake
     end
 
     def wake_idle_core
-      queued = 0
-      while true
-        count = 0
-        @idle_cores.keys.each do |id|
-          if t = @task_queue.deq(@workers[id].host)
-            Log.debug "deq: #{t.name}"
-            #if t.needed?
-            if @idle_cores[id] < t.n_used_cores
-              @task_queue.enq(t) # check me
-            else
-              t.preprocess
-              @idle_cores.decrease(id, t.n_used_cores)
-              @id_by_taskname[t.name] = id
-              @workers[id].send_task(t)
-              t.exec_host = @workers[id].host
-              count += 1
-              queued += 1
-            end
-          end
-          #if not t.needed?
-        end
-        break if count == 0
+      @task_queue.deq_task do |tw,hid|
+        tw.preprocess
+        @id_by_taskname[tw.name] = hid
+        @workers[hid].send_task(tw)
+        tw.exec_host = @workers[hid].host
       end
-      if queued>0
-        Log.debug "queued:#{queued} @idle_cores:#{@idle_cores.inspect}"
-      end
-      #Log.debug "wake_idle_core: end"
     end
 
     def on_taskend(task_name)
       #puts "taskend: "+task_name
       id = @id_by_taskname.delete(task_name)
-      t = Rake.application[task_name].wrapper
-      @idle_cores.increase(id, t.n_used_cores)
-      t.postprocess
-      @exit_task.delete(t.task)
+      tw = Rake.application[task_name].wrapper
+      @task_queue.task_end(tw, id)
+      #@idle_cores.increase(id, tw.n_used_cores)
+      tw.postprocess
+      @exit_task.delete(tw.task)
       if @exit_task.empty?
         return true
       end
@@ -186,15 +172,16 @@ module Pwrake
     def on_taskfail(task_name)
       #puts "taskfail: "+task_name
       id = @id_by_taskname.delete(task_name)
-      t = Rake.application[task_name].wrapper
-      @idle_cores.increase(id, t.n_used_cores)
-      t.postprocess
-      @exit_task.delete(t.task)
+      tw = Rake.application[task_name].wrapper
+      @task_queue.task_end(tw, id)
+      #@idle_cores.increase(id, tw.n_used_cores)
+      tw.postprocess
+      @exit_task.delete(tw.task)
       return true
     end
 
     def finish
-      @task_queue.finish if @task_queue
+      #@task_queue.finish if @task_queue
       @conn_list.each do |conn|
         conn.close
       end
