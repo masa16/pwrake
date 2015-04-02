@@ -15,7 +15,7 @@ module Pwrake
         end
         stat[0] += 1
         stat[1] += elap
-        Log.debug "--- add_sample rank=#{rank} stat=#{stat.inspect} weight=#{stat[0]/stat[1]}"
+        #Log.debug "add_sample rank=#{rank} stat=#{stat.inspect} weight=#{stat[0]/stat[1]}"
       end
     end
 
@@ -44,6 +44,5 @@ module Pwrake
   end
 
   RANK_STAT = RankStat.new
-
 
 end

@@ -12,7 +12,7 @@ module Pwrake
 
       @idle_cores = core_map.dup
 
-      pri = Rake.application.pwrake_options['QUEUE_PRIORITY'] || "FIFO"#"RANK"
+      pri = Rake.application.pwrake_options['QUEUE_PRIORITY'] || "LIHR"
       case pri
       when /prio/i
         @array_class = PriorityQueueArray
@@ -29,13 +29,13 @@ module Pwrake
       else
         raise RuntimeError,"unknown option for QUEUE_PRIORITY: "+pri
       end
-      #Log.debug "@array_class=#{@array_class.inspect}"
+      Log.debug "@array_class=#{@array_class.inspect}"
       init_queue(core_map, group_map)
     end
 
     def init_queue(core_map, group_map=nil)
-      #@q_input = @array_class.new(core_map.size)
-      @q_input = Array.new
+      @q_input = @array_class.new(core_map.size)
+      #@q_input = Array.new
       @q_no_input = Array.new
     end
 

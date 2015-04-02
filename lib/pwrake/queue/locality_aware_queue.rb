@@ -119,6 +119,7 @@ module Pwrake
       max_num  = 0
       @q_group[host].each do |qg|
         qg.each do |h,a|
+          #Log.debug "deq_steal h=#{h.inspect}\na=#{a.inspect}\n"
           if !a.empty?
             d = a.size
             if d > max_num

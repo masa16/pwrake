@@ -6,6 +6,7 @@ module Pwrake
   module TaskAlgorithm
 
     attr_reader :wrapper
+    attr_reader :subsequents
 
     def pw_search_tasks(args)
       task_args = TaskArguments.new(arg_names, args)

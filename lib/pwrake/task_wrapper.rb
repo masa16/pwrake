@@ -50,7 +50,7 @@ module Pwrake
 
     def postprocess
       @executed = true if !@task.actions.empty?
-      if @task.kind_of?(Rake::FileTask)
+      if is_file_task?
         t = Time.now
         Rake.application.postprocess(@task)
         if File.exist?(name)
@@ -75,7 +75,7 @@ module Pwrake
       #
       elap = @time_end - @time_start
       if !actions.empty? && @task.kind_of?(Rake::FileTask)
-        #RANK_STAT.add_sample(rank,elap)
+        RANK_STAT.add_sample(rank,elap)
       end
       #
       row = [ @task_id, name, @time_start, @time_end, elap, prerequisites.join('|') ]
@@ -111,6 +111,10 @@ module Pwrake
       # task_id task_name start_time end_time elap_time preq preq_host
       # exec_host shell_id has_action executed file_size file_mtime file_host
       Rake.application.task_logger.print s+"\n"
+    end
+
+    def is_file_task?
+      @task.kind_of?(Rake::FileTask) && !actions.empty?
     end
 
     def has_input_file?
@@ -157,28 +161,28 @@ module Pwrake
     end
 
     def rank
-      @lock_rank.synchronize do
+      #@lock_rank.synchronize do
         if @rank.nil?
           if subsequents.nil? || subsequents.empty?
             @rank = 0
           else
             max_rank = 0
             subsequents.each do |subsq|
-              r = subsq.rank
+              r = subsq.wrapper.rank
               if max_rank < r
                 max_rank = r
               end
             end
-            if actions.empty? || !@task.kind_of?(Rake::FileTask)
-              step = 0
-            else
+            if is_file_task?
               step = 1
+            else
+              step = 0
             end
             @rank = max_rank + step
           end
           Log.debug "Task[#{name}] rank=#{@rank.inspect}"
         end
-      end
+      #end
       @rank
     end
 
@@ -245,7 +249,7 @@ module Pwrake
         else
           @priority = 0
         end
-        #Log.debug "--- task_name=#{name} priority=#{@priority} sum_file_size=#{sum_sz}"
+        Log.debug "task_name=#{name} priority=#{@priority} sum_file_size=#{sum_sz}"
       end
       @priority || 0
     end

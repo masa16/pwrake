@@ -44,9 +44,9 @@ module Pwrake
     end
 
     def kill(sig)
-      $stderr.puts "#{self.class.to_s}#kill sig=#{sig} pid=#{Process.pid} thread=#{Thread.current} self=#{self.inspect}"
+      $stderr.puts "#{self.class.to_s}#kill sig=#{sig} pid=#{Process.pid} thread=#{Thread.current}"
+      #$stderr.puts "#{self.class.to_s}#kill sig=#{sig} pid=#{Process.pid} thread=#{Thread.current} self=#{self.inspect}"
       send_cmd "kill:#{sig}"
-      @iow.flush
       Process.kill(sig,@pid) if @pid
     end
 

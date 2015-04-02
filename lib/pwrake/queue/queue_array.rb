@@ -1,3 +1,5 @@
+require "forwardable"
+
 module Pwrake
 
 #  class TaskConditionVariable < ConditionVariable
@@ -130,10 +132,9 @@ module Pwrake
     end
 
     def hrf_push(t)
-      if t
-        r = t.rank
-        @count[r] = (@count[r]||0) + 1
-      end
+      r = t.rank
+      c = @count[r]
+      @count[r] = (c) ? c+1 : 1
     end
 
     def hrf_get
@@ -141,9 +142,7 @@ module Pwrake
         c = @count[r]
         if c && c>0
           t = (c <= @nproc) ? pop_last_rank(r) : pop_super
-          if t
-            @count[t.rank] -= 1
-          end
+          hrf_delete(t)
           return t
         end
       end
@@ -153,27 +152,42 @@ module Pwrake
 
     def pop_last_rank(r)
       (size-1).downto(0) do |i|
-        t = at(i)
-        if t && t.rank == r
-          delete_at(i)
-          return t
+        if at(i).rank == r
+          return delete_at(i)
         end
       end
       nil
     end
+
+    def hrf_delete(t)
+      @count[t.rank] -= 1
+    end
+
+    def check(t=nil)
+      sum = 0
+      @count.each{|x| sum+=x if x}
+      if size != sum
+        #$stderr.puts self.inspect
+        #$stderr.puts t.inspect if t
+        raise "sise != @count.sum"
+      end
+    end
   end
 
   # LIFO + HRF
-  class LifoHrfQueueArray < Array
+  class LifoHrfQueueArray
     include HrfQueue
+    extend Forwardable
+    def_delegators :@a, :empty?, :size, :first, :last
+    def_delegators :@a, :at, :delete_at
 
     def initialize(n)
-      super()
+      @a = []
       hrf_init(n)
     end
 
     def push(t)
-      super(t)
+      @a.push(t)
       hrf_push(t)
     end
 
@@ -182,10 +196,18 @@ module Pwrake
       hrf_get
     end
 
+    def delete(t)
+      if x=@a.delete(t)
+        hrf_delete(t)
+      end
+      x
+    end
+
     def pop_super
-      pop
+      @a.pop
     end
   end
+
 
   # Priority + HRF
   class PriorityHrfQueueArray < PriorityQueueArray
