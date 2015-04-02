@@ -76,8 +76,10 @@ module Pwrake
       while true
         count = 0
         @idle_cores.keys.each do |hid|
+          if empty?
+            return queued
           #if t = deq(@workers[hid].host)
-          if tw = deq_impl(hid,steal)
+          elsif tw = deq_impl(hid,steal)
             Log.debug "deq: #{tw.name}"
             if @idle_cores[hid] < tw.n_used_cores
               enq(tw) # check me
