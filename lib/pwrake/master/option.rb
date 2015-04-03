@@ -134,7 +134,7 @@ module Pwrake
           proc{|v|
             if v
               if v == "" || !v.kind_of?(String)
-                v = "Pwrake%Y%m%d-%H%M%S_%$.task"
+                v = "Pwrake%Y%m%d-%H%M%S_%$_task.csv"
               end
               format_time_pid(v)
             end
@@ -143,7 +143,7 @@ module Pwrake
           proc{|v|
             if v
               if v == "" || !v.kind_of?(String)
-                v = "Pwrake%Y%m%d-%H%M%S_%$.csv"
+                v = "Pwrake%Y%m%d-%H%M%S_%$_cmd.csv"
               end
               format_time_pid(v)
             end
