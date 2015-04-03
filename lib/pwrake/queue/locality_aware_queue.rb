@@ -5,7 +5,7 @@ module Pwrake
     def init_queue(core_map,group_map=nil)
       # core_map = {hid1=>ncore1, ...}
       # group_map = {gid1=>[hid1,hid2,...], ...}
-      @size = 0
+      @size_q = 0
       @q = {}
       core_map.each{|hid,ncore| @q[hid] = @array_class.new(ncore)}
       @q_group = {}
@@ -26,8 +26,6 @@ module Pwrake
       @last_enq_time = Time.now
     end
 
-    attr_reader :size
-
 
     def enq_impl(t)
       hints = t && t.suggest_location
@@ -43,56 +41,88 @@ module Pwrake
             stored = true
           end
         end
-        if !stored
+        if stored
+          @size_q += 1
+        else
           @q_remote.push(t)
         end
       end
       @last_enq_time = Time.now
-      @size += 1
     end
 
 
     def deq_task(&block) # locality version
       return super if @disable_steal
-      queued = deq_loop(false,&block) + deq_loop(true,&block)
+      queued = 0
+      4.times do |turn|
+        break if turn_empty?(turn)
+        queued += deq_loop(turn,&block)
+      end
       if queued>0
         Log.debug "queued:#{queued} @idle_cores:#{@idle_cores.inspect}"
       end
     end
 
+    def turn_empty?(turn)
+      case turn
+      when 0
+        @q_no_action.empty? && @q_size == 0
+      when 1
+        @q_remote.empty?
+      when 2
+        @q_later.empty?
+      when 3
+        @q_size == 0
+      end
+    end
 
-    def deq_impl(host, steal=nil)
+    def deq_impl(host, turn)
+      Log.debug "deq_impl\n#{inspect_q}"
+      case turn
+      when 0
+        deq_locate0(host)
+      when 1
+        deq_remote
+      when 2
+        deq_later
+      when 3
+        deq_steal0(host)
+      end
+    end
+
+    def deq_locate0(host)
       if t = @q_no_action.shift
         Log.debug "deq_no_action task=#{t&&t.name} host=#{host}"
         return t
       end
       #
       if t = deq_locate(host)
-        Log.debug "deq_locate steal=#{steal} task=#{t&&t.name} host=#{host}"
-        Log.debug "deq_impl\n#{inspect_q}"
+        Log.debug "deq_locate task=#{t&&t.name} host=#{host}"
         return t
       end
-      #
-      if !@q_remote.empty?
-        t = @q_remote.shift
-        Log.debug "deq_remote task=#{t&&t.name} host=#{host}"
-        Log.debug "deq_impl\n#{inspect_q}"
+      nil
+    end
+
+    def deq_remote
+      if t = @q_remote.shift
+        Log.debug "deq_remote task=#{t&&t.name}"
         return t
       end
-      #
-      if !@q_later.empty?
-        t = @q_later.shift
-        Log.debug "deq_later task=#{t&&t.name} host=#{host}"
-        Log.debug "deq_impl\n#{inspect_q}"
+      nil
+    end
+
+    def deq_later
+      if t = @q_later.shift
+        Log.debug "deq_later task=#{t&&t.name}"
         return t
       end
-      #
-      if steal
-        if t = deq_steal(host)
-          Log.debug "deq_steal task=#{t&&t.name} host=#{host}"
-          Log.debug "deq_impl\n#{inspect_q}"
-          return t
-        end
+      nil
+    end
+
+    def deq_steal0(host)
+      if t = deq_steal(host)
+        Log.debug "deq_steal task=#{t&&t.name} host=#{host}"
+        return t
       end
       nil
     end
@@ -106,7 +136,7 @@ module Pwrake
             @q[h].delete(t)
           end
         end
-        @size -= 1
+        @size_q -= 1
         return t
       else
         nil
@@ -159,10 +189,6 @@ module Pwrake
       s
     end
 
-    def size
-      @size
-    end
-
     def clear
       @q_no_action.clear
       @q.each{|h,q| q.clear}
@@ -171,7 +197,8 @@ module Pwrake
     end
 
     def empty?
-      @q.all?{|h,q| q.empty?} &&
+      #@q.all?{|h,q| q.empty?} &&
+      @size_q == 0 &&
         @q_no_action.empty? &&
         @q_remote.empty? &&
         @q_later.empty?

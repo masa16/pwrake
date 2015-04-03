@@ -50,7 +50,7 @@ module Pwrake
 
     def postprocess
       @executed = true if !@task.actions.empty?
-      if is_file_task?
+      if @task.kind_of?(Rake::FileTask)
         t = Time.now
         Rake.application.postprocess(@task)
         if File.exist?(name)
@@ -147,6 +147,7 @@ module Pwrake
             end
           end
         end
+        #Log.debug "input=#{prerequisites.join('|')}"
         if !loc_fsz.empty?
           half_max_fsz = loc_fsz.values.max / 2
           Log.debug "loc_fsz=#{loc_fsz.inspect} half_max_fsz=#{half_max_fsz}"

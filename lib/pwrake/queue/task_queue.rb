@@ -65,21 +65,21 @@ module Pwrake
 
 
     def deq_task(&block) # simple version
-      queued = deq_loop(&block)
+      queued = deq_loop(0,&block)
       if queued>0
         Log.debug "queued:#{queued} @idle_cores:#{@idle_cores.inspect}"
       end
     end
 
-    def deq_loop(steal,&block)
+    def deq_loop(turn,&block)
       queued = 0
       while true
         count = 0
         @idle_cores.keys.each do |hid|
-          if empty?
+          if turn_empty?(turn)
             return queued
           #if t = deq(@workers[hid].host)
-          elsif tw = deq_impl(hid,steal)
+          elsif tw = deq_impl(hid,turn)
             Log.debug "deq: #{tw.name}"
             if @idle_cores[hid] < tw.n_used_cores
               enq(tw) # check me
@@ -94,6 +94,10 @@ module Pwrake
         break if count == 0
       end
       queued
+    end
+
+    def turn_empty?(turn)
+      empty?
     end
 
     def deq_impl(hint=nil, steal=nil)
