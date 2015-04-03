@@ -74,7 +74,7 @@ module Pwrake
       return if !Rake.application.task_logger
       #
       elap = @time_end - @time_start
-      if !actions.empty? && @task.kind_of?(Rake::FileTask)
+      if is_file_task?
         RANK_STAT.add_sample(rank,elap)
       end
       #

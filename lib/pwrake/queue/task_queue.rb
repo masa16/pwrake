@@ -56,7 +56,7 @@ module Pwrake
     end
 
     def enq_impl(tw)
-      if tw.task.kind_of?(Rake::FileTask) and !tw.prerequisites.empty?
+      if tw.has_input_file?
         @q_input.push(tw)
       else
         @q_no_input.push(tw)
