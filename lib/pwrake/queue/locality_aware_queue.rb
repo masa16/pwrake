@@ -20,7 +20,6 @@ module Pwrake
         ary.each{|hid| @q_group[hid] = a}
       end
       @q_remote = @array_class.new(0)
-      @q_later = Array.new
       @idle_cores = core_map.dup
       @disable_steal = Rake.application.pwrake_options['DISABLE_STEAL']
       @last_enq_time = Time.now
@@ -30,7 +29,7 @@ module Pwrake
     def enq_impl(t)
       hints = t && t.suggest_location
       if hints.nil? || hints.empty?
-        @q_later.push(t)
+        @q_remote.push(t)
       else
         stored = false
         hints.each do |h|
@@ -54,8 +53,8 @@ module Pwrake
     def deq_task(&block) # locality version
       return super if @disable_steal
       queued = 0
-      4.times do |turn|
-        break if turn_empty?(turn)
+      3.times do |turn|
+        next if turn_empty?(turn)
         queued += deq_loop(turn,&block)
       end
       if queued>0
@@ -70,8 +69,6 @@ module Pwrake
       when 1
         @q_remote.empty?
       when 2
-        @q_later.empty?
-      when 3
         @q_size == 0
       end
     end
@@ -84,8 +81,6 @@ module Pwrake
       when 1
         deq_remote
       when 2
-        deq_later
-      when 3
         deq_steal0(host)
       end
     end
@@ -106,14 +101,6 @@ module Pwrake
     def deq_remote
       if t = @q_remote.shift
         Log.debug "deq_remote task=#{t&&t.name}"
-        return t
-      end
-      nil
-    end
-
-    def deq_later
-      if t = @q_later.shift
-        Log.debug "deq_later task=#{t&&t.name}"
         return t
       end
       nil
@@ -185,7 +172,6 @@ module Pwrake
       b.call("noaction",@q_no_action)
       @q.each(&b)
       b.call("remote",@q_remote)
-      b.call("later",@q_later)
       s
     end
 
@@ -193,15 +179,13 @@ module Pwrake
       @q_no_action.clear
       @q.each{|h,q| q.clear}
       @q_remote.clear
-      @q_later.clear
     end
 
     def empty?
       #@q.all?{|h,q| q.empty?} &&
       @size_q == 0 &&
         @q_no_action.empty? &&
-        @q_remote.empty? &&
-        @q_later.empty?
+        @q_remote.empty?
     end
 
     def finish
