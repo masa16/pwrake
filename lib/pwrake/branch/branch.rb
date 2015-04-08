@@ -38,6 +38,10 @@ module Pwrake
       raise if s.chomp != "begin_worker_list"
 
       if fn = @options["PROFILE"]
+        if dir = @options['LOGDIR']
+          ::FileUtils.mkdir_p(dir)
+          fn = File.join(dir,fn)
+        end
         Shell.profiler.open(fn,@options['GNU_TIME'],@options['PLOT_PARALLELISM'])
       end
 

@@ -29,7 +29,7 @@ module Pwrake
       @writer = {}
       @option = Option.new
       @exit_task = []
-      init_logger(@option['LOGFILE'])
+      init_logger
     end
 
     attr_reader :task_queue
@@ -37,11 +37,12 @@ module Pwrake
     attr_reader :logger
     attr_reader :task_logger
 
-    def init_logger(logfile=nil)
+    def init_logger
+      logfile = @option['LOGFILE']
       if logfile
-        logdir = File.dirname(logfile)
-        if !File.directory?(logdir)
-          mkdir_p logdir
+        if dir = @option['LOGDIR']
+          ::FileUtils.mkdir_p(dir)
+          logfile = File.join(dir,logfile)
         end
         @logger = Logger.new(logfile)
       else
@@ -65,6 +66,10 @@ module Pwrake
 
     def init_tasklog
       if tasklog = @option['TASKLOG']
+        if dir = @option['LOGDIR']
+          ::FileUtils.mkdir_p(dir)
+          tasklog = File.join(dir,tasklog)
+        end
         @task_logger = File.open(tasklog,'w')
         @task_logger.print %w[
           task_id task_name start_time end_time elap_time preq preq_host

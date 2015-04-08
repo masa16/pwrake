@@ -119,13 +119,22 @@ module Pwrake
         'PLOT_PARTITION',
 
         ['HOSTFILE','HOSTS'],
+        ['LOGDIR',
+          proc{|v|
+            if v
+              if v == "" || !v.kind_of?(String)
+                v = "log_%Y%m%d-%H%M%S_%$"
+              end
+              format_time_pid(v)
+            end
+          }],
         ['LOGFILE','LOG',
           proc{|v|
             if v
               # turn trace option on
-              Rake.application.options.trace = true
+              # Rake.application.options.trace = true
               if v == "" || !v.kind_of?(String)
-                v = "Pwrake%Y%m%d-%H%M%S_%$.log"
+                v = "%Y%m%d-%H%M%S_%$.log"
               end
               format_time_pid(v)
             end
@@ -134,16 +143,16 @@ module Pwrake
           proc{|v|
             if v
               if v == "" || !v.kind_of?(String)
-                v = "Pwrake%Y%m%d-%H%M%S_%$_task.csv"
+                v = "%Y%m%d-%H%M%S_%$_task.csv"
               end
               format_time_pid(v)
             end
           }],
-        ['PROFILE',
+        ['PROFILE','CMDLOG',
           proc{|v|
             if v
               if v == "" || !v.kind_of?(String)
-                v = "Pwrake%Y%m%d-%H%M%S_%$_cmd.csv"
+                v = "%Y%m%d-%H%M%S_%$_cmd.csv"
               end
               format_time_pid(v)
             end
@@ -152,7 +161,7 @@ module Pwrake
          proc{|v|
             if v
               if v == "" || !v.kind_of?(String)
-                v = "Pwrake%Y%m%d-%H%M%S_%$.gcprof"
+                v = "%Y%m%d-%H%M%S_%$_gc"
               end
               format_time_pid(v)
             end
