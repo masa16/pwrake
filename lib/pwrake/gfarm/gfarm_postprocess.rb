@@ -21,7 +21,7 @@ module Pwrake
        list << t.name if t.kind_of? Rake::FileTask
       end
       if !list.empty?
-       Log.info "-- after_check: size=#{list.size} #{list.inspect}"
+       Log.info "after_check: size=#{list.size} #{list.inspect}"
        gfwhere_result = GfarmPath.gfwhere(list)
        tasks.each do |t|
          if t.kind_of? Rake::FileTask

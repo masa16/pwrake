@@ -51,7 +51,7 @@ module Pwrake
       if pwrake_conf.nil?
         @yaml = {}
       else
-        #Log.debug "--- pwrake_conf=#{pwrake_conf}"
+        Log.debug "load pwrake_conf=#{pwrake_conf}"
         require "yaml"
         @yaml = open(pwrake_conf){|f| YAML.load(f) }
       end
@@ -311,7 +311,6 @@ module Pwrake
         raise "Cannot set `hostfile' and `num_threads' simultaneously"
       end
       @host_map = HostMap.new(@hostfile || @num_threads)
-      #Log.info "num_cores=#{@host_map.size}"
     end
     attr_reader :host_map
 

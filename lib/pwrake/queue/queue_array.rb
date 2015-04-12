@@ -59,7 +59,7 @@ module Pwrake
         end
         mid = upper
         if self[mid].priority == priority
-          Log.debug "--- TQA#index=#{mid}, priority=#{priority}"
+          Log.debug "TQA#index=#{mid}, priority=#{priority}"
           mid
         end
       end
@@ -113,7 +113,7 @@ module Pwrake
             #t = (c<=@n) ? pop_last_rank(r) : pop
             if t
               @ntask[t.rank] -= 1
-              Log.debug "--- RankCount rank=#{r} nproc=#{@nproc} count=#{c} t.rank=#{t.rank} t.name=#{t.name}"
+              Log.debug "RankCount rank=#{r} nproc=#{@nproc} count=#{c} t.rank=#{t.rank} t.name=#{t.name}"
             end
             return t
           end
@@ -292,7 +292,7 @@ module Pwrake
       end
       #
       x = rand() * wsum
-      Log.debug "--- shift_weighted x=#{x} wsum=#{wsum} weight=#{weight.inspect}"
+      Log.debug "shift_weighted x=#{x} wsum=#{wsum} weight=#{weight.inspect}"
       q.each do |a,w|
         if w > x
           return a.pop

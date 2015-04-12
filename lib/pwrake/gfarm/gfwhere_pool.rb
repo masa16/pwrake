@@ -17,7 +17,7 @@ module Pwrake
             return w if w.acquire
           end
           if @pool.size < @max
-            Log.debug "--- #{@worker_class}:new_worker #{@pool.size+1}"
+            Log.debug "#{@worker_class}:new_worker #{@pool.size+1}"
             w = @worker_class.new(@cond_pool)
             @pool << w
             return w if w.acquire
