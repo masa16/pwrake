@@ -54,6 +54,7 @@ module Pwrake
     end
 
     def close
+      #$stderr.puts "Shell#close id=#{@id}"
       @lock.synchronize do
         if !@chan.closed?
           _system "exit"
@@ -61,6 +62,14 @@ module Pwrake
         OPEN_LIST.delete(__id__)
         @comm.delete_channel(@id)
       end
+    end
+
+    def force_close
+      if !@chan.closed?
+        @chan.close
+      end
+      OPEN_LIST.delete(__id__)
+      @comm.delete_channel(@id)
     end
 
     def communicator
@@ -92,9 +101,14 @@ module Pwrake
       raise "Failed at #{@host}, id=#{@id}, cmd='#{@cmd}'"
     end
 
+    #require 'pp'
     at_exit {
+      #$stderr.puts "Shell at_exit OPEN_LIST"
+      #pp OPEN_LIST, $stderr
       OPEN_LIST.map do |id,sh|
-        sh.close
+        # kill running job ???
+        # or wait for job ???
+        sh.force_close
       end
       Shell.profiler.close
     }
@@ -138,6 +152,7 @@ module Pwrake
     end
 
     def io_read_loop
+      # @chan.deq must be called in a Fiber
       while x = @chan.deq
         #$stderr.puts "x=#{x.inspect}"
         case x[0]

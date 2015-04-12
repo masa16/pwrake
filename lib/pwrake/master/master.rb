@@ -40,7 +40,7 @@ module Pwrake
     def init_logger
       logfile = @option['LOGFILE']
       if logfile
-        if dir = @option['LOGDIR']
+        if dir = @option['LOG_DIR']
           ::FileUtils.mkdir_p(dir)
           logfile = File.join(dir,logfile)
         end
@@ -66,7 +66,7 @@ module Pwrake
 
     def init_tasklog
       if tasklog = @option['TASKLOG']
-        if dir = @option['LOGDIR']
+        if dir = @option['LOG_DIR']
           ::FileUtils.mkdir_p(dir)
           tasklog = File.join(dir,tasklog)
         end

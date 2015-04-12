@@ -114,7 +114,7 @@ module Pwrake
           begin
             host = Socket.gethostbyname(host)[0]
           rescue
-            Log.info "-- FQDN not resoved : #{host}"
+            Log.warn "FQDN not resoved : #{host}"
           end
           ncore &&= ncore.to_i
           weitht &&= weight.to_i

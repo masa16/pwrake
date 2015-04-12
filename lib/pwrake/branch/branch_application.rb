@@ -18,14 +18,22 @@ module Pwrake
         #@branch.init_logger
         opts.feedback_options
         load_rakefile
-        @branch.run
+        begin
+          @branch.run
+        ensure
+          @branch.finish
+        end
       end
     end
 
     def run_branch_in_thread(r,w,opts)
       standard_exception_handling do
         @branch = Branch.new(opts,r,w)
-        @branch.run
+        begin
+          @branch.run
+        ensure
+          @branch.finish
+        end
       end
     end
 

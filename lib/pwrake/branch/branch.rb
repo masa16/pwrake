@@ -16,20 +16,10 @@ module Pwrake
     # Rakefile is loaded after 'init' before 'run'
 
     def run
-      begin
-        begin
-          @dispatcher = IODispatcher.new
-          setup_shells
-          setup_fibers
-          @dispatcher.event_loop
-        rescue => e
-          $stderr.puts "Error!!!"
-          $stderr.puts e.message
-          $stderr.puts e.backtrace
-        end
-      ensure
-        finish
-      end
+      @dispatcher = IODispatcher.new
+      setup_shells
+      setup_fibers
+      @dispatcher.event_loop
     end
 
 
@@ -38,7 +28,7 @@ module Pwrake
       raise if s.chomp != "begin_worker_list"
 
       if fn = @options["PROFILE"]
-        if dir = @options['LOGDIR']
+        if dir = @options['LOG_DIR']
           ::FileUtils.mkdir_p(dir)
           fn = File.join(dir,fn)
         end

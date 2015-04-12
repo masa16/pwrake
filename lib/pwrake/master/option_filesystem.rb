@@ -10,7 +10,10 @@ module Pwrake
     def setup_filesystem
 
       @worker_option = {
+        :worker_cmd => "pwrake_worker",
+        :base_dir  => "",
         :work_dir  => self['WORK_DIR'],
+        :log_dir   => self['LOG_DIR'],
         :pass_env  => self['PASS_ENV'],
         :ssh_opt   => self['SSH_OPTION']
       }
@@ -33,10 +36,11 @@ module Pwrake
         @shell_class = Shell
         base = self['GFARM_BASEDIR']
         prefix = self['GFARM_PREFIX']
-        mntpnt = "#{base}/#{prefix}_%02d"
+        mntpnt = "#{base}/#{prefix}"
         @worker_option.merge!({
-          :work_dir  => GfarmPath.pwd.to_s,
-          :filesystem => "gfarm:"+mntpnt,
+          :worker_cmd => "pwrake_gfarm_worker",
+          :base_dir => mntpnt,
+          :work_dir => GfarmPath.pwd.to_s,
           :single_mp => self['GFARM_SINGLE_MP']
         })
 

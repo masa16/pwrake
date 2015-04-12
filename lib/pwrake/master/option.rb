@@ -16,9 +16,9 @@ module Pwrake
     end
 
     def init
-      Log.debug "Options:"
+      Log.info "Options:"
       self.each do |k,v|
-	Log.debug " #{k} = #{v.inspect}"
+	Log.info " #{k} = #{v.inspect}"
       end
       #@counter = Counter.new
       setup_hosts
@@ -119,13 +119,12 @@ module Pwrake
         'PLOT_PARTITION',
 
         ['HOSTFILE','HOSTS'],
-        ['LOGDIR',
+        ['LOG_DIR',
           proc{|v|
-            if v
-              if v == "" || !v.kind_of?(String)
-                v = "log_%Y%m%d-%H%M%S_%$"
-              end
-              format_time_pid(v)
+            if v.nil?
+              format_time_pid("log_%Y%m%d-%H%M%S_%$")
+            else
+              v
             end
           }],
         ['LOGFILE','LOG',

@@ -21,6 +21,7 @@ module Pwrake
       @dir.open
       fn = "worker-#{`hostname`.chomp}-#{Process.pid}.log"
       @logfile = (@dir.log_path + fn).to_s
+      ::FileUtils.mkdir_p(@dir.log_path.to_s)
       @logger = @logger_file = ::Logger.new(@logfile)
       @logger_opened = true
       @logger.level = @level

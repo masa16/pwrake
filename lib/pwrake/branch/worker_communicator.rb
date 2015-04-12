@@ -2,8 +2,7 @@ module Pwrake
 
   class WorkerCommunicator < Communicator
 
-    @@worker_command = "ruby "+File.expand_path(File.dirname(__FILE__))+
-      "/../../../bin/pwrake_worker"
+    @@worker_path = File.expand_path(File.dirname(__FILE__))+"/../../../bin/"
     RE_ID='\d+'
     attr_reader :id, :host, :ncore
     attr_reader :channel
@@ -16,16 +15,13 @@ module Pwrake
       @channel = {}
       #
       @option = opt
-      @work_dir = @option[:work_dir] || Dir.pwd
-      @pass_env = @option[:pass_env]
-      @ssh_opt  = @option[:ssh_opt]
-      @filesystem = @option[:filesystem]
       super(host)
       @close_command = "exit_worker"
       @@worker_communicators << self
     end
 
     def setup_connection(w0,w1,r2)
+      Kernel.puts system_cmd
       @pid = spawn(system_cmd,:pgroup=>true,:out=>w0,:err=>w1,:in=>r2)
       w0.close
       w1.close
@@ -33,29 +29,24 @@ module Pwrake
       if @path
         @iow.puts "export:PATH='#{path}'"
       end
-      if @pass_env
-        @pass_env.each do |k,v|
+      if env = @option[:pass_env]
+        env.each do |k,v|
           @iow.puts "export:#{k}='#{v}'"
         end
-      end
-      if @filesystem
-        @iow.puts "fs:#{@filesystem}"
-      end
-      if @work_dir
-        @iow.puts "wd:#{@work_dir}"
       end
     end
 
     def system_cmd
-      #if @work_dir
-      #  cmd = "cd #{@work_dir}; #{@@worker_command}"
-      #else
-      #  cmd = @@worker_command
-      #end
+      ssh_opt = @option[:ssh_opt]
+      cmd = "ruby "+@@worker_path+@option[:worker_cmd]
+      bd = @option[:base_dir]
+      wd = @option[:work_dir]
+      ld = @option[:log_dir]
+      cmd_line = "#{cmd} \"#{bd}\" \"#{wd}\" \"#{ld}\" \"#{@ncore}\""
       if ['localhost','localhost.localdomain','127.0.0.1'].include? @host
-        "cd;"+@@worker_command
+        "cd;#{cmd_line}"
       else
-        "ssh -x -T -q #{@ssh_opt} #{@host} '#{@@worker_command}'"
+        "ssh -x -T -q #{ssh_opt} #{@host} '#{cmd_line}'"
       end
     end
 
@@ -93,7 +84,7 @@ module Pwrake
         id,item = $1,$2
         @channel[id].enq([:err,item])
         #
-      when /^end:(#{RE_ID})(?::(\d+):([^,]*),(.*))?$/
+      when /^end:(#{RE_ID})(?::(\d*):([^,]*),(.*))?$/
         id,pid,stat_val,stat_cond = $1,$2,$3,$4
         @channel[id].enq([:end,pid,stat_val,stat_cond])
         #
@@ -110,6 +101,7 @@ module Pwrake
         return @@worker_communicators.empty?
       else
         $stderr.puts "Invalid return from worker: #{s}"
+        Log.error "Invalid return from worker: #{s}"
       end
       return false
     end

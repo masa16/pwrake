@@ -69,7 +69,7 @@ module Pwrake
       @out_thread.run
       @err_thread.run
       status_s = status_to_str(status)
-      @out.puts "end:#{@id}:#{@pid}:#{status_s}"
+      @out.puts "end:#{@id}:#{pid}:#{status_s}"
     end
 
     def status_to_str(s)
