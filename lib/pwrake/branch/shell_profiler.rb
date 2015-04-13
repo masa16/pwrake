@@ -32,12 +32,12 @@ module Pwrake
       end
       _puts table_header
       t = Time.now
-      profile(nil,'pwrake_profile_start',t,t)
+      profile(nil,nil,'pwrake_profile_start',t,t)
     end
 
     def close
       t = Time.now
-      profile(nil,'pwrake_profile_end',t,t)
+      profile(nil,nil,'pwrake_profile_end',t,t)
       @lock.synchronize do
         @io.close if @io != nil
         @io = nil
@@ -85,7 +85,7 @@ module Pwrake
       t.strftime("%F %T.%L")
     end
 
-    def profile(task, cmd, start_time, end_time, host="", status=nil)
+    def profile(task_id, task_name, cmd, start_time, end_time, host="", status=nil)
       status = "" if status.nil?
       id = @lock.synchronize do
         id = @id
@@ -93,15 +93,10 @@ module Pwrake
         id
       end
       if @io
-        if task.kind_of? Rake::Task
-          tname = task.name.inspect
-          task_id = task.task_id
-        else
-          tname = ""
-          task_id = ""
-        end
+        task_id ||= ""
+        task_name = %|"#{task_name}"|
         host = '"'+host+'"' if @re_escape =~ host
-        _puts [id, task_id, tname, cmd.inspect,
+        _puts [id, task_id, task_name, cmd.inspect,
                format_time(start_time),
                format_time(end_time),
                "%.3f" % (end_time-start_time),

@@ -27,7 +27,6 @@ module Pwrake
     def initialize(comm,opt={})
       @comm = comm
       @host = comm.host
-      #$stderr.puts "@host=#{@host}"
       @lock = DummyMutex.new
       @@current_id = @@current_id.succ
       @id = @@current_id
@@ -37,16 +36,12 @@ module Pwrake
     end
 
     attr_reader :id, :host, :status, :profile
-    attr_accessor :current_task
 
     def start
       BY_FIBER[Fiber.current] = self
       @chan = Channel.new(@comm,@id)
       @comm.add_channel(@id,@chan)
       OPEN_LIST[__id__] = self
-      #if @work_dir
-      #  _system("cd #{@work_dir}") or die
-      #end
     end
 
     def finish
@@ -54,7 +49,6 @@ module Pwrake
     end
 
     def close
-      #$stderr.puts "Shell#close id=#{@id}"
       @lock.synchronize do
         if !@chan.closed?
           _system "exit"
@@ -74,6 +68,11 @@ module Pwrake
 
     def communicator
       @comm
+    end
+
+    def set_current_task(task_id,task_name)
+      @task_id = task_id
+      @task_name = task_name
     end
 
     def backquote(*command)
@@ -146,8 +145,10 @@ module Pwrake
         @status = io_read_loop(&block)
       ensure
         end_time = Time.now
-        @status = @@profiler.profile(@current_task, cmd,
+        @status = @@profiler.profile(@task_id, @task_name, cmd,
                                      start_time, end_time, host, @status)
+        @task_id = nil
+        @task_name = nil
       end
     end
 

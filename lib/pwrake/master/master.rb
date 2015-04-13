@@ -23,7 +23,7 @@ module Pwrake
 
     def initialize
       @dispatcher = IODispatcher.new
-      @id_by_taskname = {}
+      @hostid_by_taskname = {}
       @idle_cores = IdleCores.new
       @workers = {}
       @writer = {}
@@ -136,10 +136,10 @@ module Pwrake
         s = io.gets
         s.chomp!
         case s
-        when /^taskend:(.*)$/o
-          on_taskend($1) # returns true if @exit_task.empty?
-        when /^taskfail:(.*)$/o
-          on_taskfail($1) # returns true
+        when /^taskend:(\d*):(.*)$/o
+          on_taskend($1.to_i,$2)  # returns true if @exit_task.empty?
+        when /^taskfail:(\d*):(.*)$/o
+          on_taskfail($1.to_i,$2)  # returns true
         when /^exit_connection$/o
           $stderr.puts "receive exit_connection from worker"
           Log.warn "receive exit_connection from worker"
@@ -154,19 +154,19 @@ module Pwrake
     def wake_idle_core
       @task_queue.deq_task do |tw,hid|
         tw.preprocess
-        @id_by_taskname[tw.name] = hid
+        @hostid_by_taskname[tw.name] = hid
         @workers[hid].send_task(tw)
         tw.exec_host = @workers[hid].host
       end
     end
 
-    def on_taskend(task_name)
+    def on_taskend(shell_id,task_name)
       #puts "taskend: "+task_name
-      id = @id_by_taskname.delete(task_name)
+      id = @hostid_by_taskname.delete(task_name)
       tw = Rake.application[task_name].wrapper
       @task_queue.task_end(tw, id)
       #@idle_cores.increase(id, tw.n_used_cores)
-      tw.postprocess
+      tw.postprocess(shell_id)
       @exit_task.delete(tw.task)
       if @exit_task.empty?
         return true
@@ -175,13 +175,13 @@ module Pwrake
       nil
     end
 
-    def on_taskfail(task_name)
+    def on_taskfail(shell_id,task_name)
       #puts "taskfail: "+task_name
-      id = @id_by_taskname.delete(task_name)
+      id = @hostid_by_taskname.delete(task_name)
       tw = Rake.application[task_name].wrapper
       @task_queue.task_end(tw, id)
       #@idle_cores.increase(id, tw.n_used_cores)
-      tw.postprocess
+      tw.postprocess(shell_id)
       @exit_task.delete(tw.task)
       return true
     end

@@ -4,7 +4,7 @@ module Pwrake
 
     def initialize(opts,r,w)
       @options = opts
-      @queue = {} # FiberQueue.new
+      @queue = {}  # worker_id => FiberQueue.new
       @timeout = 10
       @exit_cmd = "exit_connection"
       @shells = []
@@ -75,18 +75,25 @@ module Pwrake
           comm = shell.communicator
           queue = @queue[comm.id]
           begin
-            while task = queue.deq
+            while task_str = queue.deq
+              if /^(\d+):(.*)$/ =~ task_str
+                task_id, task_name = $1.to_i, $2
+              else
+                raise RuntimeError, "invalid task_str: #{task_str}"
+              end
+              shell.set_current_task(task_id,task_name)
+              task = Rake.application[task_name]
               begin
                 task.execute if task.needed?
               rescue Exception=>e
                 if task.kind_of?(Rake::FileTask) && File.exist?(task.name)
                   failprocess(task.name)
                 end
-                @iow.puts "taskfail:#{task.name}"
+                @iow.puts "taskfail:#{shell.id}:#{task.name}"
                 @iow.flush
                 raise e
               end
-              @iow.puts "taskend:#{task.name}"
+              @iow.puts "taskend:#{shell.id}:#{task.name}"
               @iow.flush
             end
           ensure

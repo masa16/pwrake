@@ -10,7 +10,6 @@ module Pwrake
     def initialize(task,task_args=nil)
       @task = task
       @task_args = task_args
-      #@arg_data = task_args
       @task_id = @@current_id
       @@current_id += 1
       @location = []
@@ -48,7 +47,8 @@ module Pwrake
       @time_start = Time.now
     end
 
-    def postprocess
+    def postprocess(shell_id)
+      @shell_id = shell_id
       @executed = true if !@task.actions.empty?
       if @task.kind_of?(Rake::FileTask)
         t = Time.now
@@ -87,7 +87,7 @@ module Pwrake
       end
       #
       row << @exec_host
-      row << ((shell) ? shell.id : '')
+      row << @shell_id
       #
       row << ((actions.empty?) ? 0 : 1)
       row << ((@executed) ? 1 : 0)

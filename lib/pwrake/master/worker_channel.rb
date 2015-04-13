@@ -27,7 +27,7 @@ module Pwrake
     end
 
     def send_task(t)
-      send_cmd("#{@id}:#{t.name}")
+      send_cmd("#{@id}:#{t.task_id}:#{t.name}")
     end
   end
 

@@ -17,9 +17,7 @@ module Pwrake
       case s
       when /^(\d+):(.+)$/o
         id, tname = $1,$2
-        task = Rake.application[tname]
-        @queue[id].enq(task)
-        #$stderr.puts @queue.inspect
+        @queue[id].enq(tname)
 
       when /^exit_branch$/
         @queue.each_value{|q| q.finish}
@@ -33,7 +31,6 @@ module Pwrake
       else
         puts "Invalid item for BranchHandler#on_read: #{s}"
       end
-      #resume
       return false
     end
 
