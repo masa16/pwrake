@@ -91,6 +91,7 @@ module Pwrake
             end
           ensure
             queue.finish
+            Log.debug "closing shell id=#{shell.id}"
             shell.close
             # if comm is no longer used, close comm
             if comm.channel_empty?

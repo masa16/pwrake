@@ -200,7 +200,7 @@ module Pwrake
         @comm_by_io.empty? # exit condition
       end
       @task_logger.close if @task_logger
-      Util.dputs "branch:finish"
+      Log.debug "branch:finish"
     end
 
   end
