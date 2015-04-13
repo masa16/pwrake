@@ -38,7 +38,6 @@ module Pwrake
 
     def execute(cmd)
       @queue.enq(cmd)
-      #@exec_thread.run
     end
 
     def start_exec_thread
@@ -130,7 +129,6 @@ module Pwrake
         put_end
         #
       when "exit"
-        #@dir.close
         close
         put_end
         #

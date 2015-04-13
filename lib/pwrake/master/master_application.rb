@@ -35,15 +35,15 @@ module Pwrake
         @master.init
         begin
           @master.setup_branches
-          $stderr.print "init: #{Time.now-t} sec\n"
+          Log.debug "init: #{Time.now-t} sec"
           t = Time.now
           top_level
-          $stderr.print "main: #{Time.now-t} sec\n"
+          Log.debug "main: #{Time.now-t} sec"
           t = Time.now
         ensure
           @master.finish
         end
-        $stderr.print "finish: #{Time.now-t} sec\n"
+        Log.debug "finish: #{Time.now-t} sec"
       end
     end
 
@@ -52,22 +52,6 @@ module Pwrake
       t = self[name]
       @master.invoke(t,args)
     end
-
-
-=begin
-    # Run the top level tasks of a Rake application.
-    def top_level
-      standard_exception_handling do
-        if options.show_tasks
-          display_tasks_and_comments
-        elsif options.show_prereqs
-          display_prerequisites
-        else
-          top_level_tasks.each { |task_name| invoke_task(task_name) }
-        end
-      end
-end
-=end
 
     def standard_rake_options
       opts = super

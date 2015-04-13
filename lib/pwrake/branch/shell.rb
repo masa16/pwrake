@@ -165,7 +165,9 @@ module Pwrake
         when :end
           return x[2].to_i
         else
-          $stderr.print "Invalid result: #{x.inspect}\n"
+          msg = "Invalid result: #{x.inspect}"
+          $stderr.puts(msg)
+          Log.error(msg)
         end
       end
     end

@@ -62,24 +62,11 @@ module Pwrake
         when /^p$/o
           puts "Executor::LIST = #{Executor::LIST.inspect}"
           #
-        #when /^fs:gfarm:(.*)$/o
-        #  GfarmWorker.init($1)
-        #  @worker_class = GfarmWorker
-        #  #
         when /^new:(.*)$/o
           $1.split.each do |id|
-            #@worker_class.new(id)
             Executor.new(@dir_class,id)
           end
           #
-        #when /^cd:(.*)$/o
-        #  #Worker.base_dir=$1
-        #  @dir_class.base_dir = $1
-        #  #
-        #when /^wd:(.*)$/o
-        #  #Worker.work_dir=$1
-        #  @dir_class.work_dir = $1
-        #  #
         when /^export:(\w+)=(.*)$/o
           k,v = $1,$2
           ENV[k] = v
@@ -116,7 +103,6 @@ module Pwrake
       ex_list.each {|ex| ex.join}
       @out.puts "worker_end"
       @log.info "worker:end:#{id_list.inspect}"
-      #@log.flush
       @log.close
     end
 

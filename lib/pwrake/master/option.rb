@@ -51,7 +51,7 @@ module Pwrake
       if pwrake_conf.nil?
         @yaml = {}
       else
-        Log.debug "load pwrake_conf=#{pwrake_conf}"
+        #Log.debug "load pwrake_conf=#{pwrake_conf}"
         require "yaml"
         @yaml = open(pwrake_conf){|f| YAML.load(f) }
       end

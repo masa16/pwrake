@@ -142,6 +142,7 @@ module Pwrake
           on_taskfail($1) # returns true
         when /^exit_connection$/o
           $stderr.puts "receive exit_connection from worker"
+          Log.warn "receive exit_connection from worker"
           true
         else
           @writer[io].puts(s)

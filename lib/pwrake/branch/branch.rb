@@ -76,7 +76,6 @@ module Pwrake
           queue = @queue[comm.id]
           begin
             while task = queue.deq
-              #$stderr.puts "task=#{task.name} @queue=#{@queue.inspect} fiber=#{Fiber.current.inspect}"
               begin
                 task.execute if task.needed?
               rescue Exception=>e
@@ -114,10 +113,12 @@ module Pwrake
         ::FileUtils.mv(name,dst)
         msg = "Rename failed target file '#{name}' to '#{dst}'"
         $stderr.puts(msg)
+        Log.warn(msg)
       when /delete/i
         ::FileUtils.rm(name)
         msg = "Delete failed target file '#{name}'"
         $stderr.puts(msg)
+        Log.warn(msg)
       when /leave/i
       end
     end
