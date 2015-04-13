@@ -8,6 +8,7 @@ module Pwrake
 
     def self.init(*args)
       @@prefix, @@work_dir, @@log_dir, = args
+      Dir.chdir(ENV['HOME'])
     end
 
     def initialize
@@ -21,10 +22,8 @@ module Pwrake
     end
 
     def open
-      Dir.chdir(ENV['HOME']) do
-        FileUtils.mkdir_p @gfarm_mountpoint
-        system "gfarm2fs #{@gfarm_mountpoint} >& /dev/null"
-      end
+      FileUtils.mkdir_p @gfarm_mountpoint
+      system "(cd; gfarm2fs #{@gfarm_mountpoint}) >& /dev/null"
       super
     end
 
