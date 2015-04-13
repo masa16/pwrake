@@ -3,7 +3,6 @@ module Pwrake
   class Option
 
     attr_reader :worker_option
-    attr_reader :shell_class
     attr_reader :queue_class
     attr_reader :postprocess
 
@@ -33,7 +32,6 @@ module Pwrake
         require "pwrake/gfarm"
         GfarmPath.subdir = self['GFARM_SUBDIR']
         @filesystem  = 'gfarm'
-        @shell_class = Shell
         base = self['GFARM_BASEDIR']
         prefix = self['GFARM_PREFIX']
         mntpnt = "#{base}/#{prefix}"
@@ -45,17 +43,15 @@ module Pwrake
         })
 
 	if self['DISABLE_AFFINITY']
-	  @queue_class = TaskQueue
+	  @queue_class = "TaskQueue"
 	else
-	  @queue_class = LocalityAwareQueue
+	  @queue_class = "LocalityAwareQueue"
 	end
         #@num_noaction_threads = (n_noaction_th || [8,@host_map.num_threads].max).to_i
         @postprocess = GfarmPostprocess.new
       else
         @filesystem  = 'nfs'
-        @shell_class = Shell
-        @queue_class = TaskQueue
-        #@queue_class = LocalityAwareQueue
+        @queue_class = "TaskQueue"
         #@num_noaction_threads = (n_noaction_th || 1).to_i
       end
       Log.debug "@queue_class=#{@queue_class}"

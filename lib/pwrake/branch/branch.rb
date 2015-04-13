@@ -62,7 +62,7 @@ module Pwrake
         @iow.puts "ncore:#{comm.id}:#{comm.ncore}"
         @iow.flush
         comm.ncore.times do
-          @shells << @options.shell_class.new(comm,@options.worker_option)
+          @shells << Shell.new(comm,@options.worker_option)
         end
       end
       @iow.puts "ncore:done"

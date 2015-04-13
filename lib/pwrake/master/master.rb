@@ -125,7 +125,7 @@ module Pwrake
       @workers.each do |id,wk|
         Log.info "#{wk.host} id=#{wk.id} ncore=#{wk.ncore}"
       end
-      @task_queue = @option.queue_class.new(@idle_cores)
+      @task_queue = Pwrake.const_get(@option.queue_class).new(@idle_cores)
     end
 
     def invoke(t, args)
