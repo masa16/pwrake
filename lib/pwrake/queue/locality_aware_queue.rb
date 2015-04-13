@@ -52,6 +52,7 @@ module Pwrake
 
     def deq_task(&block) # locality version
       return super if @disable_steal
+      Log.debug "deq_task:"+(empty? ? " empty" : "\n#{inspect_q}")
       queued = 0
       3.times do |turn|
         next if turn_empty?(turn)
@@ -74,7 +75,6 @@ module Pwrake
     end
 
     def deq_impl(host, turn)
-      Log.debug "deq_impl\n#{inspect_q}"
       case turn
       when 0
         deq_locate0(host)
@@ -136,7 +136,6 @@ module Pwrake
       max_num  = 0
       @q_group[host].each do |qg|
         qg.each do |h,a|
-          #Log.debug "deq_steal h=#{h.inspect}\na=#{a.inspect}\n"
           if !a.empty?
             d = a.size
             if d > max_num
@@ -182,7 +181,6 @@ module Pwrake
     end
 
     def empty?
-      #@q.all?{|h,q| q.empty?} &&
       @size_q == 0 &&
         @q_no_action.empty? &&
         @q_remote.empty?

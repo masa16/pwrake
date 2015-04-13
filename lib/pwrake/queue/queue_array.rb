@@ -2,13 +2,6 @@ require "forwardable"
 
 module Pwrake
 
-#  class TaskConditionVariable < ConditionVariable
-#    def signal(hint=nil)
-#      super()
-#    end
-#  end
-
-
   class PriorityQueueArray < Array
     def initialize(n)
       super()

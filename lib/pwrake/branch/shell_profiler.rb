@@ -94,7 +94,7 @@ module Pwrake
       end
       if @io
         task_id ||= ""
-        task_name = %|"#{task_name}"|
+        task_name = (task_name.nil? || task_name=="") ? "" : %|"#{task_name}"|
         host = '"'+host+'"' if @re_escape =~ host
         _puts [id, task_id, task_name, cmd.inspect,
                format_time(start_time),

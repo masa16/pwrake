@@ -147,8 +147,6 @@ module Pwrake
         end_time = Time.now
         @status = @@profiler.profile(@task_id, @task_name, cmd,
                                      start_time, end_time, host, @status)
-        @task_id = nil
-        @task_name = nil
       end
     end
 

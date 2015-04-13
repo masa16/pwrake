@@ -35,11 +35,9 @@ module Pwrake
 
     def init_queue(core_map, group_map=nil)
       @q_input = @array_class.new(core_map.size)
-      #@q_input = Array.new
       @q_no_input = Array.new
     end
 
-    #attr_reader :mutex
     attr_accessor :enable_steal
 
     # enq
