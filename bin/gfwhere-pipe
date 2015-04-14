@@ -1,0 +1,159 @@
+#! /usr/bin/env ruby
+
+require 'ffi'
+require 'singleton'
+
+module Gfarm
+  class GfarmError < StandardError
+  end
+  GFARM_ERR_NO_ERROR = 0
+
+  module FFI
+    def find_executable(name)
+      path = "/usr/local/bin:/usr/ucb:/usr/bin:/bin"
+      begin
+        $stderr = open(File::NULL,"w")
+        path = ENV['PATH']
+      ensure
+        $stderr = STDERR
+      end
+      path = path.split(File::PATH_SEPARATOR)
+      path.each do |dir|
+        file = File.join(dir, name)
+        begin
+          stat = File.stat(file)
+        rescue SystemCallError
+      else
+          return file if stat.file? and stat.executable?
+        end
+      end
+      nil
+    end
+    module_function :find_executable
+
+    LIBGFARM_PATH = nil
+    LIBGFARM_FILE = "libgfarm.so"
+    if LIBGFARM_PATH
+      path = File.join(LIBGFARM_PATH,LIBGFARM_FILE)
+    elsif x = find_executable('gfwhere')
+      d = File.dirname(x)
+      %w[lib64 lib].each do |l|
+        f = File.join(d,"..",l,LIBGFARM_FILE)
+        if File.file?(f)
+          path = f
+          break
+        end
+      end
+    end
+    extend ::FFI::Library
+    ffi_lib path
+    attach_function :gfarm_initialize, [:pointer, :pointer], :int
+    attach_function :gfarm_terminate, [], :int
+    attach_function :gfarm_realpath_by_gfarm2fs, [:string, :pointer], :int
+    attach_function :gfarm_error_string, [:int], :string
+    attach_function :gfs_replica_info_by_name, [:string, :int, :pointer], :int
+    attach_function :gfs_replica_info_number, [:pointer], :int
+    attach_function :gfs_replica_info_free, [:pointer], :void
+    attach_function :gfs_replica_info_nth_host, [:pointer, :int], :string
+  end
+
+
+  def connection(*args)
+    Connection.set_args(args)
+    Connection.instance
+  end
+  module_function :connection
+
+
+  class Connection
+    include Singleton
+
+    def self.callback
+      proc{ FFI.gfarm_terminate }
+    end
+
+    def self.set_args(args)
+      @@args = args
+    end
+
+    def initialize
+      args = @@args || []
+      argc = ::FFI::MemoryPointer.new(:int, 1)
+      argc.write_int(args.size)
+      ary = args.map do |s|
+        str = ::FFI::MemoryPointer.new(:string, s.size)
+        str.write_string(s)
+        str
+      end
+      ptr = ::FFI::MemoryPointer.new(:pointer, args.size)
+      ptr.write_array_of_pointer(ary)
+      argv = ::FFI::MemoryPointer.new(:pointer, 1)
+      argv.write_pointer(ptr)
+      e = FFI.gfarm_initialize(argc, argv)
+      if e != GFARM_ERR_NO_ERROR
+        raise GfarmError, FFI.gfarm_error_string(e)
+      end
+      ObjectSpace.define_finalizer(self, self.class.callback)
+    end
+
+    def realpath_by_gfarm2fs(path)
+      ptr = ::FFI::MemoryPointer.new(:pointer, 1)
+      e = FFI.gfarm_realpath_by_gfarm2fs(path, ptr)
+      if e != GFARM_ERR_NO_ERROR
+        raise GfarmError, FFI.gfarm_error_string(e)
+      end
+      ptr.read_pointer().read_string()
+    end
+
+    def replica_info_by_name(name)
+      ReplicaInfo.new(self,name)
+    end
+  end
+
+
+  class ReplicaInfo < ::FFI::AutoPointer
+
+    def self.release(ptr)
+      FFI.gfs_replica_info_free(ptr)
+    end
+
+    def initialize(gfarm, path)
+      @gfarm = gfarm
+      @realpath = @gfarm.realpath_by_gfarm2fs(path)
+      flag = 0
+      ptr = ::FFI::MemoryPointer.new(:pointer, 1)
+      e = FFI.gfs_replica_info_by_name(@realpath, flag, ptr)
+      if e != GFARM_ERR_NO_ERROR
+        raise GfarmError, @realpath+" "+FFI.gfarm_error_string(e)
+      end
+      @ri = ptr.read_pointer()
+      super @ri
+    end
+    attr_reader :realpath
+
+    def number
+      FFI.gfs_replica_info_number(@ri)
+    end
+
+    def nth_host(i)
+      FFI.gfs_replica_info_nth_host(@ri,i)
+    end
+  end
+
+end
+
+gfarm = Gfarm.connection
+
+while path=$stdin.gets
+  path.chomp!
+  $stdout.print path+"\n"
+  $stdout.flush
+  begin
+    ri = gfarm.replica_info_by_name(path)
+    hosts = ri.number.times.map{|i| ri.nth_host(i) }
+    $stdout.print ri.realpath+":\n"+hosts.join(" ")+"\n"
+  rescue
+    $stdout.print "Error: "+path+"\n"
+  end
+  $stdout.flush
+end
