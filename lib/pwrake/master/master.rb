@@ -106,7 +106,9 @@ module Pwrake
       sum_ncore = 0
       IODispatcher.event_once(@comm_by_io.keys,10) do |io|
         while true
-          case s = io.gets
+          s = io.gets
+          Log.debug "in event_once: s=#{s}"
+          case s
           when /ncore:done/
             break
           when /ncore:(\d+):(\d+)/
@@ -137,13 +139,15 @@ module Pwrake
         s.chomp!
         case s
         when /^taskend:(\d*):(.*)$/o
-          on_taskend($1.to_i,$2)  # returns true if @exit_task.empty?
+          on_taskend($1.to_i,$2)
+          # returns true (end of loop) if @exit_task.empty?
         when /^taskfail:(\d*):(.*)$/o
-          on_taskfail($1.to_i,$2)  # returns true
+          on_taskfail($1.to_i,$2)
+          # returns true (end of loop)
         when /^exit_connection$/o
           $stderr.puts "receive exit_connection from worker"
           Log.warn "receive exit_connection from worker"
-          true
+          true # end of loop (fix me)
         else
           @writer[io].puts(s)
           nil
@@ -164,8 +168,7 @@ module Pwrake
       #puts "taskend: "+task_name
       id = @hostid_by_taskname.delete(task_name)
       tw = Rake.application[task_name].wrapper
-      @task_queue.task_end(tw, id)
-      #@idle_cores.increase(id, tw.n_used_cores)
+      @task_queue.task_end(tw, id) # @idle_cores.increase(..
       tw.postprocess(shell_id)
       @exit_task.delete(tw.task)
       if @exit_task.empty?
@@ -179,8 +182,7 @@ module Pwrake
       #puts "taskfail: "+task_name
       id = @hostid_by_taskname.delete(task_name)
       tw = Rake.application[task_name].wrapper
-      @task_queue.task_end(tw, id)
-      #@idle_cores.increase(id, tw.n_used_cores)
+      @task_queue.task_end(tw, id) # @idle_cores.increase(..
       tw.postprocess(shell_id)
       @exit_task.delete(tw.task)
       return true

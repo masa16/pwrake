@@ -1,9 +1,11 @@
-# $stderr = $stdout
-
 module Pwrake
 
   # The TaskManager module is a mixin for managing tasks.
   module BranchApplication
+
+    def logger
+      @branch.logger
+    end
 
     def run_branch(r,w)
       w.puts "pwrake_branch start"
@@ -15,7 +17,7 @@ module Pwrake
           raise "opts is not a Hash: opts=#{opts.inspect}"
         end
         @branch = Branch.new(opts,r,w)
-        #@branch.init_logger
+        @branch.init_logger
         opts.feedback_options
         load_rakefile
         begin

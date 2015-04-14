@@ -13,8 +13,8 @@ $LOAD_PATH.unshift libpath
 require "pwrake/master"
 require "pwrake/branch"
 class Rake::Application
+  include Pwrake::BranchApplication
   prepend Pwrake::MasterApplication
-  prepend Pwrake::BranchApplication
 end
 class Rake::Task
   include Pwrake::TaskAlgorithm

@@ -8,13 +8,10 @@ module Pwrake
     def initialize(io,host,ncore)
       @io = io
       @host = host
-      @ncore = ncore # || 1
+      @ncore = ncore
       @id = @@current_id
       @@current_id = @@current_id.succ
       HOST2ID[@host] = @id
-      #x = "#{@id}:#{@host} #{@ncore}\n"
-      #@io.print(x)
-      #@io.flush
       send_cmd "#{@id}:#{@host} #{@ncore}"
     end
 
@@ -22,6 +19,7 @@ module Pwrake
     attr_accessor :ncore
 
     def send_cmd(x)
+      Log.debug "send_cmd: #{x}"
       @io.print(x+"\n")
       @io.flush
     end

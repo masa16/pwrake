@@ -15,7 +15,7 @@ module Pwrake
           "cd \"#{Dir.pwd}\";"+
           "PATH=#{dir}:${PATH} exec pwrake_branch'"
         #Log.debug("BranchCommunicator cmd=#{cmd}")
-        $stderr.puts "BranchCommunicator cmd=#{cmd}"
+        Log.puts "BranchCommunicator: #{cmd}"
         @pid = spawn(cmd,:pgroup=>true,:out=>w0,:err=>w1,:in=>r2)
         w0.close
         w1.close

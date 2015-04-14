@@ -22,6 +22,28 @@ module Pwrake
       @dispatcher.event_loop
     end
 
+    attr_reader :logger
+
+    def init_logger
+      logfile = @options['LOGFILE']
+      if logfile
+        if dir = @options['LOG_DIR']
+          ::FileUtils.mkdir_p(dir)
+          logfile = File.join(dir,logfile)
+        end
+        @logger = Logger.new(logfile)
+      else
+        @logger = Logger.new($stderr)
+      end
+
+      if @options['DEBUG']
+        @logger.level = Logger::DEBUG
+      elsif @options['TRACE']
+        @logger.level = Logger::INFO
+      else
+        @logger.level = Logger::WARN
+      end
+    end
 
     def setup_shells
       s = @ior.gets
@@ -66,6 +88,7 @@ module Pwrake
         end
       end
       @iow.puts "ncore:done"
+      @iow.flush
     end
 
     def setup_fibers

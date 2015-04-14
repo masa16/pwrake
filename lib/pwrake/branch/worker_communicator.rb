@@ -21,8 +21,8 @@ module Pwrake
     end
 
     def setup_connection(w0,w1,r2)
-      Log.debug system_cmd
-      @pid = spawn(system_cmd,:pgroup=>true,:out=>w0,:err=>w1,:in=>r2)
+      cmd = system_cmd
+      @pid = spawn(cmd,:pgroup=>true,:out=>w0,:err=>w1,:in=>r2)
       w0.close
       w1.close
       r2.close
