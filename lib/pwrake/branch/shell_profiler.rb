@@ -94,9 +94,10 @@ module Pwrake
       end
       if @io
         task_id ||= ""
-        task_name = (task_name.nil? || task_name=="") ? "" : %|"#{task_name}"|
+        task_name ||= ""
+        tname = '"'+task_name.gsub('"','""')+'"'
         host = '"'+host+'"' if @re_escape =~ host
-        _puts [id, task_id, task_name, cmd.inspect,
+        _puts [id, task_id, task_name, '"'+cmd.gsub('"','""')+'"',
                format_time(start_time),
                format_time(end_time),
                "%.3f" % (end_time-start_time),
