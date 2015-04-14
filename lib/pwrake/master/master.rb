@@ -1,12 +1,14 @@
 module Pwrake
 
   class IdleCores < Hash
+
     def increase(k,n)
       if x = self[k]
         n += x
       end
       self[k] = n
     end
+
     def decrease(k,n)
       x = (self[k]||0) - n
       if x == 0
@@ -26,7 +28,6 @@ module Pwrake
       @hostid_by_taskname = {}
       @idle_cores = IdleCores.new
       @workers = {}
-      @writer = {}
       @option = Option.new
       @exit_task = []
       init_logger
@@ -83,11 +84,9 @@ module Pwrake
       @comm_by_io = {}
 
       @option.host_map.each do |sub_host, wk_hosts|
-        conn = BranchCommunicator.new(sub_host,@option)
+        conn = BranchCommunicator.new(sub_host,@option,self)
         @conn_list << conn
         @dispatcher.attach_communicator(conn)
-        @writer[conn.ior] = $stdout
-        @writer[conn.ioe] = $stderr
         @comm_by_io[conn.ior] = conn
         conn.send_cmd "begin_worker_list"
         wk_hosts.each do |host_info|
@@ -134,31 +133,15 @@ module Pwrake
       @exit_task << t
       t.pw_search_tasks(args)
       wake_idle_core
-      @dispatcher.event_loop do |io|
-        s = io.gets
-        s.chomp!
-        case s
-        when /^taskend:(\d*):(.*)$/o
-          on_taskend($1.to_i,$2)
-          # returns true (end of loop) if @exit_task.empty?
-        when /^taskfail:(\d*):(.*)$/o
-          on_taskfail($1.to_i,$2)
-          # returns true (end of loop)
-        when /^exit_connection$/o
-          $stderr.puts "receive exit_connection from worker"
-          Log.warn "receive exit_connection from worker"
-          true # end of loop (fix me)
-        else
-          @writer[io].puts(s)
-          nil
-        end
-      end
+      @dispatcher.event_loop
     end
 
     def wake_idle_core
+      # @idle_cores.decrease(..
       @task_queue.deq_task do |tw,hid|
         tw.preprocess
         @hostid_by_taskname[tw.name] = hid
+        #if !tw.has_action?
         @workers[hid].send_task(tw)
         tw.exec_host = @workers[hid].host
       end
