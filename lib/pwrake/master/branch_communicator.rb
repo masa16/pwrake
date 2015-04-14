@@ -21,8 +21,8 @@ module Pwrake
         w1.close
         r2.close
         #sleep 0.01
-        wait_branch
         Marshal.dump(@opts,@iow)
+        wait_branch
       else
         @thread = Thread.new(r2,w0,@opts) do |r,w,o|
           Rake.application.run_branch_in_thread(r,w,o)
@@ -31,11 +31,15 @@ module Pwrake
     end
 
     def wait_branch
-      s = @ior.gets
-      if !s or s.chomp != "pwrake_branch start"
-        raise RuntimeError,"pwrake_branch start failed: "+
-          "conn=#{self.inspect} gets=#{s.inspect}"
+      while s = @ior.gets
+        break if s.chomp == "pwrake_branch start"
+        Kernel.puts s
       end
+      #s = @ior.gets
+      #if !s or s.chomp != "pwrake_branch start"
+      #  raise RuntimeError,"pwrake_branch start failed: "+
+      #    "conn=#{self.inspect} gets=#{s.inspect}"
+      #end
     end
 
   end

@@ -8,8 +8,6 @@ module Pwrake
     end
 
     def run_branch(r,w)
-      w.puts "pwrake_branch start"
-      w.flush
       standard_exception_handling do
         init("pwrake_branch")
         opts = Marshal.load(r)
@@ -20,6 +18,8 @@ module Pwrake
         @branch.init_logger
         opts.feedback_options
         load_rakefile
+        w.puts "pwrake_branch start"
+        w.flush
         begin
           @branch.run
         ensure

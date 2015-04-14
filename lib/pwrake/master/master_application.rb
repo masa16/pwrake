@@ -20,8 +20,8 @@ module Pwrake
     end
 
     def postprocess(t)
-      if @role.option.postprocess
-        @role.option.postprocess.postprocess(t)
+      if @postprocess
+        @postprocess.postprocess(t)
       end
     end
 
@@ -33,6 +33,9 @@ module Pwrake
         load_rakefile
         t = Time.now
         @master.init
+        if pospro = @role.option.postprocess
+          @postprocess = Pwrake.const_get(pospro).new
+        end
         begin
           @master.setup_branches
           Log.debug "init: #{Time.now-t} sec"

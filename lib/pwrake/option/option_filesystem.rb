@@ -48,7 +48,7 @@ module Pwrake
 	  @queue_class = "LocalityAwareQueue"
 	end
         #@num_noaction_threads = (n_noaction_th || [8,@host_map.num_threads].max).to_i
-        @postprocess = GfarmPostprocess.new
+        @postprocess = "GfarmPostprocess"
       else
         @filesystem  = 'nfs'
         @queue_class = "TaskQueue"
