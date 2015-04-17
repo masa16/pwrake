@@ -28,6 +28,7 @@ module Pwrake
       @hostid_by_taskname = {}
       @idle_cores = IdleCores.new
       @workers = {}
+      @writer = {}
       @option = Option.new
       @exit_task = []
       init_logger
@@ -87,6 +88,8 @@ module Pwrake
         conn = BranchCommunicator.new(sub_host,@option,self)
         @conn_list << conn
         @dispatcher.attach_communicator(conn)
+        @writer[conn.ior] = $stdout
+        @writer[conn.ioe] = $stderr
         @comm_by_io[conn.ior] = conn
         conn.send_cmd "begin_worker_list"
         wk_hosts.each do |host_info|
@@ -147,28 +150,65 @@ module Pwrake
       end
     end
 
-    def on_taskend(shell_id,task_name)
-      #puts "taskend: "+task_name
-      id = @hostid_by_taskname.delete(task_name)
-      tw = Rake.application[task_name].wrapper
-      @task_queue.task_end(tw, id) # @idle_cores.increase(..
-      tw.postprocess(shell_id)
-      @exit_task.delete(tw.task)
-      if @exit_task.empty?
-        return true
+    def respond_from_branch(io) # called from BranchCommunicator#on_read
+      s = io.gets
+      case s
+      when /^taskend:(\d*):(.*)$/o
+        taskend_proc("end",$1.to_i,$2)
+        # returns true (end of loop) if @exit_task.empty?
+      when /^taskfail:(\d*):(.*)$/o
+        taskend_proc("fail",$1.to_i,$2)
+        # returns true (end of loop)
+      when /^exit_connection$/o
+        $stderr.puts "receive exit_connection from worker"
+        Log.warn "receive exit_connection from worker"
+        true # end of loop (fix me)
+      else
+        @writer[io].print(s)
+        nil
       end
-      wake_idle_core
-      nil
     end
 
-    def on_taskfail(shell_id,task_name)
-      #puts "taskfail: "+task_name
-      id = @hostid_by_taskname.delete(task_name)
+    def taskend_proc(status, shell_id, task_name)
       tw = Rake.application[task_name].wrapper
+      tw.shell_id = shell_id
+      tw.status = status
+      id = @hostid_by_taskname.delete(task_name)
       @task_queue.task_end(tw, id) # @idle_cores.increase(..
-      tw.postprocess(shell_id)
+      #@exit_task.delete(tw.task)
+      if @pool && tw.task.kind_of?(Rake::FileTask)
+        @pool.enq(tw)
+      else
+        tw.postprocess([])
+        taskend_end(tw)
+      end
+    end
+
+    def setup_postprocess
+      @pool = @option.pool_postprocess(@dispatcher)
+      if @pool
+        @pool.set_block do |tw,loc|
+          tw.postprocess(loc)
+          taskend_end(tw)
+        end
+      end
+    end
+
+    def taskend_end(tw)
       @exit_task.delete(tw.task)
-      return true
+      case tw.status
+      when "end"
+        if @exit_task.empty?
+          @pool.finish if @pool
+          true
+        else
+          wake_idle_core
+          nil
+        end
+      when "fail"
+        @pool.finish if @pool
+        true
+      end
     end
 
     def finish

@@ -35,6 +35,7 @@ module Pwrake
     attr_reader :assigned
     attr_accessor :executed, :n_used_cores
     attr_accessor :exec_host
+    attr_accessor :shell_id, :status
 
     def self.format_time(t)
       t.strftime("%F %T.%L")
@@ -47,14 +48,13 @@ module Pwrake
       @time_start = Time.now
     end
 
-    def postprocess(shell_id)
-      @shell_id = shell_id
+    def postprocess(location)
       @executed = true if !@task.actions.empty?
       if @task.kind_of?(Rake::FileTask)
         t = Time.now
-        Rake.application.postprocess(@task)
         if File.exist?(name)
           @file_stat = File::Stat.new(name)
+          @location = location
         end
       end
       log_task

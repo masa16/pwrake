@@ -19,12 +19,6 @@ module Pwrake
       @role.task_queue
     end
 
-    def postprocess(t)
-      if @postprocess
-        @postprocess.postprocess(t)
-      end
-    end
-
     # Run the Pwrake application.
     def run
       standard_exception_handling do
@@ -33,11 +27,9 @@ module Pwrake
         load_rakefile
         t = Time.now
         @master.init
-        if pospro = @role.option.postprocess
-          @postprocess = Pwrake.const_get(pospro).new
-        end
         begin
           @master.setup_branches
+          @master.setup_postprocess
           Log.debug "init: #{Time.now-t} sec"
           t = Time.now
           top_level

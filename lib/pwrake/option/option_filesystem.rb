@@ -4,7 +4,6 @@ module Pwrake
 
     attr_reader :worker_option
     attr_reader :queue_class
-    attr_reader :postprocess
 
     def setup_filesystem
 
@@ -29,7 +28,7 @@ module Pwrake
       case @filesystem
       when 'gfarm'
         require "pwrake/queue/locality_aware_queue"
-        require "pwrake/gfarm"
+        require "pwrake/gfarm/gfarm_path"
         GfarmPath.subdir = self['GFARM_SUBDIR']
         @filesystem  = 'gfarm'
         base = self['GFARM_BASEDIR']
@@ -48,13 +47,24 @@ module Pwrake
 	  @queue_class = "LocalityAwareQueue"
 	end
         #@num_noaction_threads = (n_noaction_th || [8,@host_map.num_threads].max).to_i
-        @postprocess = "GfarmPostprocess"
       else
         @filesystem  = 'nfs'
         @queue_class = "TaskQueue"
         #@num_noaction_threads = (n_noaction_th || 1).to_i
       end
       Log.debug "@queue_class=#{@queue_class}"
+    end
+
+    def pool_postprocess(dispatcher)
+      require "pwrake/master/fiber_pool"
+      require "pwrake/gfarm/gfwhere_handler"
+      case @filesystem
+      when 'gfarm'
+        max = self['MAX_GFWHERE_WORKER']
+        FiberPool.new(GfwhereHandler,max,dispatcher)
+      else
+        nil
+      end
     end
 
     def mount_type(d=nil)
