@@ -212,7 +212,7 @@ module Pwrake
       @conn_list.each do |conn|
         conn.close
       end
-      @dispatcher.event_loop do |io|
+      @dispatcher.event_loop_block do |io|
         s = io.gets
         if /^branch_end$/o =~ s
           @dispatcher.detach_communicator(@comm_by_io[io])

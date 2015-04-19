@@ -48,19 +48,27 @@ module Pwrake
       @rd_io.each{|io| io.close}
     end
 
-    def event_loop(&block)
-      if block_given?
-        b = block
-      else
-        b = proc{|io| @rd_hdl[io].on_read(io)}
-      end
+    def event_loop
       while !@rd_io.empty?
         io_sel = IO.select(@rd_io,nil,nil)
         for io in io_sel[0]
           if io.eof?
             detach_io(io)
           else
-            return if b.call(io)
+            return if @rd_hdl[io].on_read(io)
+          end
+        end
+      end
+    end
+
+    def event_loop_block
+      while !@rd_io.empty?
+        io_sel = IO.select(@rd_io,nil,nil)
+        for io in io_sel[0]
+          if io.eof?
+            detach_io(io)
+          else
+            return if yield(io)
           end
         end
       end
