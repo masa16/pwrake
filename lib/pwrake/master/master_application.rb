@@ -132,7 +132,7 @@ module Pwrake
         "[Pw] Show Pwrake configuration options",
         lambda {|value| options.show_conf = true }
        ],
-       ['--report LOG', "[Pw] Report profile HTML from LOG and exit.",
+       ['--report LOGDIR', "[Pw] Report workflow statistics from LOGDIR to HTML and exit.",
          lambda { |value|
            require 'pwrake/report'
            Report.new(File.basename(value.sub(/\.[^.]+$/,"")),[]).report_html

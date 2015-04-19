@@ -30,18 +30,21 @@ EOL
     @@id = 0
     @@id_fmt = nil
 
-    def initialize(base,pattern)
-      @base = base
+    def initialize(dir,pattern)
+      @dir = dir
       @pattern = pattern
 
       @@id = @@id.succ
       @id = @@id
 
-      @csv_file = base+'.csv'
-      @task_file = base+'.task'
-      @html_file = base+'.html'
+      log_file = Dir.glob(File.join(@dir,"20*.log"))[0]
+      @base = base = File.join(@dir,File.basename(log_file,".log"))
 
-      open(@base+".log","r").each do |s|
+      @csv_file  = Dir.glob(File.join(@dir,'*_cmd.csv'))[0]
+      @task_file = Dir.glob(File.join(@dir,'*_task.csv'))[0]
+      @html_file = File.join(@dir,'report.html')
+
+      open(log_file,"r").each do |s|
         if /num_cores=(\d+)/ =~ s
           @ncore = $1.to_i
           break
@@ -49,7 +52,7 @@ EOL
       end
 
       begin
-        @sh_table = CSV.read(@csv_file,:headers=>true)
+        @sh_table = CSV.read(@csv_file,:headers=>true,:skip_lines=>/\A#/)
       rescue
         $stderr.puts "error in reading "+@csv_file
         $stderr.puts $!, $@
@@ -302,7 +305,7 @@ set title 'histogram of elapsed time'"
 
     def initialize(task_file, sh_table)
       begin
-        @task_table = CSV.read(task_file,:headers=>true)
+        @task_table = CSV.read(task_file,:headers=>true,:skip_lines=>/\A#/)
       rescue
         $stderr.puts "error in reading "+task_file
         $stderr.puts $!, $@
@@ -336,7 +339,8 @@ set title 'histogram of elapsed time'"
         name            = row['task_name']
         file_size[name] = row['file_size'].to_i
         file_host[name] = (row['file_host']||'').split('|')
-        h[row['exec_host']] = true
+        exec_host = row['exec_host'] || ""
+        h[exec_host] = true
       end
       @exec_hosts = h.keys.sort
 
