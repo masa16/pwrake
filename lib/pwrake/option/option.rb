@@ -30,7 +30,6 @@ module Pwrake
     end
 
     attr_reader :counter
-    #attr_reader :logfile
     attr_reader :logger
 
     DEFAULT_CONFFILES = ["pwrake_conf.yaml","PwrakeConf.yaml"]
@@ -296,15 +295,6 @@ module Pwrake
       end
     end
 
-    # ------------------------------------------------------------------------
-
-
-    # ----- setup ------------------------------------------------------------
-
-    #def setup_option
-    #  set_hosts
-    #  set_filesystem
-    #end
 
     def setup_hosts
       if @hostfile && @num_threads

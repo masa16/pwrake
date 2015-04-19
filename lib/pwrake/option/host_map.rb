@@ -1,6 +1,7 @@
 module Pwrake
 
   class HostInfo
+
     def initialize(name,ncore,weight,group=nil)
       @name = name
       @ncore = ncore

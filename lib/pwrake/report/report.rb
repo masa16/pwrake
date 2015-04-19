@@ -270,6 +270,7 @@ EOL
         end
       end
       hist_image = @base+"_hist.png"
+      if system("which gnuplot 2>&1 >/dev/null")
       IO.popen("gnuplot","r+") do |f|
         f.puts "
 set terminal png # size 480,360
@@ -297,6 +298,7 @@ set title 'histogram of elapsed time'"
           end
         end
         hist_image
+      end
       end
     end
   end

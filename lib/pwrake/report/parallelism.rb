@@ -152,6 +152,7 @@ plot '#{fpara}' w l axis x1y1 title 'parallelism'
 
       t_end = (a.last)[0]
 
+      if system("which gnuplot 2>&1 >/dev/null")
       IO.popen("gnuplot","r+") do |f|
         f.print "
 set terminal png
@@ -177,6 +178,7 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
         density.each do |t,d|
           f.puts "#{t} #{d}"
         end
+      end
       end
 
       #puts "Parallelism plot: #{fimg}"
@@ -290,6 +292,7 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
 
       fimg = base+'_para_cmd.png'
 
+      if system("which gnuplot 2>&1 >/dev/null")
       IO.popen("gnuplot","r+") do |f|
         #begin f = $stdout
         f.print "
@@ -307,6 +310,7 @@ set ylabel 'parallelism'
           end
           f.puts "e"
         end
+      end
       end
 
       #puts "Parallelism plot: #{fimg}"
@@ -346,6 +350,7 @@ set ylabel 'parallelism'
         grid << a
       end
 
+      if system("which gnuplot 2>&1 >/dev/null")
       IO.popen("gnuplot","r+") do |f|
         f.puts "
 set terminal png
@@ -378,6 +383,7 @@ set format y ''
           f.printf "%g %g %d\n", j, x[0], x[1]
         end
         f.printf "e\n"
+      end
       end
       fpng
     end
