@@ -144,9 +144,12 @@ module Pwrake
       @task_queue.deq_task do |tw,hid|
         tw.preprocess
         @hostid_by_taskname[tw.name] = hid
-        #if !tw.has_action?
-        @workers[hid].send_task(tw)
-        tw.exec_host = @workers[hid].host
+        if tw.has_action?
+          @workers[hid].send_task(tw)
+          tw.exec_host = @workers[hid].host
+        else
+          taskend_proc("noaction",-1,tw.name)
+        end
       end
     end
 
@@ -175,7 +178,6 @@ module Pwrake
       tw.status = status
       id = @hostid_by_taskname.delete(task_name)
       @task_queue.task_end(tw, id) # @idle_cores.increase(..
-      #@exit_task.delete(tw.task)
       if @pool && tw.task.kind_of?(Rake::FileTask)
         @pool.enq(tw)
       else
@@ -196,18 +198,12 @@ module Pwrake
 
     def taskend_end(tw)
       @exit_task.delete(tw.task)
-      case tw.status
-      when "end"
-        if @exit_task.empty?
-          @pool.finish if @pool
-          true
-        else
-          wake_idle_core
-          nil
-        end
-      when "fail"
+      if tw.status=="fail" || @exit_task.empty?
         @pool.finish if @pool
         true
+      else
+        wake_idle_core
+        nil
       end
     end
 

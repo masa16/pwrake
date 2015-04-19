@@ -2,10 +2,22 @@ module Pwrake
 
   class IODispatcher
 
+    class ExitHandler
+      def on_read(io)
+        true
+      end
+    end
+
     def initialize
       @rd_io = []
       @rd_hdl = {}
       @rd_hdl = {}
+      @ior,@iow = IO.pipe
+      attach_handler(@iow,ExitHandler.new)
+    end
+
+    def finish
+      @iow.puts("")
     end
 
     def attach_handler(io,handler=nil)

@@ -20,7 +20,7 @@ module Pwrake
       @q.push(x)
       if @waiter.empty? and
           @handlers.size < @max_fiber and
-          Time.now - @new_fiber_start_time > 0.001
+          Time.now - @new_fiber_start_time > 0.1
         @waiter << new_fiber
       end
       f = @waiter.shift
@@ -39,6 +39,7 @@ module Pwrake
 
     def finish
       @finished = true
+      @dispatcher.finish
       while f=@waiter.shift
         f.resume
       end

@@ -121,6 +121,10 @@ module Pwrake
       @task.kind_of?(Rake::FileTask) && !prerequisites.empty?
     end
 
+    def has_action?
+      !@task.actions.empty?
+    end
+
     def location=(a)
       @location = a
       @group = []
