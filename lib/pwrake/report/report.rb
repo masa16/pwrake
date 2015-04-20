@@ -154,13 +154,18 @@ EOL
 
     def tr_count(x,y)
       sum = x+y
-      xp = x*100.0/sum
-      yp = y*100.0/sum
+      if sum==0
+        xp = "--%"
+        yp = "--%"
+      else
+        xp = "%.2f%%"%(x*100.0/sum)
+        yp = "%.2f%%"%(y*100.0/sum)
+      end
       td = "<td align='right' valign='top'>"
-      m  = td + '%s<br/>''%.2f%%</td>' % [format_comma(x),xp]
-      m << td + '%s<br/>''%.2f%%</td>' % [format_comma(y),yp]
-      m << td + "%s</td>" % format_comma(sum)
-      m
+      return \
+        td + '%s<br/>%s</td>' % [format_comma(x),xp] +
+        td + '%s<br/>%s</td>' % [format_comma(y),yp] +
+        td + "%s</td>" % format_comma(sum)
     end
 
     def report_html
@@ -230,15 +235,17 @@ EOL
       html << "<th>local</th><th>remote</th><th>total</th>"
       html << "</tr>\n"
       @stat.exec_hosts.each do |h|
-        html << "<tr><td>#{h}</td>"
-        html << "<td align='right'>%.3f</td>" % @stat[h,nil,:elap]
-        html << "<td></td>"
-        html << tr_count(@stat[h,true,:in_num],@stat[h,false,:in_num])
-        html << tr_count(@stat[h,true,:in_size],@stat[h,false,:in_size])
-        html << "<td></td>"
-        html << tr_count(@stat[h,true,:out_num],@stat[h,false,:out_num])
-        html << tr_count(@stat[h,true,:out_size],@stat[h,false,:out_size])
-        html << "</tr>\n"
+        if h.to_s!="" || @stat[h,nil,:elap]!=0
+          html << "<tr><td>#{h}</td>"
+          html << "<td align='right'>%.3f</td>" % @stat[h,nil,:elap]
+          html << "<td></td>"
+          html << tr_count(@stat[h,true,:in_num],@stat[h,false,:in_num])
+          html << tr_count(@stat[h,true,:in_size],@stat[h,false,:in_size])
+          html << "<td></td>"
+          html << tr_count(@stat[h,true,:out_num],@stat[h,false,:out_num])
+          html << tr_count(@stat[h,true,:out_size],@stat[h,false,:out_size])
+          html << "</tr>\n"
+        end
       end
       html << "<tr><td>total</td>"
       html << "<td align='right'>%.3f</td>" % @stat.total(nil,:elap)
@@ -300,79 +307,6 @@ set title 'histogram of elapsed time'"
       end
       end
       hist_image
-    end
-  end
-
-  class TaskStat
-
-    def initialize(task_file, sh_table)
-      begin
-        @task_table = CSV.read(task_file,:headers=>true,:skip_lines=>/\A#/)
-      rescue
-        $stderr.puts "error in reading "+task_file
-        $stderr.puts $!, $@
-        exit
-      end
-      @count = Hash.new(0)
-      task_locality
-      stat_sh_table(sh_table)
-    end
-
-    attr_reader :exec_hosts
-
-    def count(exec_host, loc, key, val)
-      @count[[exec_host,loc,key]] += val
-      @count[[loc,key]] += val
-    end
-
-    def total(loc,key)
-      @count[[loc,key]]
-    end
-
-    def [](exec_host,loc,key)
-      @count[[exec_host,loc,key]]
-    end
-
-    def task_locality
-      file_size = {}
-      file_host = {}
-      h = {}
-      @task_table.each do |row|
-        name            = row['task_name']
-        file_size[name] = row['file_size'].to_i
-        file_host[name] = (row['file_host']||'').split('|')
-        exec_host = row['exec_host'] || ""
-        h[exec_host] = true
-      end
-      @exec_hosts = h.keys.sort
-
-      @task_table.each do |row|
-        if row['executed']=='1'
-          name      = row['task_name']
-          exec_host = row['exec_host']
-          loc = file_host[name].include?(exec_host)
-          count(exec_host, loc, :out_num, 1)
-          count(exec_host, loc, :out_size, file_size[name])
-
-          preq_files = (row['preq']||'').split('|')
-          preq_files.each do |preq|
-            sz = file_size[preq]
-            if sz && sz > 0
-              loc = file_host[preq].include?(exec_host)
-              count(exec_host, loc, :in_num, 1)
-              count(exec_host, loc, :in_size, sz)
-            end
-          end
-        end
-      end
-    end
-
-    def stat_sh_table(sh_table)
-      sh_table.each do |row|
-        if (h = row['host']) && (t = row['elap_time'])
-          count(h, nil, :elap, t.to_f)
-        end
-      end
     end
 
   end
