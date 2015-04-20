@@ -32,16 +32,20 @@ EOL
 
     def initialize(dir,pattern)
       @dir = dir
+      if !File.directory?(@dir)
+        raise ArgumentError,"Could not find log directory: #{@dir}"
+      end
       @pattern = pattern
 
       @@id = @@id.succ
       @id = @@id
 
-      log_file = Dir.glob(File.join(@dir,"20*.log"))[0]
+      log_file = find_single_file("20*.log")
+
       @base = base = File.join(@dir,File.basename(log_file,".log"))
 
-      @csv_file  = Dir.glob(File.join(@dir,'*_cmd.csv'))[0]
-      @task_file = Dir.glob(File.join(@dir,'*_task.csv'))[0]
+      @csv_file  = find_single_file("*_cmd.csv")
+      @task_file = find_single_file("*_task.csv")
       @html_file = File.join(@dir,'report.html')
 
       open(log_file,"r").each do |s|
@@ -82,6 +86,18 @@ EOL
     attr_reader :cmd_elap, :cmd_stat
     attr_reader :sh_table, :task_table
     attr_reader :id
+
+    def find_single_file(pattern)
+      g = Dir.glob(File.join(@dir,pattern))
+      case g.size
+      when 0
+        raise ArgumentError, "Could not find any file with '#{pattern}' in #{@dir}"
+      when 1
+      else
+        raise ArgumentError, "Found multiple files '#{pattern}' in #{@dir}"
+      end
+      g[0]
+    end
 
     def id_str
       if @@id_fmt.nil?
