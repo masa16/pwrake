@@ -9,16 +9,13 @@ end
 
 libpath = File.absolute_path(File.dirname(__FILE__))+"/../lib"
 $LOAD_PATH.unshift libpath
-#require "pwrake/master"
+
 require "pwrake/branch"
 class Rake::Application
   include Pwrake::BranchApplication
 end
 
-require "tracer"
+#require "tracer"
 #Tracer.on
 
-# $stderr = $stdout
 Rake.application.run_branch($stdin,$stdout)
-
-#system "ps vx 1>&2"

@@ -20,6 +20,6 @@ class Rake::Task
   include Pwrake::TaskAlgorithm
 end
 
-require "tracer"
+#require "tracer"
 #Tracer.on
 Rake.application.run
