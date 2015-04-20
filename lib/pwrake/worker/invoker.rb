@@ -12,7 +12,7 @@ module Pwrake
                when Integer
                  n_core
                else
-                 count_cpu
+                 processor_count
                end
       @out = Writer.instance
       @out.puts "ncore:#{@ncore}"
@@ -30,14 +30,6 @@ module Pwrake
       end
 
       Signal.trap("PIPE", "EXIT")
-    end
-
-    def count_cpu
-      ncpu = 0
-      open("/proc/cpuinfo").each do |l|
-        ncpu += 1 if /^processor\s+: \d+/=~l
-      end
-      ncpu
     end
 
     def run
@@ -104,6 +96,35 @@ module Pwrake
       @out.puts "worker_end"
       @log.info "worker:end:#{id_list.inspect}"
       @log.close
+    end
+
+    # from Michael Grosser's parallel
+    # https://github.com/grosser/parallel
+    def processor_count
+      host_os = RbConfig::CONFIG['host_os']
+      case host_os
+      when /linux|cygwin/
+        ncpu = 0
+        open("/proc/cpuinfo").each do |l|
+          ncpu += 1 if /^processor\s+: \d+/=~l
+        end
+        ncpu
+      when /darwin9/
+        `hwprefs cpu_count`.to_i
+      when /darwin/
+        (hwprefs_available? ? `hwprefs thread_count` : `sysctl -n hw.ncpu`).to_i
+      when /(open|free)bsd/
+        `sysctl -n hw.ncpu`.to_i
+      when /mswin|mingw/
+        require 'win32ole'
+        wmi = WIN32OLE.connect("winmgmts://")
+        cpu = wmi.ExecQuery("select NumberOfLogicalProcessors from Win32_Processor")
+        cpu.to_enum.first.NumberOfLogicalProcessors
+      when /solaris2/
+        `psrinfo -p`.to_i # physical cpus
+      else
+        raise "Unknown architecture: #{host_os}"
+      end
     end
 
   end
