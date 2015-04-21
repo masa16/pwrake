@@ -71,7 +71,7 @@ module Pwrake
       end
 
       # receive ncore from worker node
-      IODispatcher.event_once(@wk_comm.keys,90) do |io|
+      IODispatcher.event_once(@wk_comm.keys,60) do |io|
         s = io.gets
         if /ncore:(\d+)/ =~ s
           @wk_comm[io].set_ncore($1.to_i)
@@ -131,7 +131,7 @@ module Pwrake
         end
       end
 
-      bh = BranchHandler.new(@queue)
+      bh = BranchHandler.new(@queue,@iow)
       @dispatcher.attach_handler(@ior,bh)
 
       @fiber_list.each{|fb| fb.resume}

@@ -13,7 +13,7 @@ module Pwrake
       @rd_hdl = {}
       @rd_hdl = {}
       @ior,@iow = IO.pipe
-      attach_handler(@iow,ExitHandler.new)
+      attach_handler(@ior,ExitHandler.new)
     end
 
     def finish

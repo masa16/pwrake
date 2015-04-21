@@ -46,7 +46,7 @@ module Pwrake
     def kill(sig)
       Log.warn "#{self.class.to_s}#kill sig=#{sig} pid=#{Process.pid} thread=#{Thread.current}"
       send_cmd "kill:#{sig}"
-      Process.kill(sig,@pid) if @pid
+      #Process.kill(sig,@pid) if @pid
     end
 
     def close
@@ -79,7 +79,8 @@ module Pwrake
           $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid} thread=#{Thread.current})"
           $stderr.puts caller
           self.kill(sig)
-          Kernel.exit
+          self.close_all
+          #Kernel.exit # must wait for nomral exit
         end
       end
     end

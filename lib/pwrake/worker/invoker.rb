@@ -70,15 +70,17 @@ module Pwrake
           return
           #
         when /^kill:(\d+):(.*)$/o
-          id,signal = $1,$2
+          id,sig = $1,$2
+          sig = sig.to_i if /^\d+$/=~sig
           worker = Executor::LIST[id]
-          worker.kill(signal) if worker
+          worker.kill(sig) # if worker
           #
         when /^kill:(.*)$/o
           sig = $1
           sig = sig.to_i if /^\d+$/=~sig
-          @out.puts "worker_killed:signal=#{sig}"
-          Process.kill(sig, 0)
+          @log.warn "worker_killed:signal=#{sig}"
+          Executor::LIST.each{|id,ex| ex.kill(sig)}
+          return
           #
         else
           raise "invalid line: #{line}"
@@ -93,9 +95,9 @@ module Pwrake
       ex_list = Executor::LIST.values
       ex_list.each {|ex| ex.close}
       ex_list.each {|ex| ex.join}
-      @out.puts "worker_end"
       @log.info "worker:end:#{id_list.inspect}"
       @log.close
+      @out.puts "worker_end"
     end
 
     # from Michael Grosser's parallel

@@ -152,7 +152,7 @@ module Pwrake
 
     def io_read_loop
       # @chan.deq must be called in a Fiber
-      while x = @chan.deq
+      while x = @chan.deq  # receive from WorkerCommunicator#on_read
         #$stderr.puts "x=#{x.inspect}"
         case x[0]
         when :start
@@ -163,6 +163,9 @@ module Pwrake
           $stderr.print x[1]+"\n"
         when :end
           return x[2].to_i
+          # see Executor#status_to_str
+          _id, _pid, status, @status_str = *x
+          return status.to_i
         else
           msg = "Invalid result: #{x.inspect}"
           $stderr.puts(msg)

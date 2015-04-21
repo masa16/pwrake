@@ -16,6 +16,10 @@ module Pwrake
       @logger.level = @level
     end
 
+    def opened?
+      @opened
+    end
+
     def open(dir_class)
       @dir = dir_class.new
       @dir.open
@@ -23,7 +27,7 @@ module Pwrake
       @logfile = (@dir.log_path + fn).to_s
       ::FileUtils.mkdir_p(@dir.log_path.to_s)
       @logger = @logger_file = ::Logger.new(@logfile)
-      @logger_opened = true
+      @opened = true
       @logger.level = @level
       @dir.open_messages.each{|m| @logger.info(m)}
     end
@@ -31,6 +35,7 @@ module Pwrake
     def close
       @dir.close_messages.each{|m| @logger.info(m)}
       @logger = @logger_stderr
+      @opened = false
       @logger_file.close
       @logger_file = nil
       @dir.close

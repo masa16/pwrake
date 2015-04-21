@@ -88,7 +88,7 @@ module Pwrake
       IODispatcher.event_once(@comm_by_io.keys,10) do |io|
         while true
           s = io.gets
-          Log.debug "in event_once: s=#{s}"
+          Log.debug "in Master#setup_branches, event_once: #{s}"
           case s
           when /ncore:done/
             break
@@ -141,10 +141,13 @@ module Pwrake
       when /^taskfail:(\d*):(.*)$/o
         taskend_proc("fail",$1.to_i,$2)
         # returns true (end of loop)
-      when /^exit_connection$/o
-        $stderr.puts "receive exit_connection from worker"
-        Log.warn "receive exit_connection from worker"
-        true # end of loop (fix me)
+      when /^branch_end$/o
+        s.chomp!
+        Log.warn "receive #{s} from branch"
+        @dispatcher.detach_communicator(@comm_by_io[io])
+        @comm_by_io.delete(io)
+        #@pool.finish if @pool
+        @comm_by_io.empty? # exit condition
       else
         @writer[io].print(s)
         nil
@@ -191,6 +194,7 @@ module Pwrake
       @conn_list.each do |conn|
         conn.close
       end
+      @dispatcher.finish
       @dispatcher.event_loop_block do |io|
         s = io.gets
         if /^branch_end$/o =~ s
@@ -200,7 +204,7 @@ module Pwrake
         @comm_by_io.empty? # exit condition
       end
       @task_logger.close if @task_logger
-      Log.debug "branch:finish"
+      Log.debug "master:finish"
     end
 
   end

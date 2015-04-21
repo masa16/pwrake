@@ -5,15 +5,16 @@ module Pwrake
 
     RE_ID='\d+'
 
-    def initialize(queue)
+    def initialize(queue,iow)
       @queue = queue
+      @iow = iow
       @tasks = []
     end
 
     def on_read(io)
       s = io.gets
-      #$stderr.puts "BH#on_read: #{s}"
       # receive command from main pwrake
+      #Log.debug "#{self.class.to_s}#on_read: #{s.chomp}"
       case s
       when /^(\d+):(.+)$/o
         id, tname = $1,$2
@@ -25,9 +26,9 @@ module Pwrake
 
       when /^kill:(.*)$/o
         sig = $1
-        # Util.puts "branch:kill:#{sig}"
-        Kernel.exit
-        return true # ?
+        $stderr.puts "#{self.class.to_s}#on_read: kill #{sig}"
+        WorkerCommunicator.kill(sig)
+
       else
         puts "Invalid item for BranchHandler#on_read: #{s}"
       end

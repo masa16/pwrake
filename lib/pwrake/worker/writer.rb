@@ -16,7 +16,7 @@ module Pwrake
           @out.flush
         rescue Errno::EPIPE
         end
-        @log.info "<#{s}"
+        @log.info "<#{s}" if @log.opened?
       end
     end
 
@@ -27,7 +27,7 @@ module Pwrake
           @out.flush
         rescue Errno::EPIPE
         end
-        @log.info "<#{s}"
+        @log.info "<#{s}" if @log.opened?
       end
     end
 

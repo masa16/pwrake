@@ -16,13 +16,16 @@ module Pwrake
     def run(t)
       @fiber = Fiber.current
       @file = t.name # t.last
-      @io.puts(@file)
-      #puts "t=#{t} @fiber=#{@fiber.inspect}"
-      Fiber.yield
+      begin
+        @io.puts(@file)
+        Fiber.yield
+      rescue Errno::EPIPE
+        Log.error "Errno::EPIPE in gfwhere_handler.rb"
+        []
+      end
     end
 
     def on_read(io)
-      #puts "@fiber=#{@fiber.inspect}"
       f = @fiber
       @fiber = nil
       f.resume(gfwhere_result)

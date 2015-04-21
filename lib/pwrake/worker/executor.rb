@@ -11,11 +11,10 @@ module Pwrake
       @log = LogExecutor.instance
       @queue = Queue.new
       LIST[@id] = self
+      @dir = dir_class.new
       @out_thread  = start_out_thread
       @err_thread  = start_err_thread
       @exec_thread = start_exec_thread
-      @dir = dir_class.new
-      execute "open_directory"
     end
 
     def start_out_thread
@@ -42,19 +41,25 @@ module Pwrake
 
     def start_exec_thread
       Thread.new do
+        @dir.open
+        @dir.open_messages.each{|m| @log.info(m)}
         while cmd = @queue.deq
+          break if @stopped
           begin
             run(cmd)
           rescue => exc
-            @out.puts x="end:error:#{exc}"
+            put_err(exc)
             @log.error exc
             @log.error exc.backtrace.join("\n")
           end
+          break if @stopped
         end
         @pipe_out.flush
         @pipe_err.flush
         @pipe_out.close
         @pipe_err.close
+        @dir.close_messages.each{|m| @log.info(m)}
+        @dir.close
       end
     end
 
@@ -88,11 +93,13 @@ module Pwrake
       @out.puts "end:#{@id}"
     end
 
+    def put_err
+      @out.puts "end:#{@id}:#{exc}"
+    end
+
     def close
       LIST.delete(@id)
       execute(nil)  # threads end
-      @dir.close_messages.each{|m| @log.info(m)}
-      @dir.close
     end
 
     #alias exit :close
@@ -104,8 +111,13 @@ module Pwrake
     end
 
     def kill(sig)
-      sig = sig.to_i if /^\d+$/=~sig
+      @stopped = true
+      @queue.enq(nil)
+      while @queue.deq; end
+      @log.warn "Executor(id=#{@id})#kill pid=#{@pid} sig=#{sig}"
       Process.kill(sig,@pid) if @pid
+      @queue.enq(nil)
+      #join
     end
 
     #
@@ -113,13 +125,6 @@ module Pwrake
       case cmd
       when Proc
         cmd.call
-      when "open_directory"
-        @dir.open
-        @dir.open_messages.each{|m| @log.info(m)}
-        #
-      #when "close_directory"
-      #  @dir.close
-      #  #
       when "cd"
         @dir.cd
         put_end

@@ -71,10 +71,10 @@ module Pwrake
       @channel.empty?
     end
 
-    def on_read(io)
+    def on_read(io)   # return to Shell#io_read_loop
       s = io.gets
       # $chk.print ">#{s}" if $dbg
-      # $stderr.puts ">"+s
+      $stderr.puts ">"+s
       case s
       when /^(#{RE_ID}):(.*)$/
         id,item = $1,$2
@@ -84,24 +84,29 @@ module Pwrake
         id,item = $1,$2
         @channel[id].enq([:err,item])
         #
+      when /^start:(#{RE_ID}):(\d*)$/
+        id,pid = $1,$2
+        @channel[id].enq([:start,pid])
+        #
       when /^end:(#{RE_ID})(?::(\d*):([^,]*),(.*))?$/
         id,pid,stat_val,stat_cond = $1,$2,$3,$4
         @channel[id].enq([:end,pid,stat_val,stat_cond])
         #
-      when /^start:(#{RE_ID}):(\d*)$/
-        id,pid = $1,$2
-        @channel[id].enq([:start,pid])
+      when /^err:(#{RE_ID}):(.*)$/
+        id,pid,stat_val,stat_cond = $1,$2,$3,$4
+        @channel[id].enq([:end,pid,stat_val,stat_cond])
         #
       when /^ncore:(\d+)$/
         @n_total_core = $1
         #@channel[id].enq([:ncore,ncore])
         #
       when /^worker_end$/
+        Log.warn "#{self.class.to_s}#on_read: #{s.chomp}"
         close
         return @@worker_communicators.empty?
       else
-        $stderr.puts "Invalid return from worker: #{s}"
-        Log.error "Invalid return from worker: #{s}"
+        s.chomp!
+        Log.error "Worker returns: #{s}"
       end
       return false
     end
