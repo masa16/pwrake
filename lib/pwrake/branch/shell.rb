@@ -146,10 +146,13 @@ module Pwrake
         when :err
           $stderr.print x[1]+"\n"
         when :end
-          return x[2].to_i
           # see Executor#status_to_str
-          _id, _pid, status, @status_str = *x
-          return status.to_i
+          _id, _pid, status = *x
+          case status
+          when /^\d+$/
+            status = status.to_i
+          end
+          return status
         else
           msg = "Shell#io_read_loop: Invalid result: #{x.inspect}"
           $stderr.puts(msg)

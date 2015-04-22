@@ -4,6 +4,7 @@ require 'ffi'
 require 'singleton'
 
 module Gfarm
+
   class GfarmError < StandardError
   end
   GFARM_ERR_NO_ERROR = 0

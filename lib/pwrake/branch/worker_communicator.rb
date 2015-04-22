@@ -88,9 +88,9 @@ module Pwrake
         id,pid = $1,$2
         @channel[id].enq([:start,pid])
         #
-      when /^end:(#{RE_ID})(?::(\d*):([^,]*),(.*))?$/
-        id,pid,stat_val,stat_cond = $1,$2,$3,$4
-        @channel[id].enq([:end,pid,stat_val,stat_cond])
+      when /^end:(#{RE_ID})(?::(\d*):(.*))?$/
+        id,pid,status = $1,$2,$3
+        @channel[id].enq([:end,pid,status])
         #
       when /^err:(#{RE_ID}):(.*)$/
         id,pid,stat_val,stat_cond = $1,$2,$3,$4

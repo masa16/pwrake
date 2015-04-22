@@ -80,13 +80,17 @@ module Pwrake
 
     def status_to_str(s)
       if s.exited?
-        x = "#{s.to_i},exited"
+        x = "#{s.to_i}"
       elsif s.signaled?
-        x = "#{s.to_i},signaled,signal=#{s.termsig}"
+        if s.coredump?
+          x = "coredumped"
+        else
+          x = "termsig=#{s.termsig}"
+        end
       elsif s.stopped?
-        x = "#{s.to_i},stopped,signal=#{s.stopsig}"
-      elsif s.coredump?
-        x = "#{s.to_i},coredumped"
+        x = "stopsig=#{s.stopsig}"
+      else
+        x = "unknown_status"
       end
       return x
     end
