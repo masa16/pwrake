@@ -86,8 +86,8 @@ module Pwrake
       #Log.debug "@comm_by_io.keys: #{@comm_by_io.keys.inspect}"
       sum_ncore = 0
       IODispatcher.event_once(@comm_by_io.keys,10) do |io|
-        while true
-          s = io.gets
+        while s = io.gets
+          s.chomp!
           Log.debug "in Master#setup_branches, event_once: #{s}"
           case s
           when /ncore:done/

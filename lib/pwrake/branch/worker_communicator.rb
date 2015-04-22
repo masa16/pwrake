@@ -74,7 +74,7 @@ module Pwrake
     def on_read(io)   # return to Shell#io_read_loop
       s = io.gets
       # $chk.print ">#{s}" if $dbg
-      $stderr.puts ">"+s
+      # $stderr.puts ">"+s
       case s
       when /^(#{RE_ID}):(.*)$/
         id,item = $1,$2

@@ -21,7 +21,8 @@ module Pwrake
       pipe_in, @pipe_out = IO.pipe
       Thread.new(pipe_in,"#{@id}:") do |pin,pre|
         while s = pin.gets
-          @out.print pre+s
+          s.chomp!
+          @out.puts pre+s
         end
        end
     end
@@ -30,7 +31,8 @@ module Pwrake
       pipe_in2, @pipe_err = IO.pipe
       Thread.new(pipe_in2,"#{@id}e:") do |pin,pre|
         while s = pin.gets
-          @out.print pre+s
+          s.chomp!
+          @out.puts pre+s
         end
       end
     end
