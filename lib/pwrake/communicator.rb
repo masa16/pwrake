@@ -44,9 +44,7 @@ module Pwrake
     end
 
     def kill(sig)
-      Log.warn "#{self.class.to_s}#kill sig=#{sig} pid=#{Process.pid} thread=#{Thread.current}"
       send_cmd "kill:#{sig}"
-      #Process.kill(sig,@pid) if @pid
     end
 
     def close
