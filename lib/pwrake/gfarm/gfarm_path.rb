@@ -1,5 +1,3 @@
-#require 'pwrake/gfwhere_pool'
-
 module Pwrake
 
   module GfarmPath
