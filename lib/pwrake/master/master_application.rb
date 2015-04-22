@@ -39,6 +39,7 @@ module Pwrake
           @master.finish
         end
         Log.debug "finish: #{Time.now-t} sec"
+        Log.info "pwrake elapsed time: #{Time.now-START_TIME} sec"
       end
     end
 

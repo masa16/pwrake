@@ -20,7 +20,7 @@ module Pwrake
         @io.puts(@file)
         Fiber.yield
       rescue Errno::EPIPE
-        Log.error "Errno::EPIPE in gfwhere_handler.rb"
+        Log.warn "Errno::EPIPE in gfwhere_handler.rb"
         []
       end
     end

@@ -101,12 +101,12 @@ module Pwrake
         #@channel[id].enq([:ncore,ncore])
         #
       when /^worker_end$/
-        Log.warn "#{self.class.to_s}#on_read: #{s.chomp}"
+        Log.debug "#{self.class.to_s}#on_read: #{s.chomp}"
         close
         return @@worker_communicators.empty?
       else
         s.chomp!
-        Log.error "Worker returns: #{s}"
+        Log.warn "WorkerCommunicator#on_read: Unknown return: #{s}"
       end
       return false
     end

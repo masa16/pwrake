@@ -26,7 +26,7 @@ module Pwrake
 
       when /^kill:(.*)$/o
         sig = $1
-        $stderr.puts "#{self.class.to_s}#on_read: kill #{sig}"
+        Log.warn "#{self.class.to_s}#on_read: kill #{sig}"
         WorkerCommunicator.kill(sig)
 
       else

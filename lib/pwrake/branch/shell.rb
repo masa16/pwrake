@@ -58,14 +58,6 @@ module Pwrake
       end
     end
 
-    def force_close
-      if !@chan.closed?
-        @chan.close
-      end
-      OPEN_LIST.delete(__id__)
-      @comm.delete_channel(@id)
-    end
-
     def communicator
       @comm
     end
@@ -100,15 +92,7 @@ module Pwrake
       raise "Failed at #{@host}, id=#{@id}, cmd='#{@cmd}'"
     end
 
-    #require 'pp'
     at_exit {
-      #$stderr.puts "Shell at_exit OPEN_LIST"
-      #pp OPEN_LIST, $stderr
-      OPEN_LIST.map do |id,sh|
-        # kill running job ???
-        # or wait for job ???
-        sh.force_close
-      end
       Shell.profiler.close
     }
 
@@ -167,7 +151,7 @@ module Pwrake
           _id, _pid, status, @status_str = *x
           return status.to_i
         else
-          msg = "Invalid result: #{x.inspect}"
+          msg = "Shell#io_read_loop: Invalid result: #{x.inspect}"
           $stderr.puts(msg)
           Log.error(msg)
         end

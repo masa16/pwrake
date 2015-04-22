@@ -52,7 +52,6 @@ module Pwrake
     def close
       if !@iow.closed?
         @iow.puts @close_command if !@@killed
-        #@iow.close
         @iow.flush
       end
       @@communicators.delete(self)
@@ -76,8 +75,11 @@ module Pwrake
     if true
       [:TERM,:INT].each do |sig|
         Signal.trap(sig) do
+          # log writing failed. can't be called from trap context
           $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid} thread=#{Thread.current})"
-          $stderr.puts caller
+          if Rake.application.options.debug
+            $stderr.puts caller
+          end
           self.kill(sig)
           self.close_all
           #Kernel.exit # must wait for nomral exit

@@ -106,14 +106,11 @@ module Pwrake
         'GNU_TIME',
         'DEBUG',
         'PLOT_PARALLELISM',
-        'HALT_QUEUE_WHILE_SEARCH',
         'SHOW_CONF',
         'FAILED_TARGET', # rename(default), delete, leave
         'QUEUE_PRIORITY', # RANK(default), FIFO, LIFO, DFS
         #'NOACTION_QUEUE_PRIORITY', # FIFO(default), LIFO, RAND
         #'NUM_NOACTION_THREADS', # default=4 when gfarm, else 1
-        'STEAL_WAIT',
-        'STEAL_WAIT_MAX',
         'GRAPH_PARTITION',
         'PLOT_PARTITION',
 
@@ -165,7 +162,6 @@ module Pwrake
             end
          }],
         ['NUM_THREADS', proc{|v| v && v.to_i}],
-        ['THREAD_CREATE_INTERVAL', proc{|v| (v || 0.010).to_f}],
         ['DISABLE_AFFINITY', proc{|v| v || ENV['AFFINITY']=='off'}],
         ['DISABLE_STEAL', proc{|v| v || ENV['STEAL']=='off'}],
         ['GFARM_BASEDIR', proc{|v| v || '/tmp'}],
