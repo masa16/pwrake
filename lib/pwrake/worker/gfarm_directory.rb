@@ -35,7 +35,13 @@ module Pwrake
       # $log.info "GfarmWorker.close #{@gfarm_mountpoint}"
       if File.directory? @gfarm_mountpoint
         cd ENV['HOME']
-        system "fusermount -u #{@gfarm_mountpoint} >& /dev/null"
+        n = 0
+        while !system("fusermount -u #{@gfarm_mountpoint} >& /dev/null")
+          raise "fail in fusermount -u #{@gfarm_mountpoint}" if n > 5
+          $stderr.puts "sleep #{2**n} for fusermount -u #{@gfarm_mountpoint}"
+          sleep 2**n
+          n += 1
+        end
         system "sync"
         FileUtils.rmdir @gfarm_mountpoint
       end
