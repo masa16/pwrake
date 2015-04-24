@@ -62,6 +62,7 @@ module Pwrake
       a.join(@separator)
     end
 
+=begin
     def command(cmd,terminator)
       if @gnu_time
         if /\*|\?|\{|\}|\[|\]|<|>|\(|\)|\~|\&|\||\\|\$|;|`|\n/ =~ cmd
@@ -75,6 +76,7 @@ module Pwrake
         "#{cmd}\necho '#{terminator}':$? "
       end
     end #`
+=end
 
     def format_time(t)
       #t.utc.strftime("%F %T.%L")

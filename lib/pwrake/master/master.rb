@@ -123,12 +123,12 @@ module Pwrake
       @task_queue.deq_task do |tw,hid|
         tw.preprocess
         @hostid_by_taskname[tw.name] = hid
-        if tw.has_action?
+        #if tw.has_action?
           @workers[hid].send_task(tw)
           tw.exec_host = @workers[hid].host
-        else
-          taskend_proc("noaction",-1,tw.name)
-        end
+        #else
+        #  taskend_proc("noaction",-1,tw.name)
+        #end
       end
     end
 
