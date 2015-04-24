@@ -143,6 +143,12 @@ module Gfarm
 
 end
 
+[:TERM,:INT].each do |sig|
+  Signal.trap(sig) do
+    Kernel.exit
+  end
+end
+
 gfarm = Gfarm.connection
 
 while path=$stdin.gets
