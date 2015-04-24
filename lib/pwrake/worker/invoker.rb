@@ -1,3 +1,5 @@
+require 'timeout'
+
 module Pwrake
 
   class Invoker
@@ -33,7 +35,13 @@ module Pwrake
     end
 
     def run
-      while line = $stdin.gets
+      while true
+        begin
+          line = $stdin.gets
+          return if !line
+        rescue
+          return
+        end
         line.chomp!
         line.strip!
         @log.info ">#{line}"
@@ -93,10 +101,20 @@ module Pwrake
       Dir.chdir
       id_list = Executor::LIST.keys
       ex_list = Executor::LIST.values
-      ex_list.each {|ex| ex.close}
-      ex_list.each {|ex| ex.join}
+      ex_list.each{|ex| ex.close}
+      begin
+        ex_list.each{|ex| ex.join}
+      rescue => e
+        $stdout.puts e
+        $stdout.puts e.backtrace.join("\n")
+      end
       @log.info "worker:end:#{id_list.inspect}"
-      @log.close
+      begin
+        timeout(20){@log.close}
+      rescue => e
+        $stdout.puts e
+        $stdout.puts e.backtrace.join("\n")
+      end
       @out.puts "worker_end"
     end
 

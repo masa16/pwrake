@@ -32,7 +32,10 @@ module Pwrake
     end
 
     def flush
-      @out.flush
+      begin
+        @out.flush
+      rescue
+      end
     end
 
     def dputs(s)

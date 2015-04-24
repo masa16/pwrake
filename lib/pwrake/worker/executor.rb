@@ -50,7 +50,7 @@ module Pwrake
           begin
             run(cmd)
           rescue => exc
-            put_err(exc)
+            put_exc(exc)
             @log.error exc
             @log.error exc.backtrace.join("\n")
           end
@@ -99,8 +99,8 @@ module Pwrake
       @out.puts "end:#{@id}"
     end
 
-    def put_err
-      @out.puts "end:#{@id}:#{exc}"
+    def put_exc(exc)
+      @out.puts "exc:#{@id}:#{exc}"
     end
 
     def close
@@ -111,9 +111,9 @@ module Pwrake
     #alias exit :close
 
     def join
-      @out_thread.join  if @out_thread
-      @err_thread.join  if @err_thread
-      @exec_thread.join if @exec_thread
+      @out_thread.join(6)  if @out_thread
+      @err_thread.join(6)  if @err_thread
+      @exec_thread.join(6) if @exec_thread
     end
 
     def kill(sig)
@@ -149,9 +149,9 @@ module Pwrake
         #
       when String
         dir = @dir.current
-        if !Dir.exist?(dir)
-          raise "Directory '#{dir}' does not exsit"
-        end
+        #if !Dir.exist?(dir)
+        #  raise "Directory '#{dir}' does not exsit"
+        #end
         spawn(cmd,dir,@env)
       else
         raise RuntimeError,"invalid cmd: #{cmd.inspect}"
