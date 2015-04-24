@@ -3,7 +3,7 @@ module Pwrake
   class Communicator
 
     @@communicators = []
-    @@killed = false
+    @@killed = 0
     attr_reader :ior, :ioe, :iow, :host
 
     def initialize(host,opts={})
@@ -49,7 +49,7 @@ module Pwrake
 
     def close
       if !@iow.closed?
-        @iow.puts @close_command if !@@killed
+        @iow.puts @close_command if @@killed==0
         @iow.flush
       end
       @@communicators.delete(self)
@@ -61,7 +61,6 @@ module Pwrake
 
     class << self
       def kill(sig)
-        @@killed = true
         @@communicators.each{|comm| comm.kill(sig)}
       end
 
@@ -70,18 +69,24 @@ module Pwrake
       end
     end
 
-    if true
-      [:TERM,:INT].each do |sig|
-        Signal.trap(sig) do
-          # log writing failed. can't be called from trap context
-          $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid} thread=#{Thread.current})"
-          if Rake.application.options.debug
-            $stderr.puts caller
-          end
+    [:TERM,:INT].each do |sig|
+      Signal.trap(sig) do
+        # log writing failed. can't be called from trap context
+        $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid} thread=#{Thread.current}) @@killed=#{@@killed}"
+        if Rake.application.options.debug
+          $stderr.puts caller
+        end
+        case @@killed
+        when 0
+          $stderr.puts "Exiting. It may take a time..."
           self.kill(sig)
           self.close_all
-          #Kernel.exit # must wait for nomral exit
+        when 1
+          $stderr.puts "Once more Ctrl-C (SIGINT) for exit"
+        else
+          Kernel.exit # must wait for nomral exit
         end
+        @@killed += 1
       end
     end
 
