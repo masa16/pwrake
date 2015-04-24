@@ -80,7 +80,9 @@ module Pwrake
         when 0
           $stderr.puts "Exiting. It may take a time..."
           self.kill(sig)
+          $stderr.puts "Kill request is sent."
           self.close_all
+          $stderr.puts "Close request is sent."
         when 1
           $stderr.puts "Once more Ctrl-C (SIGINT) for exit"
         else
