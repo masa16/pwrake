@@ -14,7 +14,7 @@ module Pwrake
     def initialize
       @id = @@current_id
       @@current_id += 1
-      @gfarm_mountpoint = (@@prefix+"_%03d") % @id
+      @gfarm_mountpoint = (@@prefix+"_%05d_%03d") % [Process.pid,@id]
     end
 
     def home_path
@@ -23,7 +23,13 @@ module Pwrake
 
     def open
       FileUtils.mkdir_p @gfarm_mountpoint
-      system "(cd; gfarm2fs #{@gfarm_mountpoint}) >& /dev/null"
+      n = 0
+      while !system "(cd; gfarm2fs #{@gfarm_mountpoint}) >& /dev/null"
+        raise "fail in gfarm2fs #{@gfarm_mountpoint}" if n > 5
+        $stderr.puts "sleep #{2**n} s for gfarm2fs #{@gfarm_mountpoint}"
+        sleep 2**n
+        n += 1
+      end
       super
     end
 
@@ -38,7 +44,7 @@ module Pwrake
         n = 0
         while !system("fusermount -u #{@gfarm_mountpoint} >& /dev/null")
           raise "fail in fusermount -u #{@gfarm_mountpoint}" if n > 5
-          $stderr.puts "sleep #{2**n} for fusermount -u #{@gfarm_mountpoint}"
+          $stderr.puts "sleep #{2**n} s for fusermount -u #{@gfarm_mountpoint}"
           sleep 2**n
           n += 1
         end
