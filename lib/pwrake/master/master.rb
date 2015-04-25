@@ -197,7 +197,7 @@ module Pwrake
       @dispatcher.finish
       @dispatcher.event_loop_block do |io|
         s = io.gets
-        if /^branch_end$/o =~ s
+        if s.nil? || /^branch_end$/o =~ s
           @dispatcher.detach_communicator(@comm_by_io[io])
           @comm_by_io.delete(io)
         end
