@@ -24,7 +24,7 @@ module Pwrake
           s.chomp!
           @out.puts pre+s
         end
-       end
+      end
     end
 
     def start_err_thread
@@ -41,12 +41,16 @@ module Pwrake
       @queue.enq(cmd)
     end
 
+    def killed?
+      @killed || !@out_thread.alive? || !@err_thread.alive?
+    end
+
     def start_exec_thread
       Thread.new do
         @dir.open
         @dir.open_messages.each{|m| @log.info(m)}
         while cmd = @queue.deq
-          break if @stopped
+          break if killed?
           begin
             run(cmd)
           rescue => exc
@@ -54,7 +58,7 @@ module Pwrake
             @log.error exc
             @log.error exc.backtrace.join("\n")
           end
-          break if @stopped
+          break if killed?
         end
         @pipe_out.flush
         @pipe_err.flush
@@ -117,7 +121,7 @@ module Pwrake
     end
 
     def kill(sig)
-      @stopped = true
+      @killed = true
       @queue.enq(nil)
       while @queue.deq; end
       @log.warn "Executor(id=#{@id})#kill pid=#{@pid} sig=#{sig}"
