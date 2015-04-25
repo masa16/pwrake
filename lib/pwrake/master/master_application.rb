@@ -27,8 +27,8 @@ module Pwrake
         load_rakefile
         t = Time.now
         @master.init
+        @master.setup_branches
         begin
-          @master.setup_branches
           @master.setup_postprocess
           Log.debug "init: #{Time.now-t} sec"
           t = Time.now
