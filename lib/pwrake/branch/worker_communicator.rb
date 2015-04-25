@@ -22,6 +22,7 @@ module Pwrake
 
     def setup_connection(w0,w1,r2)
       cmd = system_cmd
+      Log.debug cmd
       @pid = spawn(cmd,:pgroup=>true,:out=>w0,:err=>w1,:in=>r2)
       w0.close
       w1.close
