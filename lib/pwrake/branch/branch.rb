@@ -89,6 +89,28 @@ module Pwrake
       end
       @iow.puts "ncore:done"
       @iow.flush
+
+      # heartbeat
+      @hb_thread = Thread.new do
+        begin
+          count = 0
+          while true
+            n = @wk_comm.size / (@options['HEARTBEAT_TIMEOUT']/5)
+            @wk_comm.values.each do |comm|
+              comm.check_heartbeat
+              count += 1
+              if count >= n
+                count = 0
+                sleep 5
+              end
+            end
+          end
+        rescue => e
+          Log.error e
+          Log.error e.backtrace.join("\n")
+        end
+      end
+      @hb_thread.run
     end
 
     def setup_fibers
@@ -155,6 +177,7 @@ module Pwrake
     end
 
     def finish
+      @hb_thread.kill
       @iow.puts "branch_end"
       @iow.flush
       @ior.close

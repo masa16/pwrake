@@ -13,7 +13,8 @@ module Pwrake
         :work_dir  => self['WORK_DIR'],
         :log_dir   => self['LOG_DIR'],
         :pass_env  => self['PASS_ENV'],
-        :ssh_opt   => self['SSH_OPTION']
+        :ssh_opt   => self['SSH_OPTION'],
+        :heartbeat_timeout => self['HEARTBEAT_TIMEOUT']
       }
 
       if @filesystem.nil?

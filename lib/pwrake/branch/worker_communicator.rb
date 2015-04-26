@@ -15,6 +15,7 @@ module Pwrake
       @channel = {}
       #
       @option = opt
+      @heartbeat_timeout = @option[:heartbeat_timeout]
       super(host)
       @close_command = "exit_worker"
       @@worker_communicators << self
@@ -27,6 +28,7 @@ module Pwrake
       w0.close
       w1.close
       r2.close
+      @heartbeat = Time.now
       if @path
         @iow.puts "export:PATH='#{path}'"
       end
@@ -72,6 +74,13 @@ module Pwrake
       @channel.empty?
     end
 
+    def check_heartbeat
+      Log.debug "heartbeat: id=#{id} host=#{host} time=#{@heartbeat}"
+      if Time.now-@heartbeat > @heartbeat_timeout
+        raise RuntimeError,"Worker is not responding: id=#{id} host=#{host}"
+      end
+    end
+
     def on_read(io)   # return to Shell#io_read_loop
       s = io.gets
       # $chk.print ">#{s}" if $dbg
@@ -96,6 +105,9 @@ module Pwrake
       when /^err:(#{RE_ID}):(.*)$/
         id,pid,stat_val,stat_cond = $1,$2,$3,$4
         @channel[id].enq([:end,pid,stat_val,stat_cond])
+        #
+      when /^heartbeat$/
+        @heartbeat = Time.now
         #
       when /^ncore:(\d+)$/
         @n_total_core = $1

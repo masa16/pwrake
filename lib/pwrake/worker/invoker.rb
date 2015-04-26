@@ -5,6 +5,7 @@ module Pwrake
   class Invoker
 
     def initialize(dir_class, n_core)
+      @heartbeat_interval = 30
       @dir_class = dir_class
       @log = LogExecutor.instance
       @log.open(@dir_class)
@@ -35,6 +36,7 @@ module Pwrake
     end
 
     def run
+      start_heartbeat
       while true
         begin
           line = $stdin.gets
@@ -96,6 +98,15 @@ module Pwrake
       end
     end
 
+    def start_heartbeat
+      @heartbeat_thread = Thread.new do
+        while true
+          @out.puts "heartbeat"
+          sleep @heartbeat_inverval
+        end
+      end
+    end
+
     def close_all
       @log.info "close_all"
       Dir.chdir
@@ -115,6 +126,7 @@ module Pwrake
         $stdout.puts e
         $stdout.puts e.backtrace.join("\n")
       end
+      @heartbeat_thread.kill
       @out.puts "worker_end"
     end
 
