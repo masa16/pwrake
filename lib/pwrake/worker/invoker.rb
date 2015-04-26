@@ -64,7 +64,7 @@ module Pwrake
         when /^p$/o
           puts "Executor::LIST = #{Executor::LIST.inspect}"
           #
-        when /^new:(.*)$/o
+        when /^start:(.*)$/o
           $1.split.each do |id|
             Executor.new(@dir_class,id)
           end
@@ -102,7 +102,7 @@ module Pwrake
       @heartbeat_thread = Thread.new do
         while true
           @out.puts "heartbeat"
-          sleep @heartbeat_inverval
+          sleep @heartbeat_interval
         end
       end
     end

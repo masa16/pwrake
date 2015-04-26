@@ -32,7 +32,13 @@ module Pwrake
       standard_exception_handling do
         @branch = Branch.new(opts,r,w)
         begin
-          @branch.run
+          begin
+            @branch.run
+          rescue => e
+            $stderr.puts e
+            $stderr.puts e.backtrace.join("\n")
+            raise e
+          end
         ensure
           @branch.finish
         end

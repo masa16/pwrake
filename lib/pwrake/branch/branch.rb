@@ -11,6 +11,7 @@ module Pwrake
       @ior = r
       @iow = w
       @wk_comm = {}
+      @shell_start_interval = @options['SHELL_START_INTERVAL']
     end
 
     # Rakefile is loaded after 'init' before 'run'
@@ -114,52 +115,59 @@ module Pwrake
     end
 
     def setup_fibers
-      @fiber_list = @shells.map do |shell|
-        Fiber.new do
-          shell.start
-          comm = shell.communicator
-          queue = @queue[comm.id]
-          begin
-            while task_str = queue.deq
-              if /^(\d+):(.*)$/ =~ task_str
-                task_id, task_name = $1.to_i, $2
-              else
-                raise RuntimeError, "invalid task_str: #{task_str}"
-              end
-              shell.set_current_task(task_id,task_name)
-              task = Rake.application[task_name]
-              begin
-                task.execute if task.needed?
-              rescue Exception=>e
-                if task.kind_of?(Rake::FileTask) && File.exist?(task.name)
-                  failprocess(task.name)
-                end
-                @iow.puts "taskfail:#{shell.id}:#{task.name}"
-                @iow.flush
-                raise e
-              end
-              @iow.puts "taskend:#{shell.id}:#{task.name}"
-              @iow.flush
-            end
-          ensure
-            queue.finish
-            Log.debug "closing shell id=#{shell.id}"
-            shell.close
-            # if comm is no longer used, close comm
-            if comm.channel_empty?
-              comm.close
-            end
-          end
-        end
-      end
+      @fiber_list = @shells.map{|shell| create_fiber(shell)}
 
       bh = BranchHandler.new(@queue,@iow)
       @dispatcher.attach_handler(@ior,bh)
 
-      @fiber_list.each{|fb| fb.resume}
+      @fiber_list.each do |fb|
+        fb.resume
+        sleep @shell_start_interval
+      end
+      Log.debug "all fiber started"
     end
 
-    def failprocess(name)
+    def create_fiber(shell)
+      Fiber.new do
+        shell.start
+        Log.debug "shell start id=#{shell.id} host=#{shell.host}"
+        comm = shell.communicator
+        queue = @queue[comm.id]
+        begin
+          while task_str = queue.deq
+            if /^(\d+):(.*)$/ =~ task_str
+              task_id, task_name = $1.to_i, $2
+            else
+              raise RuntimeError, "invalid task_str: #{task_str}"
+            end
+            shell.set_current_task(task_id,task_name)
+            task = Rake.application[task_name]
+            begin
+              task.execute if task.needed?
+            rescue Exception=>e
+              if task.kind_of?(Rake::FileTask) && File.exist?(task.name)
+                handle_failed_target(task.name)
+              end
+              @iow.puts "taskfail:#{shell.id}:#{task.name}"
+              @iow.flush
+              raise e
+            end
+            @iow.puts "taskend:#{shell.id}:#{task.name}"
+            @iow.flush
+          end
+        ensure
+          queue.finish
+          Log.debug "closing shell id=#{shell.id}"
+          shell.close
+          # if comm is no longer used, close comm
+          if comm.channel_empty?
+            comm.close
+          end
+        end
+      end
+    end
+
+    def handle_failed_target(name)
       case @options['FAILED_TARGET']
       when /rename/i, NilClass
         dst = name+"._fail_"

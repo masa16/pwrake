@@ -16,6 +16,11 @@ module Pwrake
       @io.flush
     end
 
+    def start
+      @io.puts("start:#{@id}")
+      @io.flush
+    end
+
     def close
       puts "exit"
     end
