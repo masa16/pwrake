@@ -114,8 +114,9 @@ module Pwrake
             end
           end
         rescue => e
-          Log.error e
-          Log.error e.backtrace.join("\n")
+          $stderr.puts e
+          $stderr.puts e.backtrace.join("\n")
+          raise e
         end
       end
       @hb_thread.run

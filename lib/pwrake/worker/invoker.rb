@@ -57,6 +57,7 @@ module Pwrake
     def setup_loop
       while line = get_line
         case line
+          #
         when /^export:(\w+)=(.*)$/o
           k,v = $1,$2
           ENV[k] = v
@@ -75,7 +76,6 @@ module Pwrake
     end
 
     def command_loop
-      @log.info "command_loop"
       while line = get_line
         case line
           #
@@ -145,7 +145,7 @@ module Pwrake
         $stdout.puts e
         $stdout.puts e.backtrace.join("\n")
       end
-      @heartbeat_thread.kill
+      @heartbeat_thread.kill if @heartbeat_thread
       @out.puts "worker_end"
     end
 
