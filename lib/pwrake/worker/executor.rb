@@ -49,6 +49,7 @@ module Pwrake
       Thread.new do
         @dir.open
         @dir.open_messages.each{|m| @log.info(m)}
+        @out.puts "open:#{@id}"
         while cmd = @queue.deq
           break if killed?
           begin
@@ -69,7 +70,7 @@ module Pwrake
       end
     end
 
-    def spawn(cmd,dir,env)
+    def spawn_command(cmd,dir,env)
       @pid = Kernel.spawn(env,cmd,:out=>@pipe_out,:err=>@pipe_err,:chdir=>dir)
       @out.puts "start:#{@id}:#{@pid}"
       pid,status = Process.wait2(@pid)
@@ -156,7 +157,7 @@ module Pwrake
         #if !Dir.exist?(dir)
         #  raise "Directory '#{dir}' does not exsit"
         #end
-        spawn(cmd,dir,@env)
+        spawn_command(cmd,dir,@env)
       else
         raise RuntimeError,"invalid cmd: #{cmd.inspect}"
       end

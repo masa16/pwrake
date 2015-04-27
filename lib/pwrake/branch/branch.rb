@@ -20,6 +20,8 @@ module Pwrake
       @dispatcher = IODispatcher.new
       setup_shells
       setup_fibers
+      bh = BranchHandler.new(@queue,@iow)
+      @dispatcher.attach_handler(@ior,bh)
       @dispatcher.event_loop
     end
 
@@ -79,17 +81,22 @@ module Pwrake
         end
       end
 
-      @shells = []
+      # ncore
       @wk_comm.each_value do |comm|
         # set WorkerChannel#ncore at Master
         @iow.puts "ncore:#{comm.id}:#{comm.ncore}"
         @iow.flush
-        comm.ncore.times do
-          @shells << Shell.new(comm,@options.worker_option)
-        end
       end
       @iow.puts "ncore:done"
       @iow.flush
+
+      # shells
+      @shells = []
+      @wk_comm.each_value do |comm|
+        comm.ncore.times do
+          @shells << shl = Shell.new(comm,@options.worker_option)
+        end
+      end
 
       # heartbeat
       @hb_thread = Thread.new do
@@ -115,16 +122,37 @@ module Pwrake
     end
 
     def setup_fibers
-      @fiber_list = @shells.map{|shell| create_fiber(shell)}
+      @fiber_list = @shells.map{|shl| create_fiber(shl)}
 
-      bh = BranchHandler.new(@queue,@iow)
-      @dispatcher.attach_handler(@ior,bh)
-
+      # start fiber
       @fiber_list.each do |fb|
         fb.resume
         sleep @shell_start_interval
       end
       Log.debug "all fiber started"
+
+      waiters = {}
+      @shells.each{|shl| waiters[shl.id]=true}
+
+      # receive open notice from worker
+      @dispatcher.event_loop_block do |io|
+        s = io.gets
+        case s
+        when /^open:(\d+)$/
+          waiters.delete($1)
+        when /^heartbeat$/
+        else
+          raise RuntimeError, "invalid return: #{s}"
+        end
+        break if waiters.empty?
+      end
+
+      # setup end
+      @wk_comm.values.each do |comm|
+        comm.send_cmd "setup_end"
+      end
+
+      Log.debug "branch setup end"
     end
 
     def create_fiber(shell)
@@ -185,7 +213,7 @@ module Pwrake
     end
 
     def finish
-      @hb_thread.kill
+      @hb_thread.kill if @hb_thread
       @iow.puts "branch_end"
       @iow.flush
       @ior.close

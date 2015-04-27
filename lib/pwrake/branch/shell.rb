@@ -41,7 +41,7 @@ module Pwrake
       BY_FIBER[Fiber.current] = self
       @chan = Channel.new(@comm,@id)
       @comm.add_channel(@id,@chan)
-      @chan.start
+      @chan.open
       OPEN_LIST[__id__] = self
     end
 

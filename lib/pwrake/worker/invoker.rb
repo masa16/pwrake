@@ -35,19 +35,50 @@ module Pwrake
       Signal.trap("PIPE", "EXIT")
     end
 
-    def run
-      start_heartbeat
-      while true
-        begin
-          line = $stdin.gets
-          return if !line
-        rescue
-          return
-        end
+    def get_line
+      begin
+        line = $stdin.gets
+        exit if !line
         line.chomp!
         line.strip!
         @log.info ">#{line}"
+        return line
+      rescue
+        exit
+      end
+    end
+
+    def run
+      setup_loop
+      start_heartbeat
+      command_loop
+    end
+
+    def setup_loop
+      while line = get_line
         case line
+        when /^export:(\w+)=(.*)$/o
+          k,v = $1,$2
+          ENV[k] = v
+          #
+        when /^open:(.*)$/o
+          $1.split.each do |id|
+            Executor.new(@dir_class,id)
+          end
+          #
+        when "setup_end"
+          return
+        else
+          raise RuntimeError,"invalid line: #{line}"
+        end
+      end
+    end
+
+    def command_loop
+      @log.info "command_loop"
+      while line = get_line
+        case line
+          #
         when /^(\d+):(.*)$/o
           id,cmd = $1,$2
           ex = Executor::LIST[id]
@@ -60,21 +91,6 @@ module Pwrake
             end
           end
           ex.execute(cmd)
-          #
-        when /^p$/o
-          puts "Executor::LIST = #{Executor::LIST.inspect}"
-          #
-        when /^start:(.*)$/o
-          $1.split.each do |id|
-            Executor.new(@dir_class,id)
-          end
-          #
-        when /^export:(\w+)=(.*)$/o
-          k,v = $1,$2
-          ENV[k] = v
-          #
-        when /^exit$/o
-          return
           #
         when "exit_worker"
           return
@@ -92,8 +108,11 @@ module Pwrake
           Executor::LIST.each{|id,ex| ex.kill(sig)}
           return
           #
+        when /^p$/o
+          puts "Executor::LIST = #{Executor::LIST.inspect}"
+          #
         else
-          raise "invalid line: #{line}"
+          raise RuntimeError,"invalid line: #{line}"
         end
       end
     end

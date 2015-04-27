@@ -16,8 +16,8 @@ module Pwrake
       @io.flush
     end
 
-    def start
-      @io.puts("start:#{@id}")
+    def open
+      @io.puts("open:#{@id}")
       @io.flush
     end
 

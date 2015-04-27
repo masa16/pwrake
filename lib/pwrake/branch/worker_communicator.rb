@@ -106,6 +106,10 @@ module Pwrake
         id,pid,stat_val,stat_cond = $1,$2,$3,$4
         @channel[id].enq([:end,pid,stat_val,stat_cond])
         #
+      when /^open:(#{RE_ID})$/
+        id = $1
+        @channel[id].enq([:open])
+        #
       when /^heartbeat$/
         @heartbeat = Time.now
         #
