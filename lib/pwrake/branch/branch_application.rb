@@ -21,7 +21,12 @@ module Pwrake
         w.puts "pwrake_branch start"
         w.flush
         begin
-          @branch.run
+          begin
+            @branch.run
+          rescue => e
+            Log.fatal e
+            raise e
+          end
         ensure
           @branch.finish
         end
@@ -35,8 +40,7 @@ module Pwrake
           begin
             @branch.run
           rescue => e
-            $stderr.puts e
-            $stderr.puts e.backtrace.join("\n")
+            Log.fatal e
             raise e
           end
         ensure

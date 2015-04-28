@@ -20,6 +20,7 @@ module Pwrake
       @dispatcher = IODispatcher.new
       setup_shells
       setup_fibers
+      setup_heartbeat
       bh = BranchHandler.new(@queue,@iow)
       @dispatcher.attach_handler(@ior,bh)
       @dispatcher.event_loop
@@ -74,11 +75,22 @@ module Pwrake
       end
 
       # receive ncore from worker node
-      IODispatcher.event_once(@wk_comm.keys,60) do |io|
-        s = io.gets
-        if /ncore:(\d+)/ =~ s
-          @wk_comm[io].set_ncore($1.to_i)
+      io_list = @wk_comm.keys
+      io_fail = []
+      IODispatcher.event_once(io_list,30) do |io|
+        if io.eof?
+          io_fail << io
+        else
+          s = io.gets
+          if /ncore:(\d+)/ =~ s
+            @wk_comm[io].set_ncore($1.to_i)
+          end
         end
+      end
+      if !(io_list.empty? && io_fail.empty?)
+        t = io_list.map{|io| @wk_comm[io].host}.join(',')
+        f = io_fail.map{|io| @wk_comm[io].host}.join(',')
+        raise RuntimeError, "error in connection to worker: fail:(#{f}),timeout:(#{t})"
       end
 
       # ncore
@@ -90,6 +102,11 @@ module Pwrake
       @iow.puts "ncore:done"
       @iow.flush
 
+      # pass env
+      @wk_comm.each_value do |comm|
+        comm.pass_env
+      end
+
       # shells
       @shells = []
       @wk_comm.each_value do |comm|
@@ -97,29 +114,6 @@ module Pwrake
           @shells << shl = Shell.new(comm,@options.worker_option)
         end
       end
-
-      # heartbeat
-      @hb_thread = Thread.new do
-        begin
-          count = 0
-          while true
-            n = @wk_comm.size / (@options['HEARTBEAT_TIMEOUT']/5)
-            @wk_comm.values.each do |comm|
-              comm.check_heartbeat
-              count += 1
-              if count >= n
-                count = 0
-                sleep 5
-              end
-            end
-          end
-        rescue => e
-          $stderr.puts e
-          $stderr.puts e.backtrace.join("\n")
-          raise e
-        end
-      end
-      @hb_thread.run
     end
 
     def setup_fibers
@@ -143,7 +137,9 @@ module Pwrake
           waiters.delete($1)
         when /^heartbeat$/
         else
-          raise RuntimeError, "invalid return: #{s}"
+          msg = "Worker returned: #{s}"
+          Log.fatal msg
+          raise RuntimeError, msg
         end
         break if waiters.empty?
       end
@@ -154,6 +150,25 @@ module Pwrake
       end
 
       Log.debug "branch setup end"
+    end
+
+    def setup_heartbeat
+      # heartbeat
+      @hb_thread = Thread.new do
+        count = 0
+        while true
+          n = @wk_comm.size / (@options['HEARTBEAT_TIMEOUT']/5)
+          @wk_comm.values.each do |comm|
+            comm.check_heartbeat
+            count += 1
+            if count >= n
+              count = 0
+              sleep 5
+              end
+          end
+        end
+      end
+      @hb_thread.run
     end
 
     def create_fiber(shell)

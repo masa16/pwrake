@@ -85,7 +85,13 @@ module Pwrake
       # receive ncore from WorkerCommunicator at Branch
       #Log.debug "@comm_by_io.keys: #{@comm_by_io.keys.inspect}"
       sum_ncore = 0
-      IODispatcher.event_once(@comm_by_io.keys,10) do |io|
+      io_list = @comm_by_io.keys
+      io_fail = []
+      IODispatcher.event_once(io_list,10) do |io|
+        if io.eof?
+          io_fail << io
+          break
+        end
         while s = io.gets
           s.chomp!
           Log.debug "in Master#setup_branches, event_once: #{s}"
@@ -102,6 +108,11 @@ module Pwrake
             raise "Invalid return: #{s}"
           end
         end
+      end
+      if !(io_list.empty? && io_fail.empty?)
+        t = io_list.map{|io| @comm_by_io[io].host}.join(',')
+        f = io_fail.map{|io| @comm_by_io[io].host}.join(',')
+        raise RuntimeError, "error in connection to branch: fail:(#{f}),timeout:(#{t})"
       end
 
       Log.info "num_cores=#{sum_ncore}"

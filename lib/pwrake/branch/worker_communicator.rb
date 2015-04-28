@@ -28,6 +28,9 @@ module Pwrake
       w0.close
       w1.close
       r2.close
+    end
+
+    def pass_env
       @heartbeat = Time.now
       if @path
         @iow.puts "export:PATH='#{path}'"
@@ -121,9 +124,15 @@ module Pwrake
         Log.debug "#{self.class.to_s}#on_read: #{s.chomp}"
         close
         return @@worker_communicators.empty?
+        #
+      when /^exc:(#{RE_ID}):(.*)$/
+        id,msg = $1,$2
+        Log.error "Worker(id=#{id}) Error: #{msg}"
+        return true
+        #
       else
         s.chomp!
-        Log.warn "WorkerCommunicator#on_read: Unknown return: #{s}"
+        Log.warn "Worker returned: #{s}"
       end
       return false
     end

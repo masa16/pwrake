@@ -74,19 +74,12 @@ module Pwrake
       end
     end
 
-    def self.event_once(ios,timeout)
-      while !ios.empty? and io_sel = select(ios,nil,nil,timeout)
+    def self.event_once(io_list,timeout)
+      while !io_list.empty? and io_sel = select(io_list,nil,nil,timeout)
         for io in io_sel[0]
-          if io.eof?
-            break
-          else
-            yield(io)
-          end
-          ios.delete(io)
+          yield(io)
+          io_list.delete(io)
         end
-      end
-      if !ios.empty?
-        raise RuntimeError, "Connection timeout"
       end
     end
 
