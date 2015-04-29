@@ -67,10 +67,23 @@ module Pwrake
             Executor.new(@dir_class,id)
           end
           #
+        when /^kill:(.*)$/o
+          kill_all($1)
+          Kernel.exit
+          #
         when "setup_end"
           return
         else
           raise RuntimeError,"invalid line: #{line}"
+        end
+      end
+    end
+
+    def start_heartbeat
+      @heartbeat_thread = Thread.new do
+        while true
+          @out.puts "heartbeat"
+          sleep @heartbeat_interval
         end
       end
     end
@@ -96,16 +109,10 @@ module Pwrake
           return
           #
         when /^kill:(\d+):(.*)$/o
-          id,sig = $1,$2
-          sig = sig.to_i if /^\d+$/=~sig
-          worker = Executor::LIST[id]
-          worker.kill(sig) # if worker
+          kill_one($1,$2)
           #
         when /^kill:(.*)$/o
-          sig = $1
-          sig = sig.to_i if /^\d+$/=~sig
-          @log.warn "worker_killed:signal=#{sig}"
-          Executor::LIST.each{|id,ex| ex.kill(sig)}
+          kill_all($1)
           return
           #
         when /^p$/o
@@ -117,13 +124,16 @@ module Pwrake
       end
     end
 
-    def start_heartbeat
-      @heartbeat_thread = Thread.new do
-        while true
-          @out.puts "heartbeat"
-          sleep @heartbeat_interval
-        end
-      end
+    def kill_one(id,sig)
+      sig = sig.to_i if /^\d+$/=~sig
+      exc = Executor::LIST[id]
+      exc.kill(sig)
+    end
+
+    def kill_all(sig)
+      sig = sig.to_i if /^\d+$/=~sig
+      @log.warn "worker_killed:signal=#{sig}"
+      Executor::LIST.each{|id,exc| exc.kill(sig)}
     end
 
     def close_all
