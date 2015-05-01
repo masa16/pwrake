@@ -5,7 +5,7 @@ module Pwrake
     def initialize(opts,r,w)
       @options = opts
       @queue = {}  # worker_id => FiberQueue.new
-      @timeout = 10
+      @timeout = @options['HEARTBEAT_TIMEOUT']
       @exit_cmd = "exit_connection"
       @shells = []
       @ior = r
@@ -21,10 +21,9 @@ module Pwrake
       @comm_set = CommunicatorSet.new
       setup_shells
       setup_fibers
-      setup_heartbeat
       bh = BranchHandler.new(@queue,@iow,@comm_set)
       @dispatcher.attach_handler(@ior,bh)
-      @dispatcher.event_loop
+      @dispatcher.event_loop(@timeout)
     end
 
     attr_reader :logger
@@ -68,7 +67,7 @@ module Pwrake
         if /^(\d+):(\S+) (\d+)?$/ =~ s
           id, host, ncore = $1,$2,$3
           ncore &&= ncore.to_i
-          comm = WorkerCommunicator.new(id,host,ncore,@options.worker_option)
+          comm = WorkerCommunicator.new(id,host,ncore,@dispatcher,@options.worker_option)
           @wk_comm[comm.ior] = comm
           @comm_set << comm
           @dispatcher.attach_communicator(comm)
@@ -79,7 +78,7 @@ module Pwrake
       # receive ncore from worker node
       io_list = @wk_comm.keys
       io_fail = []
-      IODispatcher.event_once(io_list,30) do |io|
+      IODispatcher.event_once(io_list,@timeout) do |io|
         if io.eof?
           io_fail << io
         else
@@ -138,15 +137,18 @@ module Pwrake
         when /^open:(\d+)$/
           waiters.delete($1)
         when /^worker_end$/
-          wk=@wk_comm[io]
-          $stderr.puts "worker_end id=#{wk.id} host=#{wk.host}"
+          wk = @wk_comm[io]
+          m = "worker_end id=#{wk.id} host=#{wk.host}"
+          Log.warn m
+          $stderr.puts m
           @dispatcher.detach_io(io)
           @wk_comm.delete(io)
         when /^heartbeat$/
+          @dispatcher.heartbeat(@wk_comm[io])
         else
-          msg = "worker_out: #{s}"
-          Log.fatal msg
-          raise RuntimeError, msg
+          m = "worker_out: #{s}"
+          Log.fatal m
+          raise RuntimeError, m
         end
         break if waiters.empty?
       end
@@ -157,25 +159,6 @@ module Pwrake
       end
 
       Log.debug "branch setup end"
-    end
-
-    def setup_heartbeat
-      # heartbeat
-      @hb_thread = Thread.new do
-        count = 0
-        while true
-          n = @wk_comm.size / (@options['HEARTBEAT_TIMEOUT']/5)
-          @wk_comm.values.each do |comm|
-            comm.check_heartbeat
-            count += 1
-            if count >= n
-              count = 0
-              sleep 5
-              end
-          end
-        end
-      end
-      @hb_thread.run
     end
 
     def create_fiber(shell)
@@ -232,7 +215,6 @@ module Pwrake
 
     def finish
       Log.debug "#{self.class}#finish"
-      @hb_thread.kill if @hb_thread
       @comm_set.close_all
       @comm_set.each do |comm|
         while s=comm.gets

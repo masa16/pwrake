@@ -1,5 +1,7 @@
 module Pwrake
 
+  class TimeoutError < IOError; end
+
   class IODispatcher
 
     class ExitHandler
@@ -14,6 +16,7 @@ module Pwrake
       @rd_hdl = {}
       @ior,@iow = IO.pipe
       attach_handler(@ior,ExitHandler.new)
+      @hb_time = {}
     end
 
     def finish
@@ -36,6 +39,8 @@ module Pwrake
       @rd_hdl[comm.ioe] = comm
       @rd_io.push(comm.ior)
       @rd_io.push(comm.ioe)
+      @hb_earliest ||=
+        @hb_time[comm] = Time.now
     end
 
     def detach_communicator(comm)
@@ -43,21 +48,35 @@ module Pwrake
       @rd_hdl.delete(comm.ioe)
       @rd_io.delete(comm.ior)
       @rd_io.delete(comm.ioe)
+      @hb_time.delete(comm)
     end
 
     def close_all
       @rd_io.each{|io| io.close}
     end
 
-    def event_loop
+    def heartbeat(comm)
+      Log.debug "heartbeat id=#{comm.id} host=#{comm.host}"
+      @hb_time[comm] = Time.now
+      @hb_earliest = @hb_time.values.min
+    end
+
+    def event_loop(timeout=nil)
       while !@rd_io.empty?
-        io_sel = IO.select(@rd_io,nil,nil)
-        for io in io_sel[0]
-          if io.eof?
-            detach_io(io)
-          else
-            return if @rd_hdl[io].on_read(io)
+        io_sel = IO.select(@rd_io,nil,nil,timeout)
+        if io_sel
+          for io in io_sel[0]
+            if io.eof?
+              detach_io(io)
+            else
+              return if @rd_hdl[io].on_read(io)
+            end
           end
+        else
+          raise TimeoutError,"timeout(#{timeout} s)"
+        end
+        if timeout && (Time.now - @hb_earliest > timeout) # || rand < 0.05)
+          raise TimeoutError,"heartbeat timeout(#{timeout}s)"
         end
       end
     end

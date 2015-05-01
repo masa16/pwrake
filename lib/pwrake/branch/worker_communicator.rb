@@ -9,11 +9,12 @@ module Pwrake
 
     @@worker_communicators = []
 
-    def initialize(id,host,ncore,opt={})
+    def initialize(id,host,ncore,dispatcher,opt={})
       @id = id
       @ncore = @n_total_core = ncore
       @channel = {}
       #
+      @dispatcher = dispatcher
       @option = opt
       @heartbeat_timeout = @option[:heartbeat_timeout]
       super(host)
@@ -76,13 +77,6 @@ module Pwrake
       @channel.empty?
     end
 
-    def check_heartbeat
-      Log.debug "heartbeat: id=#{id} host=#{host} time=#{@heartbeat}"
-      if Time.now-@heartbeat > @heartbeat_timeout
-        raise RuntimeError,"Worker is not responding: id=#{id} host=#{host}"
-      end
-    end
-
     def on_read(io)   # return to Shell#io_read_loop
       s = io.gets
       # $chk.print ">#{s}" if $dbg
@@ -113,7 +107,7 @@ module Pwrake
         @channel[id].enq([:open])
         #
       when /^heartbeat$/
-        @heartbeat = Time.now
+        @dispatcher.heartbeat(self)
         #
       when /^ncore:(\d+)$/
         @n_total_core = $1
