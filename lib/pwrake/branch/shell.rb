@@ -51,9 +51,9 @@ module Pwrake
 
     def close
       @lock.synchronize do
-        if !@chan.closed?
-          _system "exit"
-        end
+        #if !@chan.closed?
+        _system "exit"
+        #end
         OPEN_LIST.delete(__id__)
         @comm.delete_channel(@id)
       end
@@ -101,7 +101,7 @@ module Pwrake
 
     def _system(cmd)
       @cmd = cmd
-      raise "@chan is closed" if @chan.closed?
+      #raise "@chan is closed" if @chan.closed?
       @lock.synchronize do
         @chan.puts(cmd)
         status = io_read_loop{}
@@ -111,7 +111,7 @@ module Pwrake
 
     def _backquote(cmd)
       @cmd = cmd
-      raise "@chan is closed" if @chan.closed?
+      #raise "@chan is closed" if @chan.closed?
       a = []
       @lock.synchronize do
         @chan.puts(cmd)
@@ -122,7 +122,7 @@ module Pwrake
 
     def _execute(cmd,quote=nil,&block)
       @cmd = cmd
-      raise "@chan is closed" if @chan.closed?
+      #raise "@chan is closed" if @chan.closed?
       status = nil
       start_time = Time.now
       begin
