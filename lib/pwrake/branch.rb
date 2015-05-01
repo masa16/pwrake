@@ -2,6 +2,7 @@ require "logger"
 
 require "pwrake/io_dispatcher"
 require "pwrake/communicator"
+require "pwrake/communicator_set"
 require "pwrake/logger"
 
 require "pwrake/branch/branch_application"

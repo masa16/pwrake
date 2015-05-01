@@ -5,6 +5,7 @@ require "logger"
 
 require "pwrake/io_dispatcher"
 require "pwrake/communicator"
+require "pwrake/communicator_set"
 require "pwrake/logger"
 require "pwrake/master/branch_communicator"
 require "pwrake/master/master"
