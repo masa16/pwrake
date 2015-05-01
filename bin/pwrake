@@ -20,6 +20,9 @@ class Rake::Task
   include Pwrake::TaskAlgorithm
 end
 
+# does NOT exit when writing to broken pipe
+Signal.trap(:PIPE, "IGNORE")
+
 #require "tracer"
 #Tracer.on
 Rake.application.run

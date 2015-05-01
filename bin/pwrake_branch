@@ -18,4 +18,7 @@ end
 #require "tracer"
 #Tracer.on
 
+# does NOT exit when writing to broken pipe
+Signal.trap(:PIPE, "IGNORE")
+
 Rake.application.run_branch($stdin,$stdout)
