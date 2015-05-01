@@ -58,7 +58,6 @@ module Pwrake
 
     def close
       super
-      @@worker_communicators.delete(self)
     end
 
     def set_ncore(ncore)
@@ -122,7 +121,7 @@ module Pwrake
         #
       when /^worker_end$/
         Log.debug "#{self.class.to_s}#on_read: #{s.chomp}"
-        close
+        @@worker_communicators.delete(self)
         return @@worker_communicators.empty?
         #
       when /^exc:(#{RE_ID}):(.*)$/
@@ -132,7 +131,7 @@ module Pwrake
         #
       else
         s.chomp!
-        Log.warn "Worker returned: #{s}"
+        Log.warn "worker_out: #{s}"
       end
       return false
     end

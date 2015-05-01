@@ -18,10 +18,11 @@ module Pwrake
 
     def run
       @dispatcher = IODispatcher.new
+      @comm_set = CommunicatorSet.new
       setup_shells
       setup_fibers
       setup_heartbeat
-      bh = BranchHandler.new(@queue,@iow)
+      bh = BranchHandler.new(@queue,@iow,@comm_set)
       @dispatcher.attach_handler(@ior,bh)
       @dispatcher.event_loop
     end
@@ -69,6 +70,7 @@ module Pwrake
           ncore &&= ncore.to_i
           comm = WorkerCommunicator.new(id,host,ncore,@options.worker_option)
           @wk_comm[comm.ior] = comm
+          @comm_set << comm
           @dispatcher.attach_communicator(comm)
           @queue[id] = FiberQueue.new
         end
@@ -135,9 +137,14 @@ module Pwrake
         case s
         when /^open:(\d+)$/
           waiters.delete($1)
+        when /^worker_end$/
+          wk=@wk_comm[io]
+          $stderr.puts "worker_end id=#{wk.id} host=#{wk.host}"
+          @dispatcher.detach_io(io)
+          @wk_comm.delete(io)
         when /^heartbeat$/
         else
-          msg = "Worker returned: #{s}"
+          msg = "worker_out: #{s}"
           Log.fatal msg
           raise RuntimeError, msg
         end
@@ -200,13 +207,8 @@ module Pwrake
             @iow.flush
           end
         ensure
-          queue.finish
           Log.debug "closing shell id=#{shell.id}"
           shell.close
-          # if comm is no longer used, close comm
-          if comm.channel_empty?
-            comm.close
-          end
         end
       end
     end
@@ -229,7 +231,16 @@ module Pwrake
     end
 
     def finish
+      Log.debug "#{self.class}#finish"
       @hb_thread.kill if @hb_thread
+      @comm_set.close_all
+      @comm_set.each do |comm|
+        while s=comm.gets
+          Log.debug "comm.id=#{comm.id}> #{s}"
+        end
+      end
+      @dispatcher.finish
+
       @iow.puts "branch_end"
       @iow.flush
       @ior.close

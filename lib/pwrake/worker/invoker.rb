@@ -25,14 +25,8 @@ module Pwrake
         close_all
       }
 
-      [:TERM,:INT].each do |sig|
-        Signal.trap(sig) do
-          #close_all # called at_exit
-          Kernel.exit
-        end
-      end
-
-      Signal.trap("PIPE", "EXIT")
+      # does NOT exit when writing to broken pipe
+      Signal.trap("PIPE", "SIG_IGN")
     end
 
     def get_line

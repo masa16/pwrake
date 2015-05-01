@@ -17,6 +17,7 @@ module Pwrake
     end
 
     def finish
+      Log.debug "#{self.class}.finish"
       @iow.puts("")
     end
 

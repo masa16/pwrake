@@ -60,7 +60,12 @@ module Pwrake
     end
 
     def setup_branches
-      @conn_list = []
+      @conn_list = CommunicatorSet.new
+      [:TERM,:INT].each do |sig|
+        Signal.trap(sig) do
+          @conn_list.terminate(sig)
+        end
+      end
       @comm_by_io = {}
 
       @option.host_map.each do |sub_host, wk_hosts|
@@ -144,6 +149,10 @@ module Pwrake
     end
 
     def respond_from_branch(io) # called from BranchCommunicator#on_read
+      if io.eof?
+        Log.warn "EOF from branch"
+        return true
+      end
       s = io.gets
       case s
       when /^taskend:(\d*):(.*)$/o
@@ -157,7 +166,7 @@ module Pwrake
         Log.warn "receive #{s} from branch"
         @dispatcher.detach_communicator(@comm_by_io[io])
         @comm_by_io.delete(io)
-        #@pool.finish if @pool
+        #@post_proc.finish if @post_proc
         @comm_by_io.empty? # exit condition
       else
         @writer[io].print(s)
@@ -171,8 +180,8 @@ module Pwrake
       tw.status = status
       id = @hostid_by_taskname.delete(task_name)
       @task_queue.task_end(tw, id) # @idle_cores.increase(..
-      if @pool && tw.task.kind_of?(Rake::FileTask)
-        @pool.enq(tw)
+      if @post_proc && tw.task.kind_of?(Rake::FileTask)
+        @post_proc.enq(tw)
       else
         tw.postprocess([])
         taskend_end(tw)
@@ -180,9 +189,9 @@ module Pwrake
     end
 
     def setup_postprocess
-      @pool = @option.pool_postprocess(@dispatcher)
-      if @pool
-        @pool.set_block do |tw,loc|
+      @post_proc = @option.pool_postprocess(@dispatcher)
+      if @post_proc
+        @post_proc.set_block do |tw,loc|
           tw.postprocess(loc)
           taskend_end(tw)
         end
@@ -192,7 +201,7 @@ module Pwrake
     def taskend_end(tw)
       @exit_task.delete(tw.task)
       if tw.status=="fail" || @exit_task.empty?
-        @pool.finish if @pool
+        @post_proc.finish if @post_proc
         true
       else
         wake_idle_core
@@ -202,9 +211,7 @@ module Pwrake
 
     def finish
       #@task_queue.finish if @task_queue
-      @conn_list.each do |conn|
-        conn.close
-      end
+      @conn_list.close_all
       @dispatcher.finish
       @dispatcher.event_loop_block do |io|
         s = io.gets
