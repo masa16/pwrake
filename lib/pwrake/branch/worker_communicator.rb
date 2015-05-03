@@ -114,7 +114,7 @@ module Pwrake
         #@channel[id].enq([:ncore,ncore])
         #
       when /^worker_end$/
-        Log.debug "#{self.class.to_s}#on_read: #{s.chomp}"
+        Log.debug "#{self.class}#on_read: #{s.chomp} id=#{@id} host=#{@host}"
         @@worker_communicators.delete(self)
         return @@worker_communicators.empty?
         #

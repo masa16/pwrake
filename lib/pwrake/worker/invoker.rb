@@ -113,7 +113,9 @@ module Pwrake
           puts "Executor::LIST = #{Executor::LIST.inspect}"
           #
         else
-          raise RuntimeError,"invalid line: #{line}"
+          msg = "invalid line: #{line}"
+          @log.fatal msg
+          raise RuntimeError,msg
         end
       end
     end
@@ -142,6 +144,7 @@ module Pwrake
         $stdout.puts e
         $stdout.puts e.backtrace.join("\n")
       end
+      @heartbeat_thread.kill if @heartbeat_thread
       @log.info "worker:end:#{id_list.inspect}"
       begin
         timeout(20){@log.close}
@@ -149,7 +152,6 @@ module Pwrake
         $stdout.puts e
         $stdout.puts e.backtrace.join("\n")
       end
-      @heartbeat_thread.kill if @heartbeat_thread
       @out.puts "worker_end"
     end
 

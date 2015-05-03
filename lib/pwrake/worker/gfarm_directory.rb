@@ -5,6 +5,7 @@ module Pwrake
     @@work_dir = nil
     @@log_dir = nil
     @@current_id = 0
+    @@hostname = `hostname`.chomp
 
     def self.init(*args)
       @@prefix, @@work_dir, @@log_dir, = args
@@ -50,6 +51,7 @@ module Pwrake
         end
         system "sync"
         FileUtils.rmdir @gfarm_mountpoint
+        $stderr.puts "removed: #{@@hostname}:#{@gfarm_mountpoint}"
       end
     end
 

@@ -10,8 +10,8 @@ module Pwrake
       @out = Writer.instance
       @log = LogExecutor.instance
       @queue = Queue.new
-      LIST[@id] = self
       @dir = dir_class.new
+      LIST[@id] = self
       @out_thread  = start_out_thread
       @err_thread  = start_err_thread
       @exec_thread = start_exec_thread
@@ -109,13 +109,13 @@ module Pwrake
     end
 
     def close
-      LIST.delete(@id)
       execute(nil)  # threads end
     end
 
     #alias exit :close
 
     def join
+      LIST.delete(@id)
       @out_thread.join(6)  if @out_thread
       @err_thread.join(6)  if @err_thread
       @exec_thread.join(6) if @exec_thread
