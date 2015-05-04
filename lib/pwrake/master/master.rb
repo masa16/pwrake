@@ -213,7 +213,7 @@ module Pwrake
     end
 
     def setup_postprocess
-      @post_proc = nil # @option.pool_postprocess(@dispatcher)
+      @post_proc = @option.pool_postprocess(@dispatcher)
       if @post_proc
         @post_proc.set_block do |tw,loc|
           tw.postprocess(loc)

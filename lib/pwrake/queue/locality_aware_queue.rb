@@ -170,9 +170,19 @@ module Pwrake
       }
       b.call("noaction",@q_no_action)
       if @size_q == 0
-        b.call("all_local",[])
+        n = @q.size
       else
-        @q.each(&b)
+        n = 0
+        @q.each do |h,q|
+          if q.size > 0
+            b.call(h,q)
+          else
+            n += 1
+          end
+        end
+      end
+      if n > 0
+        b.call("local*#{n}",[])
       end
       b.call("remote",@q_remote)
       s
