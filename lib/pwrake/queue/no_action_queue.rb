@@ -8,13 +8,13 @@ module Pwrake
       case prio
       when /fifo/i
         @prio = 0
-        Log.debug "--- NOACTION_QUEUE_PRIORITY=FIFO"
+        Log.debug "NOACTION_QUEUE_PRIORITY=FIFO"
       when /lifo/i
         @prio = 1
-        Log.debug "--- NOACTION_QUEUE_PRIORITY=LIFO"
+        Log.debug "NOACTION_QUEUE_PRIORITY=LIFO"
       when /rand/i
         @prio = 2
-        Log.debug "--- NOACTION_QUEUE_PRIORITY=RAND"
+        Log.debug "NOACTION_QUEUE_PRIORITY=RAND"
       else
         raise RuntimeError,"unknown option for NOACTION_QUEUE_PRIORITY: "+prio
       end
