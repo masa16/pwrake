@@ -65,6 +65,9 @@ module Pwrake
           kill_all($1)
           Kernel.exit
           #
+        when "exit_worker"
+          Kernel.exit
+          #
         when "setup_end"
           return
         else
