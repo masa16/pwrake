@@ -22,36 +22,48 @@ module Pwrake
       Pathname.new(@gfarm_mountpoint)
     end
 
+    def spawn_cmd(cmd)
+      r,w = IO.pipe
+      pid = spawn(cmd,[:out,:err]=>w)
+      w.close
+      Process.waitpid(pid)
+      status = $?
+      a = []
+      while s = r.gets
+        a << s
+      end
+      if !status.success?
+        msg = "fail to execute #{cmd}: #{a.join(' ')}"
+        $stderr.puts msg
+        $stderr.flush
+        raise msg
+      end
+      a
+    end
+
     def open
       FileUtils.mkdir_p @gfarm_mountpoint
-      n = 0
-      while !system "(cd; gfarm2fs #{@gfarm_mountpoint}) >& /dev/null"
-        raise "fail in gfarm2fs #{@gfarm_mountpoint}" if n > 5
-        $stderr.puts "sleep #{2**n} s for gfarm2fs #{@gfarm_mountpoint}"
-        sleep 2**n
-        n += 1
-      end
+      @open_msg = spawn_cmd "gfarm2fs #{@gfarm_mountpoint}"
       super
     end
 
     def open_messages
-      ["mount gfarm2fs: #{@gfarm_mountpoint}"] + super
+      ["mount gfarm2fs: #{@gfarm_mountpoint}"] + @open_msg + super
     end
 
     def close
-      # $log.info "GfarmWorker.close #{@gfarm_mountpoint}"
       if File.directory? @gfarm_mountpoint
-        cd ENV['HOME']
-        n = 0
-        while !system("fusermount -u #{@gfarm_mountpoint} >& /dev/null")
-          raise "fail in fusermount -u #{@gfarm_mountpoint}" if n > 5
-          $stderr.puts "sleep #{2**n} s for fusermount -u #{@gfarm_mountpoint}"
-          sleep 2**n
-          n += 1
+        begin
+          spawn_cmd "fusermount -u #{@gfarm_mountpoint}"
+        rescue
         end
         system "sync"
-        FileUtils.rmdir @gfarm_mountpoint
-        $stderr.puts "removed: #{@@hostname}:#{@gfarm_mountpoint}"
+        begin
+          FileUtils.rmdir @gfarm_mountpoint
+          $stderr.puts "removed: #{@@hostname}:#{@gfarm_mountpoint}"
+        rescue
+          $stderr.puts "fail to remove: #{@@hostname}:#{@gfarm_mountpoint}"
+        end
       end
     end
 
