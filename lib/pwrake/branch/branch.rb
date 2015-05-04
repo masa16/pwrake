@@ -85,6 +85,9 @@ module Pwrake
           s = io.gets
           if /ncore:(\d+)/ =~ s
             @wk_comm[io].set_ncore($1.to_i)
+            Log.debug "succ to receive #{s.chomp} from #{@wk_comm[io].host}"
+          else
+            Log.debug "fail to receive #{s.chomp} from #{@wk_comm[io].host}"
           end
         end
       end
@@ -146,9 +149,13 @@ module Pwrake
         when /^heartbeat$/
           @dispatcher.heartbeat(@wk_comm[io])
         else
-          m = "worker_out: #{s}"
+          if wk = @wk_comm[io]
+            m = "unexpected message from worker id=#{wk.id} host=#{wk.host}: #{s}"
+          else
+            m = "unexpected message from worker: #{s}"
+          end
           Log.fatal m
-          raise RuntimeError, m
+          raise m
         end
         break if waiters.empty?
       end
