@@ -8,7 +8,7 @@ module Pwrake
       @finished = false
 
       @enable_steal = true
-      @q_no_action = Array.new
+      @q_no_action = NoActionQueue.new
 
       @idle_cores = core_map.dup
 
