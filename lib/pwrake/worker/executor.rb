@@ -47,26 +47,29 @@ module Pwrake
 
     def start_exec_thread
       Thread.new do
-        @dir.open
-        @dir.open_messages.each{|m| @log.info(m)}
-        @out.puts "open:#{@id}"
-        while cmd = @queue.deq
-          break if killed?
-          begin
-            run(cmd)
-          rescue => exc
-            put_exc(exc)
-            @log.error exc
-            @log.error exc.backtrace.join("\n")
+        begin
+          @dir.open
+          @dir.open_messages.each{|m| @log.info(m)}
+          @out.puts "open:#{@id}"
+          while cmd = @queue.deq
+            break if killed?
+            begin
+              run(cmd)
+            rescue => exc
+              put_exc(exc)
+              @log.error exc
+              @log.error exc.backtrace.join("\n")
+            end
+            break if killed?
           end
-          break if killed?
+          @pipe_out.flush
+          @pipe_err.flush
+          @pipe_out.close
+          @pipe_err.close
+        ensure
+          @dir.close_messages.each{|m| @log.info(m)}
+          @dir.close
         end
-        @pipe_out.flush
-        @pipe_err.flush
-        @pipe_out.close
-        @pipe_err.close
-        @dir.close_messages.each{|m| @log.info(m)}
-        @dir.close
       end
     end
 
