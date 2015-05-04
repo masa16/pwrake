@@ -159,6 +159,8 @@ module Pwrake
       end
 
       Log.debug "branch setup end"
+      @iow.puts "branch_setup:done"
+      @iow.flush
     end
 
     def create_fiber(shell)
@@ -169,6 +171,7 @@ module Pwrake
         queue = @queue[comm.id]
         begin
           while task_str = queue.deq
+            tm = Time.now
             if /^(\d+):(.*)$/ =~ task_str
               task_id, task_name = $1.to_i, $2
             else
@@ -188,6 +191,7 @@ module Pwrake
             end
             @iow.puts "taskend:#{shell.id}:#{task.name}"
             @iow.flush
+            #Log.debug "taskend:#{shell.id}:#{task.name}:time=#{Time.now-tm}"
           end
         ensure
           Log.debug "closing shell id=#{shell.id}"

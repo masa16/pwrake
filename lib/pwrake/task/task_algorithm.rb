@@ -9,6 +9,8 @@ module Pwrake
     attr_reader :subsequents
 
     def pw_search_tasks(args)
+      Log.debug "#{self.class}#pw_search_tasks start"
+      tm = Time.now
       task_args = TaskArguments.new(arg_names, args)
       #timer = Timer.new("search_task")
       #h = application.pwrake_options['HALT_QUEUE_WHILE_SEARCH']
@@ -16,6 +18,7 @@ module Pwrake
 	search_with_call_chain(nil, task_args, InvocationChain::EMPTY)
       #end
       #timer.finish
+      Log.debug "#{self.class}#pw_search_tasks end #{Time.now-tm}"
     end
 
     # Same as search, but explicitly pass a call chain to detect

@@ -50,6 +50,7 @@ module Pwrake
 
     def postprocess(location)
       @executed = true if !@task.actions.empty?
+      tm_taskend = Time.now
       if @task.kind_of?(Rake::FileTask)
         t = Time.now
         if File.exist?(name)
@@ -57,6 +58,7 @@ module Pwrake
           @location = location
         end
       end
+      Log.debug "postprocess time=#{Time.now-tm_taskend}"
       log_task
       @shell.current_task = nil if @shell
       @task.pw_enq_subsequents

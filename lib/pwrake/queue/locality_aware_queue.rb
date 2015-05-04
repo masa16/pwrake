@@ -169,7 +169,11 @@ module Pwrake
         end
       }
       b.call("noaction",@q_no_action)
-      @q.each(&b)
+      if @size_q == 0
+        b.call("all_local",[])
+      else
+        @q.each(&b)
+      end
       b.call("remote",@q_remote)
       s
     end

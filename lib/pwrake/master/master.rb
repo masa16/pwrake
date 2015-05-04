@@ -99,7 +99,6 @@ module Pwrake
         end
         while s = io.gets
           s.chomp!
-          Log.debug "in Master#setup_branches, event_once: #{s}"
           case s
           when /ncore:done/
             break
@@ -125,16 +124,40 @@ module Pwrake
         Log.info "#{wk.host} id=#{wk.id} ncore=#{wk.ncore}"
       end
       @task_queue = Pwrake.const_get(@option.queue_class).new(@idle_cores)
+
+      # wait for branch setup end
+      @branch_setup_thread = Thread.new do
+        io_list = @comm_by_io.keys
+        io_fail = []
+        IODispatcher.event_once(io_list,nil) do |io|
+          if io.eof?
+            io_fail << io
+            break
+          end
+          s = io.gets
+          if /^branch_setup:done$/ !~ s
+            raise RuntimeError,"Invalid return: #{s}"
+          end
+        end
+        if !(io_list.empty? && io_fail.empty?)
+          t = io_list.map{|io| @comm_by_io[io].host}.join(',')
+          f = io_fail.map{|io| @comm_by_io[io].host}.join(',')
+          raise RuntimeError, "error in connection to branch: fail:(#{f}),timeout:(#{t})"
+        end
+      end
     end
 
     def invoke(t, args)
       @exit_task << t
       t.pw_search_tasks(args)
+      @branch_setup_thread.join
       wake_idle_core
       @dispatcher.event_loop
     end
 
     def wake_idle_core
+      Log.debug "#{self.class}#wake_idle_core start"
+      tm = Time.now
       # @idle_cores.decrease(..
       @task_queue.deq_task do |tw,hid|
         tw.preprocess
@@ -146,6 +169,7 @@ module Pwrake
         #  taskend_proc("noaction",-1,tw.name)
         #end
       end
+      Log.debug "#{self.class}#wake_idle_core end time=#{Time.now-tm}"
     end
 
     def respond_from_branch(io) # called from BranchCommunicator#on_read
@@ -189,7 +213,7 @@ module Pwrake
     end
 
     def setup_postprocess
-      @post_proc = @option.pool_postprocess(@dispatcher)
+      @post_proc = nil # @option.pool_postprocess(@dispatcher)
       if @post_proc
         @post_proc.set_block do |tw,loc|
           tw.postprocess(loc)
@@ -211,11 +235,14 @@ module Pwrake
 
     def finish
       #@task_queue.finish if @task_queue
+      @branch_setup_thread.join
       @conn_list.close_all
       @dispatcher.finish
       @dispatcher.event_loop_block do |io|
+        comm = @comm_by_io[io]
         s = io.gets
-        if s.nil? || /^branch_end$/o =~ s
+        if comm && (s.nil? || /^branch_end$/o =~ s)
+          Log.debug "#{self.class}#finish: host=#{comm.host} s=#{s.chomp}"
           @dispatcher.detach_communicator(@comm_by_io[io])
           @comm_by_io.delete(io)
         end
