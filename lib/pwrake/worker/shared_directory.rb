@@ -8,12 +8,12 @@ module Pwrake
 
     def self.init(*args)
       @@prefix, @@work_dir, @@log_dir, = args
-      #puts "@@prefix=#{@@prefix}, @@work_dir=#{@@work_dir}, @@log_dir=#{@@log_dir},}"
     end
 
     # instance methods
 
     def initialize
+      @log = LogExecutor.instance
     end
 
     def home_path
