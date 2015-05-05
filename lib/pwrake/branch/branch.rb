@@ -70,7 +70,7 @@ module Pwrake
           comm = WorkerCommunicator.new(id,host,ncore,@dispatcher,@options.worker_option)
           @wk_comm[comm.ior] = comm
           @comm_set << comm
-          @dispatcher.attach(comm.ior,comm)
+          @dispatcher.attach_hb(comm.ior,comm)
           @queue[id] = FiberQueue.new
         end
       end
@@ -82,12 +82,19 @@ module Pwrake
         if io.eof?
           io_fail << io
         else
-          s = io.gets
-          if /ncore:(\d+)/ =~ s
-            @wk_comm[io].set_ncore($1.to_i)
-            Log.debug "succ to receive #{s.chomp} from #{@wk_comm[io].host}"
-          else
-            Log.debug "fail to receive #{s.chomp} from #{@wk_comm[io].host}"
+          while s = io.gets
+            case s
+            when /^ncore:(\d+)$/
+              @wk_comm[io].set_ncore($1.to_i)
+              Log.debug "#{s.chomp} @#{@wk_comm[io].host}"
+              break
+              #
+            when /^log:(.*)$/
+              Log.debug "worker(#{@wk_comm[io].host})>#{$1}"
+              #
+            else
+              Log.debug "fail to receive #{s.chomp} @#{@wk_comm[io].host}"
+            end
           end
         end
       end
@@ -144,17 +151,25 @@ module Pwrake
         case s
         when /^open:(\d+)$/
           waiters.delete($1)
+          #
         when /^worker_end$/
           m = "worker_end #{m}"
           Log.warn m
           @dispatcher.detach(io)
           @wk_comm.delete(io)
+          #
         when /^heartbeat$/
           @dispatcher.heartbeat(io)
-        when /^e:(.*)$/
-          m = "worker_err #{m}:`#{$1}'"
+          #
+        when /^log:(.*)$/
+          Log.info "worker(#{@wk_comm[io].host})>#{$1}"
+          #
+        when /^exc:(\d+):(.*)$/
+          id,msg = $1,$2
+          m = "worker(#{wk.host},chan=#{id}) err>#{msg}"
           Log.fatal m
           raise m
+          #
         else
           m = "unexpected return from worker #{m}:`#{s.chomp}'"
           Log.fatal m
