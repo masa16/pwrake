@@ -53,19 +53,16 @@ module Pwrake
           @out.puts "open:#{@id}"
           while cmd = @queue.deq
             break if killed?
-            begin
-              run(cmd)
-            rescue => exc
-              put_exc(exc)
-              @log.error exc
-              @log.error exc.backtrace.join("\n")
-            end
+            run(cmd)
             break if killed?
           end
           @pipe_out.flush
           @pipe_err.flush
           @pipe_out.close
           @pipe_err.close
+        rescue => exc
+          put_exc(exc)
+          @log.error exc
         ensure
           @dir.close_messages.each{|m| @log.info(m)}
           @dir.close
@@ -115,8 +112,6 @@ module Pwrake
       execute(nil)  # threads end
     end
 
-    #alias exit :close
-
     def join
       LIST.delete(@id)
       @out_thread.join(3) if @out_thread
@@ -133,7 +128,6 @@ module Pwrake
       @queue.enq(nil)
     end
 
-    #
     def run(cmd)
       case cmd
       when Proc
