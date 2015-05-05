@@ -5,11 +5,12 @@ module Pwrake
   class Invoker
 
     def initialize(dir_class, n_core)
-      @out = Writer.instance # replace $stderr first
       @heartbeat_interval = 30
       @dir_class = dir_class
+      @out = Writer.instance # firstly replace $stderr
       @log = LogExecutor.instance
       @log.open(@dir_class)
+      @out.add_logger(@log)
       @ncore = case n_core
                when /^\d+$/
                  n_core.to_i
