@@ -13,6 +13,7 @@ module Pwrake
     end
 
     def initialize
+      super
       @id = @@current_id
       @@current_id += 1
       @gfarm_mountpoint = (@@prefix+"_%05d_%03d") % [Process.pid,@id]
@@ -30,12 +31,13 @@ module Pwrake
       status = $?
       a = []
       while s = r.gets
-        a << s
+        a << s.chomp
       end
-      if !status.success?
-        msg = "fail to execute #{cmd}: #{a.join(' ')}"
-        $stderr.puts msg
-        $stderr.flush
+      if status.success?
+        msg = a.empty? ? cmd : cmd+" => #{a.join(',')}"
+        @log.info msg
+      else
+        msg = "failed to execute `#{cmd}' => #{a.join(',')}"
         raise msg
       end
       a
@@ -43,15 +45,12 @@ module Pwrake
 
     def open
       FileUtils.mkdir_p @gfarm_mountpoint
-      @open_msg = spawn_cmd "gfarm2fs #{@gfarm_mountpoint}"
+      spawn_cmd "gfarm2fs #{@gfarm_mountpoint}"
       super
     end
 
-    def open_messages
-      ["mount gfarm2fs: #{@gfarm_mountpoint}"] + @open_msg + super
-    end
-
     def close
+      super
       if File.directory? @gfarm_mountpoint
         begin
           spawn_cmd "fusermount -u #{@gfarm_mountpoint}"
@@ -60,15 +59,11 @@ module Pwrake
         system "sync"
         begin
           FileUtils.rmdir @gfarm_mountpoint
-          $stderr.puts "removed: #{@@hostname}:#{@gfarm_mountpoint}"
+          @log.info "rmdir #{@gfarm_mountpoint} @#{@@hostname}"
         rescue
-          $stderr.puts "fail to remove: #{@@hostname}:#{@gfarm_mountpoint}"
+          @log.error "failed to rmdir #{@gfarm_mountpoint} @#{@@hostname}"
         end
       end
-    end
-
-    def close_messages
-      super + ["unmount gfarm2fs: #{@gfarm_mountpoint}"]
     end
 
   end
