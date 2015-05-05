@@ -26,7 +26,12 @@ module Pwrake
     def attach(io,hdl=nil)
       @rd_hdl[io] = hdl
       @rd_io.push(io)
-      @hb_earliest ||= @hb_time[io] = Time.now
+    end
+
+    def attach_hb(io,hdl=nil)
+      attach(io,hdl)
+      @hb_time[io] = Time.now
+      @hb_earliest = @hb_time.values.min
     end
 
     def detach(io)
@@ -41,6 +46,12 @@ module Pwrake
     def heartbeat(io)
       @hb_time[io] = Time.now
       @hb_earliest = @hb_time.values.min
+      Log.debug "heartbeat: host=#{get_host(io)}"
+    end
+
+    def get_host(io)
+      hdl = @rd_hdl[io]
+      h = hdl.respond_to?(:host) ? hdl.host : nil
     end
 
     def event_loop(timeout=nil)
@@ -57,8 +68,10 @@ module Pwrake
         else
           raise TimeoutError,"timeout(#{timeout} s)"
         end
-        if timeout && (Time.now - @hb_earliest > timeout) # || rand < 0.05)
-          raise TimeoutError,"heartbeat timeout(#{timeout}s)"
+        if timeout && @hb_earliest
+          if Time.now - @hb_earliest > timeout
+            raise TimeoutError,"heartbeat timeout(#{timeout}s) host=#{get_host(io)}"
+          end
         end
       end
     end
