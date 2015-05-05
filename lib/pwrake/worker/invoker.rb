@@ -5,6 +5,7 @@ module Pwrake
   class Invoker
 
     def initialize(dir_class, n_core)
+      @out = Writer.instance # replace $stderr first
       @heartbeat_interval = 30
       @dir_class = dir_class
       @log = LogExecutor.instance
@@ -17,7 +18,6 @@ module Pwrake
                else
                  processor_count
                end
-      @out = Writer.instance
       @out.puts "ncore:#{@ncore}"
 
       at_exit{

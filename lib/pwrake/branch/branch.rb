@@ -22,7 +22,7 @@ module Pwrake
       setup_shells
       setup_fibers
       bh = BranchHandler.new(@queue,@iow,@comm_set)
-      @dispatcher.attach_handler(@ior,bh)
+      @dispatcher.attach(@ior,bh)
       @dispatcher.event_loop(@timeout)
     end
 
@@ -70,7 +70,7 @@ module Pwrake
           comm = WorkerCommunicator.new(id,host,ncore,@dispatcher,@options.worker_option)
           @wk_comm[comm.ior] = comm
           @comm_set << comm
-          @dispatcher.attach_communicator(comm)
+          @dispatcher.attach(comm.ior,comm)
           @queue[id] = FiberQueue.new
         end
       end
@@ -135,25 +135,28 @@ module Pwrake
 
       # receive open notice from worker
       @dispatcher.event_loop_block do |io|
+        if wk = @wk_comm[io]
+          m = "id=#{wk.id} host=#{wk.host}"
+        else
+          m = ""
+        end
         s = io.gets
         case s
         when /^open:(\d+)$/
           waiters.delete($1)
         when /^worker_end$/
-          wk = @wk_comm[io]
-          m = "worker_end id=#{wk.id} host=#{wk.host}"
+          m = "worker_end #{m}"
           Log.warn m
-          $stderr.puts m
-          @dispatcher.detach_io(io)
+          @dispatcher.detach(io)
           @wk_comm.delete(io)
         when /^heartbeat$/
-          @dispatcher.heartbeat(@wk_comm[io])
+          @dispatcher.heartbeat(io)
+        when /^e:(.*)$/
+          m = "worker_err #{m}:`#{$1}'"
+          Log.fatal m
+          raise m
         else
-          if wk = @wk_comm[io]
-            m = "unexpected message from worker id=#{wk.id} host=#{wk.host}: #{s}"
-          else
-            m = "unexpected message from worker: #{s}"
-          end
+          m = "unexpected return from worker #{m}:`#{s.chomp}'"
           Log.fatal m
           raise m
         end

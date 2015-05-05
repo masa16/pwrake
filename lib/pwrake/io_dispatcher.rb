@@ -13,10 +13,9 @@ module Pwrake
     def initialize
       @rd_io = []
       @rd_hdl = {}
-      @rd_hdl = {}
-      @ior,@iow = IO.pipe
-      attach_handler(@ior,ExitHandler.new)
       @hb_time = {}
+      @ior,@iow = IO.pipe
+      attach(@ior,ExitHandler.new)
     end
 
     def finish
@@ -24,40 +23,23 @@ module Pwrake
       @iow.puts("")
     end
 
-    def attach_handler(io,handler=nil)
-      @rd_hdl[io] = handler
+    def attach(io,hdl=nil)
+      @rd_hdl[io] = hdl
       @rd_io.push(io)
+      @hb_earliest ||= @hb_time[io] = Time.now
     end
 
-    def detach_io(io)
+    def detach(io)
       @rd_hdl.delete(io)
       @rd_io.delete(io)
-    end
-
-    def attach_communicator(comm)
-      @rd_hdl[comm.ior] = comm
-      @rd_hdl[comm.ioe] = comm
-      @rd_io.push(comm.ior)
-      @rd_io.push(comm.ioe)
-      @hb_earliest ||=
-        @hb_time[comm] = Time.now
-    end
-
-    def detach_communicator(comm)
-      @rd_hdl.delete(comm.ior)
-      @rd_hdl.delete(comm.ioe)
-      @rd_io.delete(comm.ior)
-      @rd_io.delete(comm.ioe)
-      @hb_time.delete(comm)
     end
 
     def close_all
       @rd_io.each{|io| io.close}
     end
 
-    def heartbeat(comm)
-      Log.debug "heartbeat id=#{comm.id} host=#{comm.host}"
-      @hb_time[comm] = Time.now
+    def heartbeat(io)
+      @hb_time[io] = Time.now
       @hb_earliest = @hb_time.values.min
     end
 
@@ -67,7 +49,7 @@ module Pwrake
         if io_sel
           for io in io_sel[0]
             if io.eof?
-              detach_io(io)
+              detach(io)
             else
               return if @rd_hdl[io].on_read(io)
             end
@@ -86,7 +68,7 @@ module Pwrake
         io_sel = IO.select(@rd_io,nil,nil)
         for io in io_sel[0]
           if io.eof?
-            detach_io(io)
+            detach(io)
           else
             return if yield(io)
           end

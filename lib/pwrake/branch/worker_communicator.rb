@@ -107,7 +107,7 @@ module Pwrake
         @channel[id].enq([:open])
         #
       when /^heartbeat$/
-        @dispatcher.heartbeat(self)
+        @dispatcher.heartbeat(io)
         #
       when /^ncore:(\d+)$/
         @n_total_core = $1

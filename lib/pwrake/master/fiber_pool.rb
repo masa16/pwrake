@@ -48,7 +48,7 @@ module Pwrake
     def new_fiber
       handler = @handler_class.new
       @handlers << handler
-      @dispatcher.attach_handler(handler.io,handler)
+      @dispatcher.attach(handler.io,handler)
       #
       Log.debug "fiber_pool new_fiber count=#{@handlers.size}"
       @new_fiber_start_time = Time.now
@@ -57,7 +57,7 @@ module Pwrake
           r = handler.run(t)
           @block.call(t,r)
           if @finished && @q.empty?
-            @dispatcher.detach_io(handler.io)
+            @dispatcher.detach(handler.io)
             handler.close
           end
         end

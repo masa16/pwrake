@@ -7,6 +7,14 @@ module Pwrake
       @out = $stdout
       @log = LogExecutor.instance
       @mutex = Mutex.new
+      pipe_in, pipe_out = IO.pipe
+      Thread.new(pipe_in,"e:") do |pin,pre|
+        while s = pin.gets
+          s.chomp!
+          @out.puts pre+s
+        end
+      end
+      $stderr = pipe_out
     end
 
     def puts(s)

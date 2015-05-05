@@ -71,7 +71,7 @@ module Pwrake
       @option.host_map.each do |sub_host, wk_hosts|
         conn = BranchCommunicator.new(sub_host,@option,self)
         @conn_list << conn
-        @dispatcher.attach_communicator(conn)
+        @dispatcher.attach(conn.ior,conn)
         @writer[conn.ior] = $stdout
         @writer[conn.ioe] = $stderr
         @comm_by_io[conn.ior] = conn
@@ -194,7 +194,7 @@ module Pwrake
       when /^branch_end$/o
         s.chomp!
         Log.warn "receive #{s} from branch"
-        @dispatcher.detach_communicator(@comm_by_io[io])
+        @dispatcher.detach(io)
         @comm_by_io.delete(io)
         #@post_proc.finish if @post_proc
         @comm_by_io.empty? # exit condition
@@ -249,7 +249,7 @@ module Pwrake
         s = io.gets
         if comm && (s.nil? || /^branch_end$/o =~ s)
           Log.debug "#{self.class}#finish: host=#{comm.host} s=#{s.chomp}"
-          @dispatcher.detach_communicator(@comm_by_io[io])
+          @dispatcher.detach(io)
           @comm_by_io.delete(io)
         end
         @comm_by_io.empty? # exit condition

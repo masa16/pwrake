@@ -119,9 +119,9 @@ module Pwrake
 
     def join
       LIST.delete(@id)
-      @out_thread.join(6)  if @out_thread
-      @err_thread.join(6)  if @err_thread
-      @exec_thread.join(6) if @exec_thread
+      @out_thread.join(3) if @out_thread
+      @err_thread.join(3) if @err_thread
+      @exec_thread.join(10) if @exec_thread
     end
 
     def kill(sig)
@@ -131,7 +131,6 @@ module Pwrake
       @log.warn "Executor(id=#{@id})#kill pid=#{@pid} sig=#{sig}"
       Process.kill(sig,@pid) if @pid
       @queue.enq(nil)
-      #join
     end
 
     #
@@ -157,9 +156,6 @@ module Pwrake
         #
       when String
         dir = @dir.current
-        #if !Dir.exist?(dir)
-        #  raise "Directory '#{dir}' does not exsit"
-        #end
         spawn_command(cmd,dir,@env)
       else
         raise RuntimeError,"invalid cmd: #{cmd.inspect}"
