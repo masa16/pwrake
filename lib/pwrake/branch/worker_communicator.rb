@@ -2,7 +2,7 @@ module Pwrake
 
   class WorkerCommunicator < Communicator
 
-    @@worker_path = File.expand_path(File.dirname(__FILE__))+"/../../../bin/"
+    @@worker_path = (Pathname.new(File.dirname(__FILE__)).expand_path+"../../../bin").realpath
     RE_ID='\d+'
     attr_reader :id, :host, :ncore
     attr_reader :channel
@@ -45,7 +45,7 @@ module Pwrake
 
     def system_cmd
       ssh_opt = @option[:ssh_opt]
-      cmd = "ruby "+@@worker_path+@option[:worker_cmd]
+      cmd = "ruby #{@@worker_path+@option[:worker_cmd]}"
       bd = @option[:base_dir]
       wd = @option[:work_dir]
       ld = @option[:log_dir]
@@ -111,7 +111,6 @@ module Pwrake
         #
       when /^ncore:(\d+)$/
         @n_total_core = $1
-        #@channel[id].enq([:ncore,ncore])
         #
       when /^worker_end$/
         Log.debug "#{self.class}#on_read: #{s.chomp} id=#{@id} host=#{@host}"
@@ -120,12 +119,14 @@ module Pwrake
         #
       when /^exc:(#{RE_ID}):(.*)$/
         id,msg = $1,$2
-        Log.error "Worker(id=#{id}) Error: #{msg}"
+        Log.error "worker(#{host},id=#{id}) err>#{msg}"
         return true
         #
+      when /^log:(.*)$/
+        Log.info "worker(#{host})>#{$1}"
+        #
       else
-        s.chomp!
-        Log.warn "worker_out: #{s}"
+        Log.warn "worker(#{host}) out>#{s.chomp}"
       end
       return false
     end
