@@ -1,13 +1,8 @@
-#!/usr/bin/env ruby
+require "thread"
+require "fileutils"
 
-libpath = File.absolute_path(File.dirname(__FILE__))+"/../lib"
-$LOAD_PATH.unshift libpath
-
-require "pwrake/worker/load"
-require "pwrake/worker/gfarm_directory"
-
+base_dir, work_dir, log_dir, n_core = 4.times.map{ARGF.gets.chomp}
 begin
-  base_dir, work_dir, log_dir, n_core = *ARGV
   dir_cls = Pwrake::GfarmDirectory
   dir_cls.init(base_dir, work_dir, log_dir)
   Pwrake::Invoker.new(dir_cls, n_core).run

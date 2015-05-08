@@ -8,6 +8,18 @@ module Pwrake
     attr_reader :channel
 
     @@worker_communicators = []
+    @@worker_code = nil
+
+    def worker_code
+      if @@worker_code.nil?
+        d = File.dirname(__FILE__)+'/../worker/'
+        @@worker_code = ""
+        @option[:worker_progs].each do |f|
+          @@worker_code << IO.read(d+f+'.rb')
+        end
+      end
+      @@worker_code
+    end
 
     def initialize(id,host,ncore,dispatcher,opt={})
       @id = id
@@ -29,6 +41,11 @@ module Pwrake
       w0.close
       w1.close
       r2.close
+      @iow.write worker_code
+      @iow.puts @option[:base_dir]
+      @iow.puts @option[:work_dir]
+      @iow.puts @option[:log_dir]
+      @iow.puts @ncore
     end
 
     def pass_env
@@ -45,15 +62,11 @@ module Pwrake
 
     def system_cmd
       ssh_opt = @option[:ssh_opt]
-      cmd = "ruby #{@@worker_path+@option[:worker_cmd]}"
-      bd = @option[:base_dir]
-      wd = @option[:work_dir]
-      ld = @option[:log_dir]
-      cmd_line = "#{cmd} \"#{bd}\" \"#{wd}\" \"#{ld}\" \"#{@ncore}\""
+      cmd = "ruby -e 'eval ARGF.read(#{worker_code.size})'"
       if ['localhost','localhost.localdomain','127.0.0.1'].include? @host
-        "cd;#{cmd_line}"
+        "cd; #{cmd}"
       else
-        "ssh -x -T -q #{ssh_opt} #{@host} '#{cmd_line}'"
+        "ssh -x -T -q #{ssh_opt} #{@host} \"#{cmd}\""
       end
     end
 

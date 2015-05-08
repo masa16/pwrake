@@ -7,7 +7,10 @@ module Pwrake
 
     def setup_filesystem
 
+      progs = %w[ writer log_executor executor invoker shared_directory ]
+
       @worker_option = {
+        :worker_progs => progs + %w[ worker_main ],
         :worker_cmd => "pwrake_worker",
         :base_dir  => "",
         :work_dir  => self['WORK_DIR'],
@@ -36,7 +39,7 @@ module Pwrake
         prefix = self['GFARM_PREFIX']
         mntpnt = "#{base}/#{prefix}"
         @worker_option.merge!({
-          :worker_cmd => "pwrake_gfarm_worker",
+          :worker_progs => progs + %w[ gfarm_directory worker_gfarm ],
           :base_dir => mntpnt,
           :work_dir => GfarmPath.pwd.to_s,
           :single_mp => self['GFARM_SINGLE_MP']

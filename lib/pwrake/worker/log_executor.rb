@@ -1,3 +1,7 @@
+require "singleton"
+require "forwardable"
+require "logger"
+
 module Pwrake
 
   class LogExecutor

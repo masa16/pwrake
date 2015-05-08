@@ -1,3 +1,5 @@
+require "singleton"
+
 module Pwrake
 
   class Writer
