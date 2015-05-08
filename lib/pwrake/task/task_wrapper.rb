@@ -58,7 +58,7 @@ module Pwrake
           @location = location
         end
       end
-      Log.debug "postprocess time=#{Time.now-tm_taskend}"
+      #Log.debug "postprocess time=#{Time.now-tm_taskend}"
       log_task
       @shell.current_task = nil if @shell
       @task.pw_enq_subsequents

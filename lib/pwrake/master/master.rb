@@ -162,7 +162,7 @@ module Pwrake
     end
 
     def wake_idle_core
-      Log.debug "#{self.class}#wake_idle_core start"
+      #Log.debug "#{self.class}#wake_idle_core start"
       tm = Time.now
       # @idle_cores.decrease(..
       @task_queue.deq_task do |tw,hid|
@@ -175,7 +175,7 @@ module Pwrake
         #  taskend_proc("noaction",-1,tw.name)
         #end
       end
-      Log.debug "#{self.class}#wake_idle_core end time=#{Time.now-tm}"
+      #Log.debug "#{self.class}#wake_idle_core end time=#{Time.now-tm}"
     end
 
     def respond_from_branch(io) # called from BranchCommunicator#on_read
