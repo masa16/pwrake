@@ -1,1588 +1,1295 @@
+#!/usr/bin/env ruby
+# Setup.rb v5.1.0
 #
-# setup.rb
+# This is a stand-alone bundle of the setup.rb application.
+# You can place it in your projects script/ directory, or
+# call it 'setup.rb' and place it in your project's
+# root directory (just like old times).
 #
-# Copyright (c) 2000-2005 Minero Aoki
+# NOTE: As of version 5.1.0 this bundled rendition is also
+# being used for the bin/setup.rb exe. Rather than the previous:
 #
-# This program is free software.
-# You can distribute/modify this program under the terms of
-# the GNU LGPL, Lesser General Public License version 2.1.
+#   require 'setup/command'
+#   Setup::Command.run
 #
-
-unless Enumerable.method_defined?(:map)   # Ruby 1.4.6
-  module Enumerable
-    alias map collect
+# By doing so, +rvm+ should be able to use it across all rubies
+# without issue and without needing to install it for each.
+require 'yaml'
+module Setup
+  VERSION = '5.2.0'  #:erb: VERSION = '<%= version %>'
+end
+class << File #:nodoc: all
+  unless respond_to?(:read)   # Ruby 1.6 and less
+    def read(fname)
+      open(fname){ |f| return f.read }
+    end
+  end
+  def dir?(path)
+    directory?((path[-1,1] == '/') ? path : path + '/')
   end
 end
-
-unless File.respond_to?(:read)   # Ruby 1.6
-  def File.read(fname)
-    open(fname) {|f|
-      return f.read
-    }
-  end
-end
-
 unless Errno.const_defined?(:ENOTEMPTY)   # Windows?
-  module Errno
-    class ENOTEMPTY
-      # We do not raise this exception, implementation is not needed.
+  module Errno  #:nodoc:
+    class ENOTEMPTY  #:nodoc:
     end
   end
 end
-
-def File.binread(fname)
-  open(fname, 'rb') {|f|
-    return f.read
-  }
+module Setup
+  META_EXTENSION_DIR = '.setup'
+  FILETYPES = %w( bin lib ext data etc man doc )
+  INSTALL_RECORD = 'SetupReceipt'
+  CONFIG_FILE = 'SetupConfig'
 end
-
-# for corrupted Windows' stat(2)
-def File.dir?(path)
-  File.directory?((path[-1,1] == '/') ? path : path + '/')
-end
-
-
-class ConfigTable
-
-  include Enumerable
-
-  def initialize(rbconfig)
-    @rbconfig = rbconfig
-    @items = []
-    @table = {}
-    # options
-    @install_prefix = nil
-    @config_opt = nil
-    @verbose = true
-    @no_harm = false
-  end
-
-  attr_accessor :install_prefix
-  attr_accessor :config_opt
-
-  attr_writer :verbose
-
-  def verbose?
-    @verbose
-  end
-
-  attr_writer :no_harm
-
-  def no_harm?
-    @no_harm
-  end
-
-  def [](key)
-    lookup(key).resolve(self)
-  end
-
-  def []=(key, val)
-    lookup(key).set val
-  end
-
-  def names
-    @items.map {|i| i.name }
-  end
-
-  def each(&block)
-    @items.each(&block)
-  end
-
-  def key?(name)
-    @table.key?(name)
-  end
-
-  def lookup(name)
-    @table[name] or setup_rb_error "no such config item: #{name}"
-  end
-
-  def add(item)
-    @items.push item
-    @table[item.name] = item
-  end
-
-  def remove(name)
-    item = lookup(name)
-    @items.delete_if {|i| i.name == name }
-    @table.delete_if {|name, i| i.name == name }
-    item
-  end
-
-  def load_script(path, inst = nil)
-    if File.file?(path)
-      MetaConfigEnvironment.new(self, inst).instance_eval File.read(path), path
-    end
-  end
-
-  def savefile
-    '.config'
-  end
-
-  def load_savefile
-    begin
-      File.foreach(savefile()) do |line|
-        k, v = *line.split(/=/, 2)
-        self[k] = v.strip
+module Setup
+  class Project
+    ROOT_MARKER = '{.index,setup.rb,.setup,lib/}'
+    def initialize
+      @dotindex_file = find('.index')
+      @dotindex = YAML.load_file(@dotindex_file) if @dotindex_file
+      @name     = nil
+      @version  = nil
+      @loadpath = ['lib']
+      if @dotindex
+        @name     = @dotindex['name']
+        @version  = @dotindex['version']
+        @loadpath = (@dotindex['paths'] || {})['load']
+      else
+        if file = find('.setup/name')
+          @name = File.read(file).strip
+        end
+        if file = find('.setup/version')
+          @version = File.read(file).strip
+        end
+        if file = find('.setup/loadpath')
+          @loadpath = File.read(file).strip
+        end
       end
-    rescue Errno::ENOENT
-      setup_rb_error $!.message + "\n#{File.basename($0)} config first"
+    end
+    attr :dotindex
+    attr :name
+    attr :version
+    attr :loadpath
+    alias load_path loadpath
+    def rootdir
+      @rootdir ||= (
+        root = Dir.glob(File.join(Dir.pwd, ROOT_MARKER), File::FNM_CASEFOLD).first
+        if !root
+          raise Error, "not a project directory"
+        else
+          Dir.pwd
+        end
+      )
+    end
+    def extconfs
+      @extconfs ||= Dir['ext/**/extconf.rb']
+    end
+    def extensions
+      @extensions ||= extconfs.collect{ |f| File.dirname(f) }
+    end
+    def compiles?
+      !extensions.empty?
+    end
+    def yardopts
+      Dir.glob(File.join(rootdir, '.yardopts')).first
+    end
+    def document
+      Dir.glob(File.join(rootdir, '.document')).first
+    end
+    def find(glob, flags=0)
+      case flags
+      when :casefold
+        flags = File::FNM_CASEFOLD
+      else
+        flags = flags.to_i
+      end      
+      Dir.glob(File.join(rootdir, glob), flags).first
     end
   end
-
-  def save
-    @items.each {|i| i.value }
-    File.open(savefile(), 'w') {|f|
-      @items.each do |i|
-        f.printf "%s=%s\n", i.name, i.value if i.value? and i.value
+end
+module Setup
+  class Session
+    attr :options
+    def initialize(options={})
+      @options = options
+      self.io ||= StringIO.new  # log instead ?
+    end
+    def io
+      @options[:io]
+    end
+    def io=(anyio)
+      @options[:io] = anyio
+    end
+    def trace?; @options[:trace]; end
+    def trace=(val)
+      @options[:trace] = val
+    end
+    def trial?; @options[:trial]; end
+    alias_method :dryrun?, :trial?
+    def trial=(val)
+      @options[:trial] = val
+    end
+    alias_method :dryrun=, :trial=
+    def quiet?; @options[:quiet]; end
+    def quiet=(val)
+      @options[:quiet] = val
+    end
+    def force?; @options[:force]; end
+    def force=(val)
+      @options[:force] = val
+    end
+    def compile?
+      configuration.compile? && project.compiles?
+    end
+    def all
+        config
+        compile
+      if configuration.test?
+        ok = test
+        exit 1 unless ok
       end
-    }
-  end
-
-  def load_standard_entries
-    standard_entries(@rbconfig).each do |ent|
-      add ent
+      install
+    end
+    def config
+      log_header('Preconfig')
+      if configuration.save_config
+        io.print "#{CONFIG_FILE} was saved. " unless quiet?
+      else
+        io.print "#{CONFIG_FILE} is current. " unless quiet?
+      end
+      io.puts "Edit to customize configuration." unless quiet?
+      puts configuration if trace? && !quiet?
+    end
+    def compile
+      if compile?
+        log_header('Compile')
+        compiler.configure
+        compiler.compile
+      end
+    end
+    alias_method :make, :compile
+    alias_method :setup, :make
+    def install
+      log_header('Install')
+      installer.install
+    end
+    def test
+      return true unless tester.testable?
+      log_header('Test')
+      tester.test
+    end
+    def clean
+      log_header('Clean')
+      compiler.clean
+    end
+    def distclean
+      log_header('Distclean')
+      compiler.distclean
+    end
+    def uninstall
+      if !File.exist?(INSTALL_RECORD)
+        io.puts "Nothing is installed."
+        return
+      end
+      log_header('Uninstall')
+      uninstaller.uninstall
+      io.puts('Ok.')
+    end
+    def show
+      puts configuration
+    end
+    def project
+      @project ||= Project.new
+    end
+    def configuration
+      @configuration ||= Configuration.new
+    end
+    def compiler
+      @compiler ||= Compiler.new(project, configuration, options)
+    end
+    def installer
+      @installer ||= Installer.new(project, configuration, options)
+    end
+    def tester
+      @tester ||= Tester.new(project, configuration, options)
+    end
+    def uninstaller
+      @uninstaller ||= Uninstaller.new(project, configuration, options)
+    end
+    def log_header(phase)
+      return if quiet?
+      if trial?
+        str = "#{phase.upcase} (trail run)"
+      else
+        str = "#{phase.upcase}"
+      end
+      line = "- " * 35
+      line[0..str.size+3] = str
+      io.puts("\n- - #{line}\n\n")
     end
   end
-
-  def standard_entries(rbconfig)
-    c = rbconfig
-
-    rubypath = File.join(c['bindir'], c['ruby_install_name'] + c['EXEEXT'])
-
-    major = c['MAJOR'].to_i
-    minor = c['MINOR'].to_i
-    teeny = c['TEENY'].to_i
-    version = "#{major}.#{minor}"
-
-    # ruby ver. >= 1.4.4?
-    newpath_p = ((major >= 2) or
-                 ((major == 1) and
-                  ((minor >= 5) or
-                   ((minor == 4) and (teeny >= 4)))))
-
-    if c['rubylibdir']
-      # V > 1.6.3
-      libruby         = "#{c['prefix']}/lib/ruby"
-      librubyver      = c['rubylibdir']
-      librubyverarch  = c['archdir']
-      siteruby        = c['sitedir']
-      siterubyver     = c['sitelibdir']
-      siterubyverarch = c['sitearchdir']
-    elsif newpath_p
-      # 1.4.4 <= V <= 1.6.3
-      libruby         = "#{c['prefix']}/lib/ruby"
-      librubyver      = "#{c['prefix']}/lib/ruby/#{version}"
-      librubyverarch  = "#{c['prefix']}/lib/ruby/#{version}/#{c['arch']}"
-      siteruby        = c['sitedir']
-      siterubyver     = "$siteruby/#{version}"
-      siterubyverarch = "$siterubyver/#{c['arch']}"
-    else
-      # V < 1.4.4
-      libruby         = "#{c['prefix']}/lib/ruby"
-      librubyver      = "#{c['prefix']}/lib/ruby/#{version}"
-      librubyverarch  = "#{c['prefix']}/lib/ruby/#{version}/#{c['arch']}"
-      siteruby        = "#{c['prefix']}/lib/ruby/#{version}/site_ruby"
-      siterubyver     = siteruby
-      siterubyverarch = "$siterubyver/#{c['arch']}"
+end
+module Setup
+  class Base
+    attr :project
+    attr :config
+    attr_accessor :trial
+    attr_accessor :trace
+    attr_accessor :quiet
+    attr_accessor :force
+    attr_accessor :io
+    def initialize(project, configuration, options={})
+      @project = project
+      @config  = configuration
+      initialize_hooks
+      options.each do |k,v|
+        __send__("#{k}=", v) if respond_to?("#{k}=")
+      end
     end
-    parameterize = lambda {|path|
-      path.sub(/\A#{Regexp.quote(c['prefix'])}/, '$prefix')
-    }
-
-    if arg = c['configure_args'].split.detect {|arg| /--with-make-prog=/ =~ arg }
-      makeprog = arg.sub(/'/, '').split(/=/, 2)[1]
-    else
-      makeprog = 'make'
+    def initialize_hooks
+      file = META_EXTENSION_DIR + "/#{self.class.name.downcase}.rb"
+      if File.exist?(file)
+        script = File.read(file)
+        (class << self; self; end).class_eval(script)
+      end
     end
-
-    [
-      ExecItem.new('installdirs', 'std/site/home',
-                   'std: install under libruby; site: install under site_ruby; home: install under $HOME')\
-          {|val, table|
-            case val
-            when 'std'
-              table['rbdir'] = '$librubyver'
-              table['sodir'] = '$librubyverarch'
-            when 'site'
-              table['rbdir'] = '$siterubyver'
-              table['sodir'] = '$siterubyverarch'
-            when 'home'
-              setup_rb_error '$HOME was not set' unless ENV['HOME']
-              table['prefix'] = ENV['HOME']
-              table['rbdir'] = '$libdir/ruby'
-              table['sodir'] = '$libdir/ruby'
-            end
-          },
-      PathItem.new('prefix', 'path', c['prefix'],
-                   'path prefix of target environment'),
-      PathItem.new('bindir', 'path', parameterize.call(c['bindir']),
-                   'the directory for commands'),
-      PathItem.new('libdir', 'path', parameterize.call(c['libdir']),
-                   'the directory for libraries'),
-      PathItem.new('datadir', 'path', parameterize.call(c['datadir']),
-                   'the directory for shared data'),
-      PathItem.new('mandir', 'path', parameterize.call(c['mandir']),
-                   'the directory for man pages'),
-      PathItem.new('sysconfdir', 'path', parameterize.call(c['sysconfdir']),
-                   'the directory for system configuration files'),
-      PathItem.new('localstatedir', 'path', parameterize.call(c['localstatedir']),
-                   'the directory for local state data'),
-      PathItem.new('libruby', 'path', libruby,
-                   'the directory for ruby libraries'),
-      PathItem.new('librubyver', 'path', librubyver,
-                   'the directory for standard ruby libraries'),
-      PathItem.new('librubyverarch', 'path', librubyverarch,
-                   'the directory for standard ruby extensions'),
-      PathItem.new('siteruby', 'path', siteruby,
-          'the directory for version-independent aux ruby libraries'),
-      PathItem.new('siterubyver', 'path', siterubyver,
-                   'the directory for aux ruby libraries'),
-      PathItem.new('siterubyverarch', 'path', siterubyverarch,
-                   'the directory for aux ruby binaries'),
-      PathItem.new('rbdir', 'path', '$siterubyver',
-                   'the directory for ruby scripts'),
-      PathItem.new('sodir', 'path', '$siterubyverarch',
-                   'the directory for ruby extentions'),
-      PathItem.new('rubypath', 'path', rubypath,
-                   'the path to set to #! line'),
-      ProgramItem.new('rubyprog', 'name', rubypath,
-                      'the ruby program using for installation'),
-      ProgramItem.new('makeprog', 'name', makeprog,
-                      'the make program to compile ruby extentions'),
-      SelectItem.new('shebang', 'all/ruby/never', 'ruby',
-                     'shebang line (#!) editing mode'),
-      BoolItem.new('without-ext', 'yes/no', 'no',
-                   'does not compile/install ruby extentions')
-    ]
-  end
-  private :standard_entries
-
-  def load_multipackage_entries
-    multipackage_entries().each do |ent|
-      add ent
+    def trial? ; @trial ; end
+    def trace? ; @trace ; end
+    def quiet? ; @quiet ; end
+    def force? ; @force ; end
+    def rootdir
+      project.rootdir
+    end
+    def bash(*args)
+      $stderr.puts args.join(' ') if trace?
+      system(*args) or raise RuntimeError, "system(#{args.map{|a| a.inspect }.join(' ')}) failed"
+    end
+    alias_method :command, :bash
+    def ruby(*args)
+      bash(config.rubyprog, *args)
+    end
+    def trace_off #:yield:
+      begin
+        save, @trace = trace?, false
+        yield
+      ensure
+        @trace = save
+      end
+    end
+    def rm_f(path)
+      io.puts "rm -f #{path}" if trace? or trial?
+      return if trial?
+      force_remove_file(path)
+    end
+    def force_remove_file(path)
+      begin
+        remove_file(path)
+      rescue
+      end
+    end
+    def remove_file(path)
+      File.chmod 0777, path
+      File.unlink(path)
+    end
+    def rmdir(path)
+      io.puts "rmdir #{path}" if trace? or trial?
+      return if trial?
+      Dir.rmdir(path)
     end
   end
-
-  def multipackage_entries
-    [
-      PackageSelectionItem.new('with', 'name,name...', '', 'ALL',
-                               'package names that you want to install'),
-      PackageSelectionItem.new('without', 'name,name...', '', 'NONE',
-                               'package names that you do not want to install')
-    ]
+  class Error < StandardError
   end
-  private :multipackage_entries
-
-  ALIASES = {
-    'std-ruby'         => 'librubyver',
-    'stdruby'          => 'librubyver',
-    'rubylibdir'       => 'librubyver',
-    'archdir'          => 'librubyverarch',
-    'site-ruby-common' => 'siteruby',     # For backward compatibility
-    'site-ruby'        => 'siterubyver',  # For backward compatibility
-    'bin-dir'          => 'bindir',
-    'rb-dir'           => 'rbdir',
-    'so-dir'           => 'sodir',
-    'data-dir'         => 'datadir',
-    'ruby-path'        => 'rubypath',
-    'ruby-prog'        => 'rubyprog',
-    'ruby'             => 'rubyprog',
-    'make-prog'        => 'makeprog',
-    'make'             => 'makeprog'
-  }
-
-  def fixup
-    ALIASES.each do |ali, name|
-      @table[ali] = @table[name]
+end
+module Setup
+  class Compiler < Base
+    def compiles?
+      !extdirs.empty?
     end
-    @items.freeze
-    @table.freeze
-    @options_re = /\A--(#{@table.keys.join('|')})(?:=(.*))?\z/
-  end
-
-  def parse_opt(opt)
-    m = @options_re.match(opt) or setup_rb_error "config: unknown option #{opt}"
-    m.to_a[1,2]
-  end
-
-  def dllext
-    @rbconfig['DLEXT']
-  end
-
-  def value_config?(name)
-    lookup(name).value?
-  end
-
-  class Item
-    def initialize(name, template, default, desc)
-      @name = name.freeze
-      @template = template
-      @value = default
-      @default = default
-      @description = desc
+    def configure
+      extdirs.each do |dir|
+        Dir.chdir(dir) do
+          if File.exist?('extconf.rb') && !FileUtils.uptodate?('Makefile', ['extconf.rb'])
+            ruby("extconf.rb")
+          end
+        end
+      end
     end
-
-    attr_reader :name
-    attr_reader :description
-
-    attr_accessor :default
-    alias help_default default
-
-    def help_opt
-      "--#{@name}=#{@template}"
+    def compile
+      extdirs.each do |dir|
+        Dir.chdir(dir) do
+          make
+        end
+      end
     end
-
-    def value?
+    def clean
+      extdirs.each do |dir|
+        Dir.chdir(dir) do
+          make('clean')
+        end
+      end
+    end
+    def distclean
+      extdirs.each do |dir|
+        Dir.chdir(dir) do
+          make('distclean')
+        end
+      end
+    end
+    def extdirs
+      Dir['ext/**/*/{MANIFEST,extconf.rb}'].map do |f|
+        File.dirname(f)
+      end.uniq
+    end
+    def make(task=nil)
+      return unless File.exist?('Makefile')
+      bash(*[config.makeprog, task].compact)
+    end
+  end
+end
+require 'rbconfig'
+require 'fileutils'
+require 'erb'
+require 'yaml'
+require 'shellwords'
+module Setup
+  class Configuration
+    RBCONFIG  = ::RbConfig::CONFIG
+    META_CONFIG_FILE = META_EXTENSION_DIR + '/metaconfig.rb'
+    def self.options
+      @@options ||= []
+    end
+    def self.option(name, *args) #type, description)
+      options << [name.to_s, *args] #type, description]
+      attr_accessor(name)
+    end
+    option :prefix          , :path, 'path prefix of target environment'
+    option :bindir          , :path, 'directory for commands'
+    option :libdir          , :path, 'directory for libraries'
+    option :datadir         , :path, 'directory for shared data'
+    option :mandir          , :path, 'directory for man pages'
+    option :docdir          , :path, 'directory for documentation'
+    option :rbdir           , :path, 'directory for ruby scripts'
+    option :sodir           , :path, 'directory for ruby extentions'
+    option :sysconfdir      , :path, 'directory for system configuration files'
+    option :localstatedir   , :path, 'directory for local state data'
+    option :libruby         , :path, 'directory for ruby libraries'
+    option :librubyver      , :path, 'directory for standard ruby libraries'
+    option :librubyverarch  , :path, 'directory for standard ruby extensions'
+    option :siteruby        , :path, 'directory for version-independent aux ruby libraries'
+    option :siterubyver     , :path, 'directory for aux ruby libraries'
+    option :siterubyverarch , :path, 'directory for aux ruby binaries'
+    option :rubypath        , :prog, 'path to set to #! line'
+    option :rubyprog        , :prog, 'ruby program used for installation'
+    option :makeprog        , :prog, 'make program to compile ruby extentions'
+    option :extconfopt      , :opts, 'options to pass-thru to extconf.rb'
+    option :shebang         , :pick, 'shebang line (#!) editing mode (all,ruby,never)'
+    option :no_test, :t     , :bool, 'run pre-installation tests'
+    option :no_doc          , :bool, 'install doc/ directory'
+    option :no_ext          , :bool, 'compile/install ruby extentions'
+    option :install_prefix  , :path, 'install to alternate root location'
+    option :root            , :path, 'install to alternate root location'
+    option :installdirs     , :pick, 'install location mode (site,std,home)'  #, local)
+    option :type            , :pick, 'install location mode (site,std,home)'
+    ::RbConfig::CONFIG.each do |key,val|
+      next if key == "configure_args"
+      name = key.to_s.downcase
+      define_method(name){ val }
+    end
+    config_args = Shellwords.shellwords(::RbConfig::CONFIG["configure_args"])
+    config_args.each do |ent|
+      if ent.index("=")
+        key, val = *ent.split("=")
+      else
+        key, val = ent, true
+      end
+      name = key.downcase
+      name = name.sub(/^--/,'')
+      name = name.gsub(/-/,'_')
+      define_method(name){ val }
+    end
+    def options
+      self.class.options
+    end
+    def initialize(values={})
+      initialize_metaconfig
+      initialize_defaults
+      initialize_environment
+      initialize_configfile unless values[:reset]
+      values.each{ |k,v| __send__("#{k}=", v) }
+      yield(self) if block_given?
+    end
+    def initialize_metaconfig
+      if File.exist?(META_CONFIG_FILE)
+        script = File.read(META_CONFIG_FILE)
+        (class << self; self; end).class_eval(script)
+      end
+    end
+    def initialize_defaults
+      self.type    = 'site'
+      self.no_ri   = true
+      self.no_test = true
+      self.no_doc  = true
+      self.no_ext  = false
+    end
+    def initialize_environment
+      options.each do |name, *args|
+        if value = ENV["RUBYSETUP_#{name.to_s.upcase}"]
+          __send__("#{name}=", value)
+        end
+      end
+    end
+    def initialize_configfile
+      if exist?
+        erb = ERB.new(File.read(CONFIG_FILE))
+        txt = erb.result(binding)
+        dat = YAML.load(txt)
+        dat.each do |k, v|
+          next if 'type' == k
+          next if 'installdirs' == k
+          k = k.gsub('-','_')
+          __send__("#{k}=", v)
+        end
+        if dat['type']
+          self.type = dat['type']
+        end
+        if dat['installdirs']
+          self.installdirs = dat['installdirs']
+        end
+      end
+    end
+    attr_accessor :reset
+    def base_bindir
+      @base_bindir ||= subprefix('bindir')
+    end
+    def base_libdir
+      @base_libdir ||= subprefix('libdir')
+    end
+    def base_datadir
+      @base_datadir ||= subprefix('datadir')
+    end
+    def base_mandir
+      @base_mandir ||= subprefix('mandir')
+    end
+    def base_docdir
+      @base_docdir || File.dirname(subprefix('docdir'))
+    end
+    def base_rubylibdir
+      @rubylibdir ||= subprefix('rubylibdir')
+    end
+    def base_rubyarchdir
+      @base_rubyarchdir ||= subprefix('archdir')
+    end
+    def base_sysconfdir
+      @base_sysconfdir ||= subprefix('sysconfdir')
+    end
+    def base_localstatedir
+      @base_localstatedir ||= subprefix('localstatedir')
+    end
+    def type
+      @type ||= 'site'
+    end
+    def type=(val)
+      @type = val
+      case val.to_s
+      when 'std', 'ruby'
+        @rbdir = librubyver       #'$librubyver'
+        @sodir = librubyverarch   #'$librubyverarch'
+      when 'site'
+        @rbdir = siterubyver      #'$siterubyver'
+        @sodir = siterubyverarch  #'$siterubyverarch'
+      when 'home'
+        self.prefix = File.join(home, '.local')  # TODO: Use XDG
+        @rbdir = nil #'$libdir/ruby'
+        @sodir = nil #'$libdir/ruby'
+      else
+        raise Error, "bad config: use type=(std|site|home) [#{val}]"
+      end
+    end
+    alias_method :installdirs, :type
+    alias_method :installdirs=, :type=
+    alias_method :install_prefix, :root
+    alias_method :install_prefix=, :root=
+    def prefix
+      @prefix ||= RBCONFIG['prefix']
+    end
+    def prefix=(path)
+      @prefix = pathname(path)
+    end
+    def libruby
+      @libruby ||= RBCONFIG['prefix'] + "/lib/ruby"
+    end
+    def libruby=(path)
+      path = pathname(path)
+      @librubyver = librubyver.sub(libruby, path)
+      @librubyverarch = librubyverarch.sub(libruby, path)
+      @libruby = path
+    end
+    def librubyver
+      @librubyver ||= RBCONFIG['rubylibdir']
+    end
+    def librubyver=(path)
+      @librubyver = pathname(path)
+    end
+    def librubyverarch
+      @librubyverarch ||= RBCONFIG['archdir']
+    end
+    def librubyverarch=(path)
+      @librubyverarch = pathname(path)
+    end
+    def siteruby
+      @siteruby ||= RBCONFIG['sitedir']
+    end
+    def siteruby=(path)
+      path = pathname(path)
+      @siterubyver = siterubyver.sub(siteruby, path)
+      @siterubyverarch = siterubyverarch.sub(siteruby, path)
+      @siteruby = path
+    end
+    def siterubyver
+      @siterubyver ||= RBCONFIG['sitelibdir']
+    end
+    def siterubyver=(path)
+      @siterubyver = pathname(path)
+    end
+    def siterubyverarch
+      @siterubyverarch ||= RBCONFIG['sitearchdir']
+    end
+    def siterubyverarch=(path)
+      @siterubyverarch = pathname(path)
+    end
+    def bindir
+      @bindir || File.join(prefix, base_bindir)
+    end
+    def bindir=(path)
+      @bindir = pathname(path)
+    end
+    def libdir
+      @libdir || File.join(prefix, base_libdir)
+    end
+    def libdir=(path)
+      @libdir = pathname(path)
+    end
+    def datadir
+      @datadir || File.join(prefix, base_datadir)
+    end
+    def datadir=(path)
+      @datadir = pathname(path)
+    end
+    def mandir
+      @mandir || File.join(prefix,  base_mandir)
+    end
+    def mandir=(path)
+      @mandir = pathname(path)
+    end
+    def docdir
+      @docdir || File.join(prefix, base_docdir)
+    end
+    def docdir=(path)
+      @docdir = pathname(path)
+    end
+    def rbdir
+      @rbdir || File.join(prefix, base_rubylibdir)
+    end
+    def sodir
+      @sodir || File.join(prefix, base_rubyarchdir)
+    end
+    def sysconfdir
+      @sysconfdir ||= base_sysconfdir
+    end
+    def sysconfdir=(path)
+      @sysconfdir = pathname(path)
+    end
+    def localstatedir
+      @localstatedir ||= base_localstatedir
+    end
+    def localstatedir=(path)
+      @localstatedir = pathname(path)
+    end
+    def rubypath
+      @rubypath ||= File.join(RBCONFIG['bindir'], RBCONFIG['ruby_install_name'] + RBCONFIG['EXEEXT'])
+    end
+    def rubypath=(path)
+      @rubypath = pathname(path)
+    end
+    def rubyprog
+      @rubyprog || rubypath
+    end
+    def rubyprog=(command)
+      @rubyprog = command
+    end
+    def makeprog
+      @makeprog ||= (
+        if arg = RBCONFIG['configure_args'].split.detect {|arg| /--with-make-prog=/ =~ arg }
+          arg.sub(/'/, '').split(/=/, 2)[1]
+        else
+          'make'
+        end
+      )
+    end
+    def makeprog=(command)
+      @makeprog = command
+    end
+    def extconfopt
+      @extconfopt ||= ''
+    end
+    def extconfopt=(string)
+      @extconfopt = string
+    end
+    def shebang
+      @shebang ||= 'ruby'
+    end
+    def shebang=(val)
+      if %w(all ruby never).include?(val)
+        @shebang = val
+      else
+        raise Error, "bad config: use SHEBANG=(all|ruby|never) [#{val}]"
+      end
+    end
+    def no_ext
+      @no_ext
+    end
+    def no_ext=(val)
+      @no_ext = boolean(val)
+    end
+    def no_test
+      @no_test
+    end
+    def no_test=(val)
+      @no_test = boolean(val)
+    end
+    def no_doc
+      @no_doc
+    end
+    def no_doc=(val)
+      @no_doc = boolean(val)
+    end
+    def no_ri
+      @no_ri
+    end
+    def no_ri=(val)
+      @no_ri = boolean(val)
+    end
+    def compile?
+      !no_ext
+    end
+    def test?
+      !no_test
+    end
+    def doc?
+      !no_doc
+    end
+    def to_h
+      h = {}
+      options.each do |name, *args|
+        h[name.to_s] = __send__(name)
+      end
+      h
+    end
+    def to_s
+      to_yaml.sub(/\A---\s*\n/,'')
+    end
+    def to_yaml(*args)
+      to_h.to_yaml(*args)
+    end
+    def save_config
+      out = to_yaml
+      if not File.exist?(File.dirname(CONFIG_FILE))
+        FileUtils.mkdir_p(File.dirname(CONFIG_FILE))
+      end
+      if File.exist?(CONFIG_FILE)
+        txt = File.read(CONFIG_FILE)
+        return nil if txt == out
+      end          
+      File.open(CONFIG_FILE, 'w'){ |f| f << out }
       true
     end
-
-    def value
-      @value
+    def exist?
+      File.exist?(CONFIG_FILE)
     end
-
-    def resolve(table)
-      @value.gsub(%r<\$([^/]+)>) { table[$1] }
+  private
+    def pathname(path)
+      path.gsub(%r<\\$([^/]+)>){ self[$1] }
     end
-
-    def set(val)
-      @value = check(val)
-    end
-
-    private
-
-    def check(val)
-      setup_rb_error "config: --#{name} requires argument" unless val
-      val
-    end
-  end
-
-  class BoolItem < Item
-    def config_type
-      'bool'
-    end
-
-    def help_opt
-      "--#{@name}"
-    end
-
-    private
-
-    def check(val)
-      return 'yes' unless val
+    def boolean(val, name=nil)
       case val
-      when /\Ay(es)?\z/i, /\At(rue)?\z/i then 'yes'
-      when /\An(o)?\z/i, /\Af(alse)\z/i  then 'no'
+      when true, false, nil
+        val
       else
-        setup_rb_error "config: --#{@name} accepts only yes/no for argument"
+        case val.to_s.downcase
+        when 'y', 'yes', 't', 'true'
+           true
+        when 'n', 'no', 'f', 'false'
+           false
+        else
+          raise Error, "bad config: use --#{name}=(yes|no) [\#{val}]"
+        end
+      end
+    end
+    def subprefix(path, with='')
+      val = RBCONFIG[path]
+      raise "Unknown path -- #{path}" if val.nil?
+      prefix = Regexp.quote(RBCONFIG['prefix'])
+      val.sub(/\A#{prefix}/, with)
+    end
+    def home
+      ENV['HOME'] || raise(Error, 'HOME is not set.')
+    end
+  end #class ConfigTable
+end #module Setup
+=begin
+    def inintialize_metaconfig
+      path = Dir.glob(METACONFIG_FILE).first
+      if path && File.file?(path)
+        MetaConfigEnvironment.new(self).instance_eval(File.read(path), path)
+      end
+    end
+    class MetaConfigEnvironment
+      def initialize(config) #, installer)
+        @config    = config
+      end
+      def config_names
+        @config.descriptions.collect{ |n, t, d| n.to_s }
+      end
+      def config?(name)
+        @config.descriptions.find do |sym, type, desc|
+          sym.to_s == name.to_s
+        end
+      end
+      def bool_config?(name)
+        @config.descriptions.find do |sym, type, desc|
+          sym.to_s == name.to_s && type == :bool
+        end
+      end
+      def path_config?(name)
+        @config.descriptions.find do |sym, type, desc|
+          sym.to_s == name.to_s && type == :path
+        end
+      end
+      def value_config?(name)
+        @config.descriptions.find do |sym, type, desc|
+          sym.to_s == name.to_s && type != :prog
+        end
+      end
+      def add_config(name, default, desc)
+        @config.descriptions << [name.to_sym, nil, desc]
+      end
+      def add_bool_config(name, default, desc)
+        @config.descriptions << [name.to_sym, :bool, desc]
+      end
+      def add_path_config(name, default, desc)
+        @config.descriptions << [name.to_sym, :path, desc]
+      end
+      def set_config_default(name, default)
+        @config[name] = default
+      end
+      def remove_config(name)
+        item = @config.descriptions.find do |sym, type, desc|
+          sym.to_s == name.to_s
+        end
+        index = @config.descriptions.index(item)
+        @config.descriptions.delete(index)
+      end
+    end
+=end
+module Setup
+  class Installer < Base
+    def install_prefix
+      config.install_prefix
+    end
+    def install
+      Dir.chdir(rootdir) do
+        install_bin
+        install_ext
+        install_lib
+        install_data
+        install_man
+        install_doc
+        install_etc
+        prune_install_record
+      end
+    end
+    def install_bin
+      return unless directory?('bin')
+      report_transfer('bin', config.bindir)
+      files = files('bin')
+      install_files('bin', files, config.bindir, 0755)
+    end
+    def install_ext
+      return unless directory?('ext')
+      report_transfer('ext', config.sodir)
+      files = files('ext')
+      files = select_dllext(files)
+      files.each do |file|
+        name = File.join(File.dirname(File.dirname(file)), File.basename(file))
+        dest = destination(config.sodir, name)
+        install_file('ext', file, dest, 0555, install_prefix)
+      end
+    end
+    def install_lib
+      return unless directory?('lib')
+      report_transfer('lib', config.rbdir)
+      files = files('lib')
+      install_files('lib', files, config.rbdir, 0644)
+    end
+    def install_data
+      return unless directory?('data')
+      report_transfer('data', config.datadir)
+      files = files('data')
+      install_files('data', files, config.datadir, 0644)
+    end
+    def install_etc
+      return unless directory?('etc')
+      report_transfer('etc', config.sysconfdir)
+      files = files('etc')
+      install_files('etc', files, config.sysconfdir, 0644)
+    end
+    def install_man
+      return unless directory?('man')
+      report_transfer('man', config.mandir)
+      files = files('man')
+      install_files('man', files, config.mandir, 0644)
+    end
+    def install_doc
+      return unless config.doc?
+      return unless directory?('doc')
+      return unless project.name
+      dir = File.join(config.docdir, "ruby-#{project.name}")
+      report_transfer('doc', dir)
+      files = files('doc')
+      install_files('doc', files, dir, 0644)
+    end
+  private
+    def report_transfer(source, directory)
+      unless quiet?
+        if install_prefix
+          out = File.join(install_prefix, directory)
+        else
+          out = directory
+        end
+        io.puts "* #{source} -> #{out}"
+      end
+    end
+    def directory?(path)
+      File.directory?(path)
+    end
+    def files(dir)
+      files = Dir["#{dir}/**/*"]
+      files = files.select{ |f| File.file?(f) }
+      files = files.map{ |f| f.sub("#{dir}/", '') }
+      files
+    end
+    def select_dllext(files)
+      ents = files.select do |file| 
+        File.extname(file) == ".#{dllext}"
+      end
+      if ents.empty? && !files.empty?
+        raise Error, "ruby extention not compiled: 'setup.rb compile' first"
+      end
+      ents
+    end
+    def dllext
+      config.dlext
+    end
+    def install_files(dir, list, dest, mode)
+      list.each do |fname|
+        rdest = destination(dest, fname)
+        install_file(dir, fname, rdest, mode, install_prefix)
+      end
+    end
+    def install_file(dir, from, dest, mode, prefix=nil)
+      mkdir_p(File.dirname(dest))
+      if trace? or trial?
+        io.puts "install #{dir}/#{from} #{dest}"
+      end
+      return if trial?
+      str = binread(File.join(dir, from))
+      if diff?(str, dest)
+        trace_off {
+          rm_f(dest) if File.exist?(dest)
+        }
+        File.open(dest, 'wb'){ |f| f.write(str) }
+        File.chmod(mode, dest)
+      end
+      record_installation(dest) # record file as installed
+    end
+    def mkdir_p(dirname) #, prefix=nil)
+      return if File.directory?(dirname)
+      io.puts "mkdir -p #{dirname}" if trace? or trial?
+      return if trial?
+      dirs = File.expand_path(dirname).split(%r<(?=/)>)
+      if /\A[a-z]:\z/i =~ dirs[0]
+        disk = dirs.shift
+        dirs[0] = disk + dirs[0]
+      end
+      dirs.each_index do |idx|
+        path = dirs[0..idx].join('')
+        unless File.dir?(path)
+          Dir.mkdir(path)
+        end
+        record_installation(path)  # record directories made
+      end
+    end
+    def record_installation(path)
+      File.open(install_record, 'a') do |f|
+        f.puts(path)
+      end
+    end
+    def prune_install_record
+      entries = File.read(install_record).split("\n")
+      entries.uniq!
+      File.open(install_record, 'w') do |f|
+        f << entries.join("\n")
+        f << "\n"
+      end
+    end
+    def install_record
+      @install_record ||= (
+        file = INSTALL_RECORD
+        dir  = File.dirname(file)
+        unless File.directory?(dir)
+          FileUtils.mkdir_p(dir)
+        end
+        file
+      )
+    end
+    def destination(dir, file)
+      dest = install_prefix ? File.join(install_prefix, File.expand_path(dir)) : dir
+      dest = File.join(dest, file) #if File.dir?(dest)
+      dest = File.expand_path(dest)
+      dest
+    end
+    def diff?(new_content, path)
+      return true unless File.exist?(path)
+      new_content != binread(path)
+    end
+    def binread(fname)
+      File.open(fname, 'rb') do |f|
+        return f.read
+      end
+    end
+    def install_shebang(files, dir)
+      files.each do |file|
+        path = File.join(dir, File.basename(file))
+        update_shebang_line(path)
+      end
+    end
+    def update_shebang_line(path)
+      return if trial?
+      return if config.shebang == 'never'
+      old = Shebang.load(path)
+      if old
+        if old.args.size > 1
+          $stderr.puts "warning: #{path}"
+          $stderr.puts "Shebang line has too many args."
+          $stderr.puts "It is not portable and your program may not work."
+        end
+        new = new_shebang(old)
+        return if new.to_s == old.to_s
+      else
+        return unless config.shebang == 'all'
+        new = Shebang.new(config.rubypath)
+      end
+      $stderr.puts "updating shebang: #{File.basename(path)}" if trace?
+      open_atomic_writer(path) do |output|
+        File.open(path, 'rb') do |f|
+          f.gets if old   # discard
+          output.puts new.to_s
+          output.print f.read
+        end
+      end
+    end
+    def new_shebang(old)
+      if /\Aruby/ =~ File.basename(old.cmd)
+        Shebang.new(config.rubypath, old.args)
+      elsif File.basename(old.cmd) == 'env' and old.args.first == 'ruby'
+        Shebang.new(config.rubypath, old.args[1..-1])
+      else
+        return old unless config.shebang == 'all'
+        Shebang.new(config.rubypath)
+      end
+    end
+    def open_atomic_writer(path, &block)
+      tmpfile = File.basename(path) + '.tmp'
+      begin
+        File.open(tmpfile, 'wb', &block)
+        File.rename tmpfile, File.basename(path)
+      ensure
+        File.unlink tmpfile if File.exist?(tmpfile)
+      end
+    end
+    class Shebang
+      def Shebang.load(path)
+        line = nil
+        File.open(path) {|f|
+          line = f.gets
+        }
+        return nil unless /\A#!/ =~ line
+        parse(line)
+      end
+      def Shebang.parse(line)
+        cmd, *args = *line.strip.sub(/\A\#!/, '').split(' ')
+        new(cmd, args)
+      end
+      def initialize(cmd, args = [])
+        @cmd = cmd
+        @args = args
+      end
+      attr_reader :cmd
+      attr_reader :args
+      def to_s
+        "#! #{@cmd}" + (@args.empty? ? '' : " #{@args.join(' ')}")
       end
     end
   end
-
-  class PathItem < Item
-    def config_type
-      'path'
-    end
-
-    private
-
-    def check(path)
-      setup_rb_error "config: --#{@name} requires argument"  unless path
-      path[0,1] == '$' ? path : File.expand_path(path)
-    end
-  end
-
-  class ProgramItem < Item
-    def config_type
-      'program'
-    end
-  end
-
-  class SelectItem < Item
-    def initialize(name, selection, default, desc)
-      super
-      @ok = selection.split('/')
-    end
-
-    def config_type
-      'select'
-    end
-
-    private
-
-    def check(val)
-      unless @ok.include?(val.strip)
-        setup_rb_error "config: use --#{@name}=#{@template} (#{val})"
+end
+module Setup
+  class Tester < Base
+    RUBYSCRIPT  = META_EXTENSION_DIR + '/test.rb'
+    SHELLSCRIPT = META_EXTENSION_DIR + '/test.sh'
+    DEPRECATED_RUBYSCRIPT  = META_EXTENSION_DIR + '/testrc.rb'
+    def testable?
+      if File.exist?(DEPRECATED_RUBYSCRIPT)
+        warn "Must use `.setup/test.rb' instead or `.setup/testrc.rb' to support testing."
       end
-      val.strip
-    end
-  end
-
-  class ExecItem < Item
-    def initialize(name, selection, desc, &block)
-      super name, selection, nil, desc
-      @ok = selection.split('/')
-      @action = block
-    end
-
-    def config_type
-      'exec'
-    end
-
-    def value?
+      return false if config.no_test
+      return true  if File.exist?(RUBYSCRIPT)
+      return true  if File.exist?(SHELLSCRIPT)
       false
     end
-
-    def resolve(table)
-      setup_rb_error "$#{name()} wrongly used as option value"
-    end
-
-    undef set
-
-    def evaluate(val, table)
-      v = val.strip.downcase
-      unless @ok.include?(v)
-        setup_rb_error "invalid option --#{@name}=#{val} (use #{@template})"
-      end
-      @action.call v, table
-    end
-  end
-
-  class PackageSelectionItem < Item
-    def initialize(name, template, default, help_default, desc)
-      super name, template, default, desc
-      @help_default = help_default
-    end
-
-    attr_reader :help_default
-
-    def config_type
-      'package'
-    end
-
-    private
-
-    def check(val)
-      unless File.dir?("packages/#{val}")
-        setup_rb_error "config: no such package: #{val}"
-      end
-      val
-    end
-  end
-
-  class MetaConfigEnvironment
-    def initialize(config, installer)
-      @config = config
-      @installer = installer
-    end
-
-    def config_names
-      @config.names
-    end
-
-    def config?(name)
-      @config.key?(name)
-    end
-
-    def bool_config?(name)
-      @config.lookup(name).config_type == 'bool'
-    end
-
-    def path_config?(name)
-      @config.lookup(name).config_type == 'path'
-    end
-
-    def value_config?(name)
-      @config.lookup(name).config_type != 'exec'
-    end
-
-    def add_config(item)
-      @config.add item
-    end
-
-    def add_bool_config(name, default, desc)
-      @config.add BoolItem.new(name, 'yes/no', default ? 'yes' : 'no', desc)
-    end
-
-    def add_path_config(name, default, desc)
-      @config.add PathItem.new(name, 'path', default, desc)
-    end
-
-    def set_config_default(name, default)
-      @config.lookup(name).default = default
-    end
-
-    def remove_config(name)
-      @config.remove(name)
-    end
-
-    # For only multipackage
-    def packages
-      raise '[setup.rb fatal] multi-package metaconfig API packages() called for single-package; contact application package vendor' unless @installer
-      @installer.packages
-    end
-
-    # For only multipackage
-    def declare_packages(list)
-      raise '[setup.rb fatal] multi-package metaconfig API declare_packages() called for single-package; contact application package vendor' unless @installer
-      @installer.packages = list
-    end
-  end
-
-end   # class ConfigTable
-
-
-# This module requires: #verbose?, #no_harm?
-module FileOperations
-
-  def mkdir_p(dirname, prefix = nil)
-    dirname = prefix + File.expand_path(dirname) if prefix
-    $stderr.puts "mkdir -p #{dirname}" if verbose?
-    return if no_harm?
-
-    # Does not check '/', it's too abnormal.
-    dirs = File.expand_path(dirname).split(%r<(?=/)>)
-    if /\A[a-z]:\z/i =~ dirs[0]
-      disk = dirs.shift
-      dirs[0] = disk + dirs[0]
-    end
-    dirs.each_index do |idx|
-      path = dirs[0..idx].join('')
-      Dir.mkdir path unless File.dir?(path)
-    end
-  end
-
-  def rm_f(path)
-    $stderr.puts "rm -f #{path}" if verbose?
-    return if no_harm?
-    force_remove_file path
-  end
-
-  def rm_rf(path)
-    $stderr.puts "rm -rf #{path}" if verbose?
-    return if no_harm?
-    remove_tree path
-  end
-
-  def remove_tree(path)
-    if File.symlink?(path)
-      remove_file path
-    elsif File.dir?(path)
-      remove_tree0 path
-    else
-      force_remove_file path
-    end
-  end
-
-  def remove_tree0(path)
-    Dir.foreach(path) do |ent|
-      next if ent == '.'
-      next if ent == '..'
-      entpath = "#{path}/#{ent}"
-      if File.symlink?(entpath)
-        remove_file entpath
-      elsif File.dir?(entpath)
-        remove_tree0 entpath
+    def test
+      return true unless testable?
+      if File.exist?(RUBYSCRIPT)
+        test_rubyscript
+      elsif File.exist?(SHELLSCRIPT)
+        test_shellscript
       else
-        force_remove_file entpath
+        true
       end
     end
-    begin
-      Dir.rmdir path
-    rescue Errno::ENOTEMPTY
-      # directory may not be empty
+    def test_shellscript
+      bash(SHELLSCRIPT)
+    end
+    def test_rubyscript
+      ruby(RUBYSCRIPT)
     end
   end
-
-  def move_file(src, dest)
-    force_remove_file dest
-    begin
-      File.rename src, dest
-    rescue
-      File.open(dest, 'wb') {|f|
-        f.write File.binread(src)
-      }
-      File.chmod File.stat(src).mode, dest
-      File.unlink src
-    end
-  end
-
-  def force_remove_file(path)
-    begin
-      remove_file path
-    rescue
-    end
-  end
-
-  def remove_file(path)
-    File.chmod 0777, path
-    File.unlink path
-  end
-
-  def install(from, dest, mode, prefix = nil)
-    $stderr.puts "install #{from} #{dest}" if verbose?
-    return if no_harm?
-
-    realdest = prefix ? prefix + File.expand_path(dest) : dest
-    realdest = File.join(realdest, File.basename(from)) if File.dir?(realdest)
-    str = File.binread(from)
-    if diff?(str, realdest)
-      verbose_off {
-        rm_f realdest if File.exist?(realdest)
-      }
-      File.open(realdest, 'wb') {|f|
-        f.write str
-      }
-      File.chmod mode, realdest
-
-      File.open("#{objdir_root()}/InstalledFiles", 'a') {|f|
-        if prefix
-          f.puts realdest.sub(prefix, '')
-        else
-          f.puts realdest
-        end
-      }
-    end
-  end
-
-  def diff?(new_content, path)
-    return true unless File.exist?(path)
-    new_content != File.binread(path)
-  end
-
-  def command(*args)
-    $stderr.puts args.join(' ') if verbose?
-    system(*args) or raise RuntimeError,
-        "system(#{args.map{|a| a.inspect }.join(' ')}) failed"
-  end
-
-  def ruby(*args)
-    command config('rubyprog'), *args
-  end
-
-  def make(task = nil)
-    command(*[config('makeprog'), task].compact)
-  end
-
-  def extdir?(dir)
-    File.exist?("#{dir}/MANIFEST") or File.exist?("#{dir}/extconf.rb")
-  end
-
-  def files_of(dir)
-    Dir.open(dir) {|d|
-      return d.select {|ent| File.file?("#{dir}/#{ent}") }
-    }
-  end
-
-  DIR_REJECT = %w( . .. CVS SCCS RCS CVS.adm .svn )
-
-  def directories_of(dir)
-    Dir.open(dir) {|d|
-      return d.select {|ent| File.dir?("#{dir}/#{ent}") } - DIR_REJECT
-    }
-  end
-
 end
-
-
-# This module requires: #srcdir_root, #objdir_root, #relpath
-module HookScriptAPI
-
-  def get_config(key)
-    @config[key]
+module Setup
+  class Uninstaller < Base
+    def uninstall
+      return unless File.exist?(INSTALL_RECORD)
+      files = []
+      dirs  = []
+      paths.each do |path|
+        dirs  << path if File.dir?(path)
+        files << path if File.file?(path)
+      end
+      if dirs.empty? && files.empty?
+        io.outs "Nothing to remove."
+        return
+      end
+      files.sort!{ |a,b| b.size <=> a.size }
+      dirs.sort!{ |a,b| b.size <=> a.size }
+      if !force? && !trial?
+        puts (files + dirs).collect{ |f| "#{f}" }.join("\n")
+        puts
+        puts "Must use --force option to remove these files and directories that become empty."
+        return
+      end
+      files.each do |file|
+        rm_f(file)
+      end
+      dirs.each do |dir|
+        entries = Dir.entries(dir)
+        entries.delete('.')
+        entries.delete('..')
+          rmdir(dir) if entries.empty?
+      end
+      rm_f(INSTALL_RECORD)
+    end
+  private
+    def paths
+      @paths ||= (
+        lines = File.read(INSTALL_RECORD).split(/\s*\n/)
+        lines = lines.map{ |line| line.strip }
+        lines = lines.uniq
+        lines = lines.reject{ |line| line.empty? }       # skip blank lines
+        lines = lines.reject{ |line| line[0,1] == '#' }  # skip blank lines
+        lines
+      )
+    end
   end
-
-  alias config get_config
-
-  # obsolete: use metaconfig to change configuration
-  def set_config(key, val)
-    @config[key] = val
-  end
-
-  #
-  # srcdir/objdir (works only in the package directory)
-  #
-
-  def curr_srcdir
-    "#{srcdir_root()}/#{relpath()}"
-  end
-
-  def curr_objdir
-    "#{objdir_root()}/#{relpath()}"
-  end
-
-  def srcfile(path)
-    "#{curr_srcdir()}/#{path}"
-  end
-
-  def srcexist?(path)
-    File.exist?(srcfile(path))
-  end
-
-  def srcdirectory?(path)
-    File.dir?(srcfile(path))
-  end
-
-  def srcfile?(path)
-    File.file?(srcfile(path))
-  end
-
-  def srcentries(path = '.')
-    Dir.open("#{curr_srcdir()}/#{path}") {|d|
-      return d.to_a - %w(. ..)
-    }
-  end
-
-  def srcfiles(path = '.')
-    srcentries(path).select {|fname|
-      File.file?(File.join(curr_srcdir(), path, fname))
-    }
-  end
-
-  def srcdirectories(path = '.')
-    srcentries(path).select {|fname|
-      File.dir?(File.join(curr_srcdir(), path, fname))
-    }
-  end
-
 end
-
-
-class ToplevelInstaller
-
-  Version   = '3.4.1'
-  Copyright = 'Copyright (c) 2000-2005 Minero Aoki'
-
-  TASKS = [
-    [ 'all',      'do config, setup, then install' ],
-    [ 'config',   'saves your configurations' ],
-    [ 'show',     'shows current configuration' ],
-    [ 'setup',    'compiles ruby extentions and others' ],
-    [ 'install',  'installs files' ],
-    [ 'test',     'run all tests in test/' ],
-    [ 'clean',    "does `make clean' for each extention" ],
-    [ 'distclean',"does `make distclean' for each extention" ]
-  ]
-
-  def ToplevelInstaller.invoke
-    config = ConfigTable.new(load_rbconfig())
-    config.load_standard_entries
-    config.load_multipackage_entries if multipackage?
-    config.fixup
-    klass = (multipackage?() ? ToplevelInstallerMulti : ToplevelInstaller)
-    klass.new(File.dirname($0), config).invoke
-  end
-
-  def ToplevelInstaller.multipackage?
-    File.dir?(File.dirname($0) + '/packages')
-  end
-
-  def ToplevelInstaller.load_rbconfig
-    if arg = ARGV.detect {|arg| /\A--rbconfig=/ =~ arg }
-      ARGV.delete(arg)
-      load File.expand_path(arg.split(/=/, 2)[1])
-      $".push 'rbconfig.rb'
-    else
-      require 'rbconfig'
+require 'optparse'
+module Setup
+  class Command
+    def self.run(*argv)
+      new.run(*argv)
     end
-    if defined? ::RbConfig
-      ::RbConfig::CONFIG
-    else
-      ::Config::CONFIG
+    def self.tasks
+      @tasks ||= {}
     end
-  end
-
-  def initialize(ardir_root, config)
-    @ardir = File.expand_path(ardir_root)
-    @config = config
-    # cache
-    @valid_task_re = nil
-  end
-
-  def config(key)
-    @config[key]
-  end
-
-  def inspect
-    "#<#{self.class} #{__id__()}>"
-  end
-
-  def invoke
-    run_metaconfigs
-    case task = parsearg_global()
-    when nil, 'all'
-      parsearg_config
-      init_installers
-      exec_config
-      exec_setup
-      exec_install
-    else
+    def self.order
+      @order ||= []
+    end
+    def self.task(name, description)
+      tasks[name] = description
+      order << name
+    end
+    task 'show'     , "show current configuration"
+    task 'all'      , "config, compile and install"
+    task 'config'   , "save/customize configuration settings"
+    task 'compile'  , "compile ruby extentions"
+    task 'test'     , "run test suite"
+    task 'install'  , "install project files"
+    task 'clean'    , "does `make clean' for each extention"
+    task 'distclean', "does `make distclean' for each extention"
+    task 'uninstall', "uninstall previously installed files"
+    def run(*argv)
+      ARGV.replace(argv) unless argv.empty?
+      task = ARGV.find{ |a| a !~ /^[-]/ }
+      task = 'all' unless task
+      unless task_names.include?(task)
+        $stderr.puts "Not a valid task -- #{task}"
+        exit 1
+      end
+      parser  = OptionParser.new
+      options = {}
+      parser.banner = "Usage: #{File.basename($0)} [TASK] [OPTIONS]"
+      optparse_header(parser, options)
       case task
-      when 'config', 'test'
-        ;
-      when 'clean', 'distclean'
-        @config.load_savefile if File.exist?(@config.savefile)
-      else
-        @config.load_savefile
+      when 'config'
+        optparse_config(parser, options)
+      when 'compile'
+        optparse_compile(parser, options)
+      when 'install'
+        optparse_install(parser, options)
+      when 'all'
+        optparse_all(parser, options)
       end
-      __send__ "parsearg_#{task}"
-      init_installers
-      __send__ "exec_#{task}"
-    end
-  end
-
-  def run_metaconfigs
-    @config.load_script "#{@ardir}/metaconfig"
-  end
-
-  def init_installers
-    @installer = Installer.new(@config, @ardir, File.expand_path('.'))
-  end
-
-  #
-  # Hook Script API bases
-  #
-
-  def srcdir_root
-    @ardir
-  end
-
-  def objdir_root
-    '.'
-  end
-
-  def relpath
-    '.'
-  end
-
-  #
-  # Option Parsing
-  #
-
-  def parsearg_global
-    while arg = ARGV.shift
-      case arg
-      when /\A\w+\z/
-        setup_rb_error "invalid task: #{arg}" unless valid_task?(arg)
-        return arg
-      when '-q', '--quiet'
-        @config.verbose = false
-      when '--verbose'
-        @config.verbose = true
-      when '--help'
-        print_usage $stdout
-        exit 0
-      when '--version'
-        puts "#{File.basename($0)} version #{Version}"
-        exit 0
-      when '--copyright'
-        puts Copyright
-        exit 0
-      else
-        setup_rb_error "unknown global option '#{arg}'"
+      optparse_common(parser, options)
+      begin
+        parser.parse!(ARGV)
+      rescue OptionParser::InvalidOption
+        $stderr.puts $!.to_s.capitalize
+        exit 1
       end
-    end
-    nil
-  end
-
-  def valid_task?(t)
-    valid_task_re() =~ t
-  end
-
-  def valid_task_re
-    @valid_task_re ||= /\A(?:#{TASKS.map {|task,desc| task }.join('|')})\z/
-  end
-
-  def parsearg_no_options
-    unless ARGV.empty?
-      task = caller(0).first.slice(%r<`parsearg_(\w+)'>, 1)
-      setup_rb_error "#{task}: unknown options: #{ARGV.join(' ')}"
-    end
-  end
-
-  alias parsearg_show       parsearg_no_options
-  alias parsearg_setup      parsearg_no_options
-  alias parsearg_test       parsearg_no_options
-  alias parsearg_clean      parsearg_no_options
-  alias parsearg_distclean  parsearg_no_options
-
-  def parsearg_config
-    evalopt = []
-    set = []
-    @config.config_opt = []
-    while i = ARGV.shift
-      if /\A--?\z/ =~ i
-        @config.config_opt = ARGV.dup
-        break
+      rootdir = session.project.rootdir
+      print_header
+      begin
+        $stderr.puts "(#{RUBY_ENGINE} #{RUBY_VERSION} #{RUBY_PLATFORM})"
+      rescue
+        $stderr.puts "(#{RUBY_VERSION} #{RUBY_PLATFORM})"
       end
-      name, value = *@config.parse_opt(i)
-      if @config.value_config?(name)
-        @config[name] = value
-      else
-        evalopt.push [name, value]
+      begin
+        session.__send__(task)
+      rescue Error => err
+        raise err if $DEBUG
+        $stderr.puts $!.message
+        $stderr.puts "Try 'setup.rb --help' for detailed usage."
+        abort $!.message #exit 1
       end
-      set.push name
+      puts unless session.quiet?
     end
-    evalopt.each do |name, value|
-      @config.lookup(name).evaluate value, @config
+    def session
+      @session ||= Session.new(:io=>$stdout)
     end
-    # Check if configuration is valid
-    set.each do |n|
-      @config[n] if @config.value_config?(n)
+    def configuration
+      @configuration ||= session.configuration
     end
-  end
-
-  def parsearg_install
-    @config.no_harm = false
-    @config.install_prefix = ''
-    while a = ARGV.shift
-      case a
-      when '--no-harm'
-        @config.no_harm = true
-      when /\A--prefix=/
-        path = a.split(/=/, 2)[1]
-        path = File.expand_path(path) unless path[0,1] == '/'
-        @config.install_prefix = path
-      else
-        setup_rb_error "install: unknown option #{a}"
+    def optparse_header(parser, options)
+      parser.banner = "USAGE: #{File.basename($0)} [command] [options]"
+    end
+    def optparse_all(parser, options)
+      optparse_config(parser, options)
+      optparse_compile(parser, options)
+      optparse_install(parser, options)  # TODO: why was this remarked out ?
+    end
+    def optparse_config(parser, options)
+      parser.separator ""
+      parser.separator "Configuration options:"
+      configuration.options.each do |args|
+        args = args.dup
+        desc = args.pop
+        type = args.pop
+        name, shortcut = *args
+        optname = name.to_s.gsub('_', '-')
+        case type
+        when :bool
+          if optname.index('no-') == 0
+            optname = "[no-]" + optname.sub(/^no-/, '')
+            opts = shortcut ? ["-#{shortcut}", "--#{optname}", desc] : ["--#{optname}", desc]
+            parser.on(*opts) do |val|
+              configuration.__send__("#{name}=", !val)
+            end
+          else
+            optname = "[no-]" + optname.sub(/^no-/, '')
+            opts = shortcut ? ["-#{shortcut}", "--#{optname}", desc] : ["--#{optname}", desc]
+            parser.on(*opts) do |val|
+              configuration.__send__("#{name}=", val)
+            end
+          end
+        else
+          opts = shortcut ? ["-#{shortcut}", "--#{optname} #{type.to_s.upcase}", desc] :
+                            ["--#{optname} #{type.to_s.upcase}", desc]
+          parser.on(*opts) do |val|
+            configuration.__send__("#{name}=", val)
+          end
+        end
       end
     end
-  end
-
-  def print_usage(out)
-    out.puts 'Typical Installation Procedure:'
-    out.puts "  $ ruby #{File.basename $0} config"
-    out.puts "  $ ruby #{File.basename $0} setup"
-    out.puts "  # ruby #{File.basename $0} install (may require root privilege)"
-    out.puts
-    out.puts 'Detailed Usage:'
-    out.puts "  ruby #{File.basename $0} <global option>"
-    out.puts "  ruby #{File.basename $0} [<global options>] <task> [<task options>]"
-
-    fmt = "  %-24s %s\n"
-    out.puts
-    out.puts 'Global options:'
-    out.printf fmt, '-q,--quiet',   'suppress message outputs'
-    out.printf fmt, '   --verbose', 'output messages verbosely'
-    out.printf fmt, '   --help',    'print this message'
-    out.printf fmt, '   --version', 'print version and quit'
-    out.printf fmt, '   --copyright',  'print copyright and quit'
-    out.puts
-    out.puts 'Tasks:'
-    TASKS.each do |name, desc|
-      out.printf fmt, name, desc
+    def optparse_compile(parser, options)
     end
-
-    fmt = "  %-24s %s [%s]\n"
-    out.puts
-    out.puts 'Options for CONFIG or ALL:'
-    @config.each do |item|
-      out.printf fmt, item.help_opt, item.description, item.help_default
-    end
-    out.printf fmt, '--rbconfig=path', 'rbconfig.rb to load',"running ruby's"
-    out.puts
-    out.puts 'Options for INSTALL:'
-    out.printf fmt, '--no-harm', 'only display what to do if given', 'off'
-    out.printf fmt, '--prefix=path',  'install path prefix', ''
-    out.puts
-  end
-
-  #
-  # Task Handlers
-  #
-
-  def exec_config
-    @installer.exec_config
-    @config.save   # must be final
-  end
-
-  def exec_setup
-    @installer.exec_setup
-  end
-
-  def exec_install
-    @installer.exec_install
-  end
-
-  def exec_test
-    @installer.exec_test
-  end
-
-  def exec_show
-    @config.each do |i|
-      printf "%-20s %s\n", i.name, i.value if i.value?
-    end
-  end
-
-  def exec_clean
-    @installer.exec_clean
-  end
-
-  def exec_distclean
-    @installer.exec_distclean
-  end
-
-end   # class ToplevelInstaller
-
-
-class ToplevelInstallerMulti < ToplevelInstaller
-
-  include FileOperations
-
-  def initialize(ardir_root, config)
-    super
-    @packages = directories_of("#{@ardir}/packages")
-    raise 'no package exists' if @packages.empty?
-    @root_installer = Installer.new(@config, @ardir, File.expand_path('.'))
-  end
-
-  def run_metaconfigs
-    @config.load_script "#{@ardir}/metaconfig", self
-    @packages.each do |name|
-      @config.load_script "#{@ardir}/packages/#{name}/metaconfig"
-    end
-  end
-
-  attr_reader :packages
-
-  def packages=(list)
-    raise 'package list is empty' if list.empty?
-    list.each do |name|
-      raise "directory packages/#{name} does not exist"\
-              unless File.dir?("#{@ardir}/packages/#{name}")
-    end
-    @packages = list
-  end
-
-  def init_installers
-    @installers = {}
-    @packages.each do |pack|
-      @installers[pack] = Installer.new(@config,
-                                       "#{@ardir}/packages/#{pack}",
-                                       "packages/#{pack}")
-    end
-    with    = extract_selection(config('with'))
-    without = extract_selection(config('without'))
-    @selected = @installers.keys.select {|name|
-                  (with.empty? or with.include?(name)) \
-                      and not without.include?(name)
-                }
-  end
-
-  def extract_selection(list)
-    a = list.split(/,/)
-    a.each do |name|
-      setup_rb_error "no such package: #{name}"  unless @installers.key?(name)
-    end
-    a
-  end
-
-  def print_usage(f)
-    super
-    f.puts 'Inluded packages:'
-    f.puts '  ' + @packages.sort.join(' ')
-    f.puts
-  end
-
-  #
-  # Task Handlers
-  #
-
-  def exec_config
-    run_hook 'pre-config'
-    each_selected_installers {|inst| inst.exec_config }
-    run_hook 'post-config'
-    @config.save   # must be final
-  end
-
-  def exec_setup
-    run_hook 'pre-setup'
-    each_selected_installers {|inst| inst.exec_setup }
-    run_hook 'post-setup'
-  end
-
-  def exec_install
-    run_hook 'pre-install'
-    each_selected_installers {|inst| inst.exec_install }
-    run_hook 'post-install'
-  end
-
-  def exec_test
-    run_hook 'pre-test'
-    each_selected_installers {|inst| inst.exec_test }
-    run_hook 'post-test'
-  end
-
-  def exec_clean
-    rm_f @config.savefile
-    run_hook 'pre-clean'
-    each_selected_installers {|inst| inst.exec_clean }
-    run_hook 'post-clean'
-  end
-
-  def exec_distclean
-    rm_f @config.savefile
-    run_hook 'pre-distclean'
-    each_selected_installers {|inst| inst.exec_distclean }
-    run_hook 'post-distclean'
-  end
-
-  #
-  # lib
-  #
-
-  def each_selected_installers
-    Dir.mkdir 'packages' unless File.dir?('packages')
-    @selected.each do |pack|
-      $stderr.puts "Processing the package `#{pack}' ..." if verbose?
-      Dir.mkdir "packages/#{pack}" unless File.dir?("packages/#{pack}")
-      Dir.chdir "packages/#{pack}"
-      yield @installers[pack]
-      Dir.chdir '../..'
-    end
-  end
-
-  def run_hook(id)
-    @root_installer.run_hook id
-  end
-
-  # module FileOperations requires this
-  def verbose?
-    @config.verbose?
-  end
-
-  # module FileOperations requires this
-  def no_harm?
-    @config.no_harm?
-  end
-
-end   # class ToplevelInstallerMulti
-
-
-class Installer
-
-  FILETYPES = %w( bin lib ext data conf man )
-
-  include FileOperations
-  include HookScriptAPI
-
-  def initialize(config, srcroot, objroot)
-    @config = config
-    @srcdir = File.expand_path(srcroot)
-    @objdir = File.expand_path(objroot)
-    @currdir = '.'
-  end
-
-  def inspect
-    "#<#{self.class} #{File.basename(@srcdir)}>"
-  end
-
-  def noop(rel)
-  end
-
-  #
-  # Hook Script API base methods
-  #
-
-  def srcdir_root
-    @srcdir
-  end
-
-  def objdir_root
-    @objdir
-  end
-
-  def relpath
-    @currdir
-  end
-
-  #
-  # Config Access
-  #
-
-  # module FileOperations requires this
-  def verbose?
-    @config.verbose?
-  end
-
-  # module FileOperations requires this
-  def no_harm?
-    @config.no_harm?
-  end
-
-  def verbose_off
-    begin
-      save, @config.verbose = @config.verbose?, false
-      yield
-    ensure
-      @config.verbose = save
-    end
-  end
-
-  #
-  # TASK config
-  #
-
-  def exec_config
-    exec_task_traverse 'config'
-  end
-
-  alias config_dir_bin noop
-  alias config_dir_lib noop
-
-  def config_dir_ext(rel)
-    extconf if extdir?(curr_srcdir())
-  end
-
-  alias config_dir_data noop
-  alias config_dir_conf noop
-  alias config_dir_man noop
-
-  def extconf
-    ruby "#{curr_srcdir()}/extconf.rb", *@config.config_opt
-  end
-
-  #
-  # TASK setup
-  #
-
-  def exec_setup
-    exec_task_traverse 'setup'
-  end
-
-  def setup_dir_bin(rel)
-    files_of(curr_srcdir()).each do |fname|
-      update_shebang_line "#{curr_srcdir()}/#{fname}"
-    end
-  end
-
-  alias setup_dir_lib noop
-
-  def setup_dir_ext(rel)
-    make if extdir?(curr_srcdir())
-  end
-
-  alias setup_dir_data noop
-  alias setup_dir_conf noop
-  alias setup_dir_man noop
-
-  def update_shebang_line(path)
-    return if no_harm?
-    return if config('shebang') == 'never'
-    old = Shebang.load(path)
-    if old
-      $stderr.puts "warning: #{path}: Shebang line includes too many args.  It is not portable and your program may not work." if old.args.size > 1
-      new = new_shebang(old)
-      return if new.to_s == old.to_s
-    else
-      return unless config('shebang') == 'all'
-      new = Shebang.new(config('rubypath'))
-    end
-    $stderr.puts "updating shebang: #{File.basename(path)}" if verbose?
-    open_atomic_writer(path) {|output|
-      File.open(path, 'rb') {|f|
-        f.gets if old   # discard
-        output.puts new.to_s
-        output.print f.read
-      }
-    }
-  end
-
-  def new_shebang(old)
-    if /\Aruby/ =~ File.basename(old.cmd)
-      Shebang.new(config('rubypath'), old.args)
-    elsif File.basename(old.cmd) == 'env' and old.args.first == 'ruby'
-      Shebang.new(config('rubypath'), old.args[1..-1])
-    else
-      return old unless config('shebang') == 'all'
-      Shebang.new(config('rubypath'))
-    end
-  end
-
-  def open_atomic_writer(path, &block)
-    tmpfile = File.basename(path) + '.tmp'
-    begin
-      File.open(tmpfile, 'wb', &block)
-      File.rename tmpfile, File.basename(path)
-    ensure
-      File.unlink tmpfile if File.exist?(tmpfile)
-    end
-  end
-
-  class Shebang
-    def Shebang.load(path)
-      line = nil
-      File.open(path) {|f|
-        line = f.gets
-      }
-      return nil unless /\A#!/ =~ line
-      parse(line)
-    end
-
-    def Shebang.parse(line)
-      cmd, *args = *line.strip.sub(/\A\#!/, '').split(' ')
-      new(cmd, args)
-    end
-
-    def initialize(cmd, args = [])
-      @cmd = cmd
-      @args = args
-    end
-
-    attr_reader :cmd
-    attr_reader :args
-
-    def to_s
-      "#! #{@cmd}" + (@args.empty? ? '' : " #{@args.join(' ')}")
-    end
-  end
-
-  #
-  # TASK install
-  #
-
-  def exec_install
-    rm_f 'InstalledFiles'
-    exec_task_traverse 'install'
-  end
-
-  def install_dir_bin(rel)
-    install_files targetfiles(), "#{config('bindir')}/#{rel}", 0755
-  end
-
-  def install_dir_lib(rel)
-    install_files libfiles(), "#{config('rbdir')}/#{rel}", 0644
-  end
-
-  def install_dir_ext(rel)
-    return unless extdir?(curr_srcdir())
-    install_files rubyextentions('.'),
-                  "#{config('sodir')}/#{File.dirname(rel)}",
-                  0555
-  end
-
-  def install_dir_data(rel)
-    install_files targetfiles(), "#{config('datadir')}/#{rel}", 0644
-  end
-
-  def install_dir_conf(rel)
-    # FIXME: should not remove current config files
-    # (rename previous file to .old/.org)
-    install_files targetfiles(), "#{config('sysconfdir')}/#{rel}", 0644
-  end
-
-  def install_dir_man(rel)
-    install_files targetfiles(), "#{config('mandir')}/#{rel}", 0644
-  end
-
-  def install_files(list, dest, mode)
-    mkdir_p dest, @config.install_prefix
-    list.each do |fname|
-      install fname, dest, mode, @config.install_prefix
-    end
-  end
-
-  def libfiles
-    glob_reject(%w(*.y *.output), targetfiles())
-  end
-
-  def rubyextentions(dir)
-    ents = glob_select("*.#{@config.dllext}", targetfiles())
-    if ents.empty?
-      setup_rb_error "no ruby extention exists: 'ruby #{$0} setup' first"
-    end
-    ents
-  end
-
-  def targetfiles
-    mapdir(existfiles() - hookfiles())
-  end
-
-  def mapdir(ents)
-    ents.map {|ent|
-      if File.exist?(ent)
-      then ent                         # objdir
-      else "#{curr_srcdir()}/#{ent}"   # srcdir
+    def optparse_install(parser, options)
+      parser.separator ''
+      parser.separator 'Install options:'
+      parser.on('--prefix PATH', 'install to alternate root location') do |val|
+        configuration.install_prefix = val
       end
-    }
-  end
-
-  # picked up many entries from cvs-1.11.1/src/ignore.c
-  JUNK_FILES = %w(
-    core RCSLOG tags TAGS .make.state
-    .nse_depinfo #* .#* cvslog.* ,* .del-* *.olb
-    *~ *.old *.bak *.BAK *.orig *.rej _$* *$
-
-    *.org *.in .*
-  )
-
-  def existfiles
-    glob_reject(JUNK_FILES, (files_of(curr_srcdir()) | files_of('.')))
-  end
-
-  def hookfiles
-    %w( pre-%s post-%s pre-%s.rb post-%s.rb ).map {|fmt|
-      %w( config setup install clean ).map {|t| sprintf(fmt, t) }
-    }.flatten
-  end
-
-  def glob_select(pat, ents)
-    re = globs2re([pat])
-    ents.select {|ent| re =~ ent }
-  end
-
-  def glob_reject(pats, ents)
-    re = globs2re(pats)
-    ents.reject {|ent| re =~ ent }
-  end
-
-  GLOB2REGEX = {
-    '.' => '\.',
-    '$' => '\$',
-    '#' => '\#',
-    '*' => '.*'
-  }
-
-  def globs2re(pats)
-    /\A(?:#{
-      pats.map {|pat| pat.gsub(/[\.\$\#\*]/) {|ch| GLOB2REGEX[ch] } }.join('|')
-    })\z/
-  end
-
-  #
-  # TASK test
-  #
-
-  TESTDIR = 'test'
-
-  def exec_test
-    unless File.directory?('test')
-      $stderr.puts 'no test in this package' if verbose?
-      return
-    end
-    $stderr.puts 'Running tests...' if verbose?
-    begin
-      require 'test/unit'
-    rescue LoadError
-      setup_rb_error 'test/unit cannot loaded.  You need Ruby 1.8 or later to invoke this task.'
-    end
-    runner = Test::Unit::AutoRunner.new(true)
-    runner.to_run << TESTDIR
-    runner.run
-  end
-
-  #
-  # TASK clean
-  #
-
-  def exec_clean
-    exec_task_traverse 'clean'
-    rm_f @config.savefile
-    rm_f 'InstalledFiles'
-  end
-
-  alias clean_dir_bin noop
-  alias clean_dir_lib noop
-  alias clean_dir_data noop
-  alias clean_dir_conf noop
-  alias clean_dir_man noop
-
-  def clean_dir_ext(rel)
-    return unless extdir?(curr_srcdir())
-    make 'clean' if File.file?('Makefile')
-  end
-
-  #
-  # TASK distclean
-  #
-
-  def exec_distclean
-    exec_task_traverse 'distclean'
-    rm_f @config.savefile
-    rm_f 'InstalledFiles'
-  end
-
-  alias distclean_dir_bin noop
-  alias distclean_dir_lib noop
-
-  def distclean_dir_ext(rel)
-    return unless extdir?(curr_srcdir())
-    make 'distclean' if File.file?('Makefile')
-  end
-
-  alias distclean_dir_data noop
-  alias distclean_dir_conf noop
-  alias distclean_dir_man noop
-
-  #
-  # Traversing
-  #
-
-  def exec_task_traverse(task)
-    run_hook "pre-#{task}"
-    FILETYPES.each do |type|
-      if type == 'ext' and config('without-ext') == 'yes'
-        $stderr.puts 'skipping ext/* by user option' if verbose?
-        next
+      parser.on('--type TYPE', "install location mode (site,std,home)") do |val|
+        configuration.type = val
       end
-      traverse task, type, "#{task}_dir_#{type}"
-    end
-    run_hook "post-#{task}"
-  end
-
-  def traverse(task, rel, mid)
-    dive_into(rel) {
-      run_hook "pre-#{task}"
-      __send__ mid, rel.sub(%r[\A.*?(?:/|\z)], '')
-      directories_of(curr_srcdir()).each do |d|
-        traverse task, "#{rel}/#{d}", mid
+      parser.on('-t', '--[no-]test', "run pre-installation tests") do |bool|
+        configuration.test = bool
       end
-      run_hook "post-#{task}"
-    }
-  end
-
-  def dive_into(rel)
-    return unless File.dir?("#{@srcdir}/#{rel}")
-
-    dir = File.basename(rel)
-    Dir.mkdir dir unless File.dir?(dir)
-    prevdir = Dir.pwd
-    Dir.chdir dir
-    $stderr.puts '---> ' + rel if verbose?
-    @currdir = rel
-    yield
-    Dir.chdir prevdir
-    $stderr.puts '<--- ' + rel if verbose?
-    @currdir = File.dirname(rel)
-  end
-
-  def run_hook(id)
-    path = [ "#{curr_srcdir()}/#{id}",
-             "#{curr_srcdir()}/#{id}.rb" ].detect {|cand| File.file?(cand) }
-    return unless path
-    begin
-      instance_eval File.read(path), path, 1
-    rescue
-      raise if $DEBUG
-      setup_rb_error "hook #{path} failed:\n" + $!.message
     end
-  end
-
-end   # class Installer
-
-
-class SetupError < StandardError; end
-
-def setup_rb_error(msg)
-  raise SetupError, msg
-end
-
-if $0 == __FILE__
-  begin
-    ToplevelInstaller.invoke
-  rescue SetupError
-    raise if $DEBUG
-    $stderr.puts $!.message
-    $stderr.puts "Try 'ruby #{$0} --help' for detailed usage."
-    exit 1
+    def optparse_common(parser, options)
+      parser.separator ""
+      parser.separator "General options:"
+      parser.on("-q", "--quiet", "Suppress output") do
+        session.quiet = true
+      end
+      parser.on("-f", "--force", "Force operation") do
+        session.force = true
+      end
+      parser.on("--trace", "--verbose", "Watch execution") do |val|
+        session.trace = true
+      end
+      parser.on("--trial", "--no-harm", "Do not write to disk") do |val|
+        session.trial = true
+      end
+      parser.on("--debug", "Turn on debug mode") do |val|
+        $DEBUG = true
+      end
+      parser.separator ""
+      parser.separator "Inform options:"
+      parser.on_tail("-h", "--help", "display this help information") do
+        puts parser
+        exit
+      end
+      parser.on_tail("--version", "-v", "Show version") do
+        puts File.basename($0) + ' v' + Setup::VERSION #Version.join('.')
+        exit
+      end
+      parser.on_tail("--copyright", "Show copyright") do
+        puts Setup::COPYRIGHT #opyright
+        exit
+      end
+    end
+    def task_names
+      self.class.tasks.keys
+    end
+    def print_header
+    end
   end
 end
+Setup::Command.run

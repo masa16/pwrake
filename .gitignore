@@ -5,6 +5,8 @@
 .yardoc
 Gemfile.lock
 InstalledFiles
+SetupConfig
+SetupReceipt
 _yardoc
 coverage
 doc/
