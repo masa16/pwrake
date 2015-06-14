@@ -141,14 +141,13 @@ module Pwrake
         #$stderr.puts "x=#{x.inspect}"
         case x[0]
         when :start
-          @pid = x[1].to_i
         when :out
           yield x[1]
         when :err
           $stderr.print x[1]+"\n"
         when :end
           # see Executor#status_to_str
-          _id, _pid, status = *x
+          status = x[1]
           case status
           when /^\d+$/
             status = status.to_i

@@ -3,38 +3,23 @@ module Pwrake
   class Executor
 
     LIST = {}
+    CHARS='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+    TLEN=32
 
     def initialize(dir_class,id)
       @id = id
-      @env = {}
+      @shell_command = "/bin/sh"
+      @terminator = ""
+      TLEN.times{ @terminator << CHARS[rand(CHARS.length)] }
       @out = Writer.instance
       @log = LogExecutor.instance
       @queue = Queue.new
       @dir = dir_class.new
+      @spawn_in, @sh_in = IO.pipe
+      @sh_out, @spawn_out = IO.pipe
+      @sh_err, @spawn_err = IO.pipe
       LIST[@id] = self
-      @out_thread  = start_out_thread
-      @err_thread  = start_err_thread
       @exec_thread = start_exec_thread
-    end
-
-    def start_out_thread
-      pipe_in, @pipe_out = IO.pipe
-      Thread.new(pipe_in,"#{@id}:") do |pin,pre|
-        while s = pin.gets
-          s.chomp!
-          @out.puts pre+s
-        end
-      end
-    end
-
-    def start_err_thread
-      pipe_in2, @pipe_err = IO.pipe
-      Thread.new(pipe_in2,"#{@id}e:") do |pin,pre|
-        while s = pin.gets
-          s.chomp!
-          @out.puts pre+s
-        end
-      end
     end
 
     def execute(cmd)
@@ -42,7 +27,7 @@ module Pwrake
     end
 
     def killed?
-      @killed || !@out_thread.alive? || !@err_thread.alive?
+      @killed
     end
 
     def start_exec_thread
@@ -50,16 +35,15 @@ module Pwrake
         begin
           @dir.open
           @dir.open_messages.each{|m| @log.info(m)}
+          @pid = Kernel.spawn(@shell_command,
+                              :out=>@spawn_out,
+                              :err=>@spawn_err,
+                              :in=>@spawn_in)
           @out.puts "open:#{@id}"
           while cmd = @queue.deq
-            break if killed?
             run(cmd)
-            break if killed?
           end
-          @pipe_out.flush
-          @pipe_err.flush
-          @pipe_out.close
-          @pipe_err.close
+          @sh_in.puts("exit") if !@killed
         rescue => exc
           put_exc(exc)
           @log.error exc
@@ -70,34 +54,59 @@ module Pwrake
       end
     end
 
-    def spawn_command(cmd,dir,env)
-      @pid = Kernel.spawn(env,cmd,:out=>@pipe_out,:err=>@pipe_err,:chdir=>dir)
-      @out.puts "start:#{@id}:#{@pid}"
-      pid,status = Process.wait2(@pid)
-      @pid = nil
-      @pipe_out.flush
-      @pipe_err.flush
-      @out_thread.run
-      @err_thread.run
-      status_s = status_to_str(status)
-      @out.puts "end:#{@id}:#{pid}:#{status_s}"
+    def run(cmd)
+      case cmd
+      when Proc
+        cmd.call
+      when "cd"
+        @dir.cd
+        run_command("cd "+@dir.current)
+        #
+      when /^cd\s+(.*)$/
+        @dir.cd($1)
+        run_command("cd "+@dir.current)
+        #
+      when /^exit\b/
+        close
+        put_end
+        #
+      when String
+        run_command(cmd)
+        #
+      else
+        raise RuntimeError,"invalid cmd: #{cmd.inspect}"
+      end
     end
 
-    def status_to_str(s)
-      if s.exited?
-        x = "#{s.to_i}"
-      elsif s.signaled?
-        if s.coredump?
-          x = "coredumped"
-        else
-          x = "termsig=#{s.termsig}"
+    def run_command(cmd)
+      term = "\necho '#{@terminator}':$? \necho '#{@terminator}' 1>&2"
+      @sh_in.puts(cmd+term)
+      @out.puts "start:#{@id}"
+      status = ""
+      io_set = [@sh_out,@sh_err]
+      loop do
+        io_sel, = IO.select(io_set,nil,nil)
+        for io in io_sel
+          s = io.gets.chomp
+          case io
+          when @sh_out
+            if s[0,TLEN] == @terminator
+              status = s[TLEN+1..-1]
+              io_set.delete(@sh_out)
+            else
+              @out.puts "#{@id}:"+s
+            end
+          when @sh_err
+            if s[0,TLEN] == @terminator
+              io_set.delete(@sh_err)
+            else
+              @out.puts "#{@id}e:"+s
+            end
+          end
         end
-      elsif s.stopped?
-        x = "stopsig=#{s.stopsig}"
-      else
-        x = "unknown_status"
+        break if io_set.empty?
       end
-      return x
+      @out.puts "end:#{@id}:#{status}"
     end
 
     def put_end
@@ -114,46 +123,25 @@ module Pwrake
 
     def join
       LIST.delete(@id)
-      @out_thread.join(3) if @out_thread
-      @err_thread.join(3) if @err_thread
       @exec_thread.join(10) if @exec_thread
     end
 
     def kill(sig)
       @killed = true
-      @queue.enq(nil)
-      while @queue.deq; end
-      @log.warn "Executor(id=#{@id})#kill pid=#{@pid} sig=#{sig}"
-      Process.kill(sig,@pid) if @pid
-      @queue.enq(nil)
-    end
-
-    def run(cmd)
-      case cmd
-      when Proc
-        cmd.call
-      when "cd"
-        @dir.cd
-        put_end
-        #
-      when /^cd\s+(.*)$/
-        @dir.cd($1)
-        put_end
-        #
-      when "exit"
-        close
-        put_end
-        #
-      when /^export (\w+)=(.*)$/o
-        k,v = $1,$2
-        @env[k] = v
-        #
-      when String
-        dir = @dir.current
-        spawn_command(cmd,dir,@env)
-      else
-        raise RuntimeError,"invalid cmd: #{cmd.inspect}"
+      @queue.clear
+      if @pid
+        s = `ps ho pid --ppid=#{@pid}`
+        s.each_line{|x|
+          pid=x.to_i
+          Process.kill(sig,pid)
+          @log.warn "Executor(id=#{@id})#kill pid=#{pid} sig=#{sig}"
+        }
+        Process.kill(sig,@pid)
+        @log.warn "Executor(sh,id=#{@id})#kill pid=#{@pid} sig=#{sig}"
       end
+      @spawn_out.puts @terminator+":signal=#{sig}"
+      @spawn_err.puts @terminator
+      @queue.enq(nil)
     end
 
   end

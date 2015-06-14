@@ -103,17 +103,17 @@ module Pwrake
         id,item = $1,$2
         @channel[id].enq([:err,item])
         #
-      when /^start:(#{RE_ID}):(\d*)$/
-        id,pid = $1,$2
-        @channel[id].enq([:start,pid])
+      when /^start:(#{RE_ID})$/
+        id = $1
+        @channel[id].enq([:start])
         #
-      when /^end:(#{RE_ID})(?::(\d*):(.*))?$/
-        id,pid,status = $1,$2,$3
-        @channel[id].enq([:end,pid,status])
+      when /^end:(#{RE_ID})(?::(.*))?$/
+        id,status = $1,$2
+        @channel[id].enq([:end,status])
         #
       when /^err:(#{RE_ID}):(.*)$/
-        id,pid,stat_val,stat_cond = $1,$2,$3,$4
-        @channel[id].enq([:end,pid,stat_val,stat_cond])
+        id,stat_val,stat_cond = $1,$2,$3
+        @channel[id].enq([:end,stat_val,stat_cond])
         #
       when /^open:(#{RE_ID})$/
         id = $1
