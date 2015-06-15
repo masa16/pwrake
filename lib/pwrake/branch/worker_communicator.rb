@@ -51,11 +51,11 @@ module Pwrake
     def pass_env
       @heartbeat = Time.now
       if @path
-        @iow.puts "export:PATH='#{path}'"
+        @iow.puts "export:PATH=#{path}"
       end
       if env = @option[:pass_env]
         env.each do |k,v|
-          @iow.puts "export:#{k}='#{v}'"
+          @iow.puts "export:#{k}=#{v}"
         end
       end
     end
