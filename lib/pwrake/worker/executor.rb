@@ -38,7 +38,8 @@ module Pwrake
           @pid = Kernel.spawn(@shell_command,
                               :out=>@spawn_out,
                               :err=>@spawn_err,
-                              :in=>@spawn_in)
+                              :in=>@spawn_in,
+                              :chdir=>@dir.current)
           @out.puts "open:#{@id}"
           while cmd = @queue.deq
             run(cmd)
