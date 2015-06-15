@@ -5,7 +5,6 @@ module Pwrake
   class Invoker
 
     def initialize(dir_class, n_core)
-      @heartbeat_interval = 30
       @dir_class = dir_class
       @out = Writer.instance # firstly replace $stderr
       @log = LogExecutor.instance
@@ -57,6 +56,9 @@ module Pwrake
           k,v = $1,$2
           ENV[k] = v
           #
+        when /^heartbeat:(.*)$/o
+          @heartbeat_interval = $1.to_i
+          #
         when /^open:(.*)$/o
           $1.split.each do |id|
             Executor.new(@dir_class,id)
@@ -78,10 +80,12 @@ module Pwrake
     end
 
     def start_heartbeat
-      @heartbeat_thread = Thread.new do
-        while true
-          @out.puts "heartbeat"
-          sleep @heartbeat_interval
+      if @heartbeat_interval
+        @heartbeat_thread = Thread.new do
+          while true
+            @out.puts "heartbeat"
+            sleep @heartbeat_interval
+          end
         end
       end
     end

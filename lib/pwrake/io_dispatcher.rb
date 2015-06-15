@@ -56,21 +56,21 @@ module Pwrake
 
     def event_loop(timeout=nil)
       while !@rd_io.empty?
-        io_sel = IO.select(@rd_io,nil,nil,timeout)
-        if io_sel
-          for io in io_sel[0]
-            if io.eof?
-              detach(io)
-            else
-              return if @rd_hdl[io].on_read(io)
-            end
+        io_sel, = IO.select(@rd_io,nil,nil,timeout)
+        if io_sel.nil?
+          raise TimeoutError,"Timeout (#{timeout} s) in IO.select"
+        end
+        for io in io_sel
+          if io.eof?
+            detach(io)
+          else
+            return if @rd_hdl[io].on_read(io)
           end
-        else
-          raise TimeoutError,"timeout(#{timeout} s)"
         end
         if timeout && @hb_earliest
           if Time.now - @hb_earliest > timeout
-            raise TimeoutError,"heartbeat timeout(#{timeout}s) host=#{get_host(io)}"
+            io = @hb_time.key(@hb_earliest)
+            raise TimeoutError,"Timeout (#{timeout}s) in Heartbeat from host=#{get_host(io)}"
           end
         end
       end

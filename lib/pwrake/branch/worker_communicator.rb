@@ -58,6 +58,9 @@ module Pwrake
           @iow.puts "export:#{k}=#{v}"
         end
       end
+      if @heartbeat_timeout
+        @iow.puts "heartbeat:#{@heartbeat_timeout/2}"
+      end
     end
 
     def system_cmd
