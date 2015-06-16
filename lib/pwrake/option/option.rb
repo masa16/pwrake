@@ -103,6 +103,7 @@ module Pwrake
         'FILESYSTEM',
         'SSH_OPTION',
         'PASS_ENV',
+        ['SHELL_RC','SHELLRC'],
         'GNU_TIME',
         'DEBUG',
         'PLOT_PARALLELISM',

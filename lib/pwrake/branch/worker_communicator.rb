@@ -53,13 +53,33 @@ module Pwrake
       if @path
         @iow.puts "export:PATH=#{path}"
       end
+      #
       if env = @option[:pass_env]
         env.each do |k,v|
           @iow.puts "export:#{k}=#{v}"
         end
       end
+      #
       if @heartbeat_timeout
         @iow.puts "heartbeat:#{@heartbeat_timeout/2}"
+      end
+      #
+      a = @option[:shell_rc]
+      case a
+      when Array
+        a = a.map{|s| s.split(/\n/)}.flatten
+      when String
+        a = a.split(/\n/)
+      when NilClass
+        a = []
+      else
+        raise RuntimeError,"Invalid option as SHELL_RC: #{a.inspect}"
+      end
+      if s = a.last && /\\$/ =~ s
+        s << " " # last line
+      end
+      a.each do |s|
+        @iow.puts "shellrc:#{s}"
       end
     end
 

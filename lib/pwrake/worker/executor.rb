@@ -6,8 +6,9 @@ module Pwrake
     CHARS='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
     TLEN=32
 
-    def initialize(dir_class,id)
+    def initialize(dir_class,id,shellrc)
       @id = id
+      @shellrc = shellrc
       @shell_command = "/bin/sh"
       @terminator = ""
       TLEN.times{ @terminator << CHARS[rand(CHARS.length)] }
@@ -41,6 +42,9 @@ module Pwrake
                               :in=>@spawn_in,
                               :chdir=>@dir.current)
           @out.puts "open:#{@id}"
+          @shellrc.each do |cmd|
+            run_rc(cmd)
+          end
           while cmd = @queue.deq
             run(cmd)
           end
@@ -79,7 +83,46 @@ module Pwrake
       end
     end
 
+    def run_rc(cmd)
+      if /\\$/ =~ cmd  # command line continues
+        @sh_in.puts(cmd)
+        return
+      end
+      term = "\necho '#{@terminator}':$? \necho '#{@terminator}' 1>&2"
+      @sh_in.puts(cmd+term)
+      @log.info "<start:#{@id}" if @log
+      status = ""
+      io_set = [@sh_out,@sh_err]
+      loop do
+        io_sel, = IO.select(io_set,nil,nil)
+        for io in io_sel
+          s = io.gets.chomp
+          case io
+          when @sh_out
+            if s[0,TLEN] == @terminator
+              status = s[TLEN+1..-1]
+              io_set.delete(@sh_out)
+            else
+              @log.info "<#{@id}:"+s if @log
+            end
+          when @sh_err
+            if s[0,TLEN] == @terminator
+              io_set.delete(@sh_err)
+            else
+              @log.info "<#{@id}e:"+s if @log
+            end
+          end
+        end
+        break if io_set.empty?
+      end
+      @log.info "<end:#{@id}:#{status}" if @log
+    end
+
     def run_command(cmd)
+      if /\\$/ =~ cmd  # command line continues
+        @sh_in.puts(cmd)
+        return
+      end
       term = "\necho '#{@terminator}':$? \necho '#{@terminator}' 1>&2"
       @sh_in.puts(cmd+term)
       @out.puts "start:#{@id}"

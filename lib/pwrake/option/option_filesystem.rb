@@ -17,6 +17,7 @@ module Pwrake
         :log_dir   => self['LOG_DIR'],
         :pass_env  => self['PASS_ENV'],
         :ssh_opt   => self['SSH_OPTION'],
+        :shell_rc  => self['SHELL_RC'],
         :heartbeat_timeout => self['HEARTBEAT_TIMEOUT']
       }
 

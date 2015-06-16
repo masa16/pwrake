@@ -6,6 +6,7 @@ module Pwrake
 
     def initialize(dir_class, n_core)
       @dir_class = dir_class
+      @shellrc = []
       @out = Writer.instance # firstly replace $stderr
       @log = LogExecutor.instance
       @log.open(@dir_class)
@@ -59,9 +60,12 @@ module Pwrake
         when /^heartbeat:(.*)$/o
           @heartbeat_interval = $1.to_i
           #
+        when /^shellrc:(.*)$/o
+          @shellrc << $1
+          #
         when /^open:(.*)$/o
           $1.split.each do |id|
-            Executor.new(@dir_class,id)
+            Executor.new(@dir_class,id,@shellrc)
           end
           #
         when /^kill:(.*)$/o
@@ -102,7 +106,7 @@ module Pwrake
               @out.puts "end:#{id}"
               next
             else
-              ex = Executor.new(@dir_class,id)
+              ex = Executor.new(@dir_class,id,@shellrc)
             end
           end
           ex.execute(cmd)
