@@ -53,17 +53,21 @@ module Pwrake
       if @path
         @iow.puts "export:PATH=#{path}"
       end
-      #
+      # PASS_ENV
       if env = @option[:pass_env]
         env.each do |k,v|
           @iow.puts "export:#{k}=#{v}"
         end
       end
-      #
+      # HEARTBEAT_TIMEOUT
       if @heartbeat_timeout
         @iow.puts "heartbeat:#{@heartbeat_timeout/2}"
       end
-      #
+      # SHELL_COMMAND
+      if s = @option[:shell_command]
+        @iow.puts "shell_command:#{s}"
+      end
+      # SHELL_RC
       a = @option[:shell_rc]
       case a
       when Array
@@ -79,7 +83,7 @@ module Pwrake
         s << " " # last line
       end
       a.each do |s|
-        @iow.puts "shellrc:#{s}"
+        @iow.puts "shell_rc:#{s}"
       end
     end
 

@@ -103,6 +103,7 @@ module Pwrake
         'FILESYSTEM',
         'SSH_OPTION',
         'PASS_ENV',
+        ['SHELL_COMMAND', proc{|v| v||ENV['SHELL']}],
         ['SHELL_RC','SHELLRC'],
         'GNU_TIME',
         'DEBUG',
@@ -172,10 +173,10 @@ module Pwrake
         ['GFARM_SUBDIR', proc{|v| v || '/'}],
         ['MAX_GFWHERE_WORKER', proc{|v| (v || 8).to_i}],
         ['MASTER_HOSTNAME', proc{|v| (v || begin;`hostname -f`;rescue;end || '').chomp}],
-        ['WORK_DIR',proc{|v|
-            v ||= '%CWD_RELATIVE_TO_HOME'
-            v.sub('%CWD_RELATIVE_TO_HOME',cwd_relative_to_home)
-          }],
+        ['WORK_DIR', proc{|v|
+           v ||= '%CWD_RELATIVE_TO_HOME'
+           v.sub('%CWD_RELATIVE_TO_HOME',cwd_relative_to_home)
+         }],
       ]
     end
 

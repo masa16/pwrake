@@ -6,10 +6,10 @@ module Pwrake
     CHARS='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
     TLEN=32
 
-    def initialize(dir_class,id,shellrc)
+    def initialize(dir_class,id,shell_cmd,shell_rc)
       @id = id
-      @shellrc = shellrc
-      @shell_command = "/bin/sh"
+      @shell_rc = shell_rc
+      @shell_cmd = shell_cmd || ENV['SHELL'] || '/bin/sh'
       @terminator = ""
       TLEN.times{ @terminator << CHARS[rand(CHARS.length)] }
       @out = Writer.instance
@@ -36,13 +36,13 @@ module Pwrake
         begin
           @dir.open
           @dir.open_messages.each{|m| @log.info(m)}
-          @pid = Kernel.spawn(@shell_command,
+          @pid = Kernel.spawn(@shell_cmd,
                               :out=>@spawn_out,
                               :err=>@spawn_err,
                               :in=>@spawn_in,
                               :chdir=>@dir.current)
           @out.puts "open:#{@id}"
-          @shellrc.each do |cmd|
+          @shell_rc.each do |cmd|
             run_rc(cmd)
           end
           while cmd = @queue.deq
