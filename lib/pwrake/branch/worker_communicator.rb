@@ -2,7 +2,6 @@ module Pwrake
 
   class WorkerCommunicator < Communicator
 
-    @@worker_path = (Pathname.new(File.dirname(__FILE__)).expand_path+"../../../bin").realpath
     RE_ID='\d+'
     attr_reader :id, :host, :ncore
     attr_reader :channel
