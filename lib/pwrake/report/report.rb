@@ -54,6 +54,9 @@ EOL
           break
         end
       end
+      if @ncore.nil?
+        raise StandardError, "Not found: num_cores"
+      end
 
       begin
         @sh_table = CSV.read(@csv_file,:headers=>true,:skip_lines=>/\A#/)
