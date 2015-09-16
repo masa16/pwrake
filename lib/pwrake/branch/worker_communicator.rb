@@ -28,7 +28,6 @@ module Pwrake
       @worker_progs.each do |f|
         worker_code << IO.read(d+f+'.rb')
       end
-      open("/tmp/worker.rb","w"){|f| f.write(worker_code)}
       rb_cmd = "ruby -e 'eval ARGF.read(#{worker_code.size})'"
       if ['localhost','localhost.localdomain','127.0.0.1'].include? @host
         cmd = "cd; #{rb_cmd}"
