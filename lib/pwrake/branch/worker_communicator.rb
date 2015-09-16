@@ -7,26 +7,15 @@ module Pwrake
     attr_reader :channel
 
     @@worker_communicators = []
-    @@worker_code = nil
 
-    def worker_code
-      if @@worker_code.nil?
-        d = File.dirname(__FILE__)+'/../worker/'
-        @@worker_code = ""
-        @option[:worker_progs].each do |f|
-          @@worker_code << IO.read(d+f+'.rb')
-        end
-      end
-      @@worker_code
-    end
-
-    def initialize(id,host,ncore,dispatcher,opt={})
+    def initialize(id,host,ncore,dispatcher,option)
       @id = id
       @ncore = @n_total_core = ncore
       @channel = {}
       #
       @dispatcher = dispatcher
-      @option = opt
+      @worker_progs = option.worker_progs
+      @option = option.worker_option
       @heartbeat_timeout = @option[:heartbeat_timeout]
       super(host)
       @close_command = "exit_worker"
@@ -34,66 +23,27 @@ module Pwrake
     end
 
     def setup_connection(w0,w1,r2)
-      cmd = system_cmd
+      d = File.dirname(__FILE__)+'/../worker/'
+      worker_code = ""
+      @worker_progs.each do |f|
+        worker_code << IO.read(d+f+'.rb')
+      end
+      open("/tmp/worker.rb","w"){|f| f.write(worker_code)}
+      rb_cmd = "ruby -e 'eval ARGF.read(#{worker_code.size})'"
+      if ['localhost','localhost.localdomain','127.0.0.1'].include? @host
+        cmd = "cd; #{rb_cmd}"
+      else
+        cmd = "ssh -x -T -q #{@option[:ssh_option]} #{@host} \"#{rb_cmd}\""
+      end
       Log.debug cmd
       @pid = spawn(cmd,:pgroup=>true,:out=>w0,:err=>w1,:in=>r2)
       w0.close
       w1.close
       r2.close
       @iow.write worker_code
-      @iow.puts @option[:base_dir]
-      @iow.puts @option[:work_dir]
-      @iow.puts @option[:log_dir]
-      @iow.puts @ncore
-    end
-
-    def pass_env
+      Marshal.dump(@ncore,@iow)
+      Marshal.dump(@option,@iow)
       @heartbeat = Time.now
-      if @path
-        @iow.puts "export:PATH=#{path}"
-      end
-      # PASS_ENV
-      if env = @option[:pass_env]
-        env.each do |k,v|
-          @iow.puts "export:#{k}=#{v}"
-        end
-      end
-      # HEARTBEAT_TIMEOUT
-      if @heartbeat_timeout
-        @iow.puts "heartbeat:#{@heartbeat_timeout/2}"
-      end
-      # SHELL_COMMAND
-      if s = @option[:shell_command]
-        @iow.puts "shell_command:#{s}"
-      end
-      # SHELL_RC
-      a = @option[:shell_rc]
-      case a
-      when Array
-        a = a.map{|s| s.split(/\n/)}.flatten
-      when String
-        a = a.split(/\n/)
-      when NilClass
-        a = []
-      else
-        raise RuntimeError,"Invalid option as SHELL_RC: #{a.inspect}"
-      end
-      if s = a.last && /\\$/ =~ s
-        s << " " # last line
-      end
-      a.each do |s|
-        @iow.puts "shell_rc:#{s}"
-      end
-    end
-
-    def system_cmd
-      ssh_opt = @option[:ssh_opt]
-      cmd = "ruby -e 'eval ARGF.read(#{worker_code.size})'"
-      if ['localhost','localhost.localdomain','127.0.0.1'].include? @host
-        "cd; #{cmd}"
-      else
-        "ssh -x -T -q #{ssh_opt} #{@host} \"#{cmd}\""
-      end
     end
 
     def close

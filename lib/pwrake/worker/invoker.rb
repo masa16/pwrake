@@ -4,9 +4,9 @@ module Pwrake
 
   class Invoker
 
-    def initialize(dir_class, n_core)
+    def initialize(dir_class, n_core, option)
       @dir_class = dir_class
-      @shell_rc = []
+      @option = option
       @out = Writer.instance # firstly replace $stderr
       @log = LogExecutor.instance
       @log.open(@dir_class)
@@ -20,12 +20,10 @@ module Pwrake
                  processor_count
                end
       @out.puts "ncore:#{@ncore}"
-
       at_exit{
         @log.info "at_exit"
         close_all
       }
-
       # does NOT exit when writing to broken pipe
       Signal.trap("PIPE", "SIG_IGN")
     end
@@ -44,28 +42,25 @@ module Pwrake
     end
 
     def run
+      setup_option
       setup_loop
       start_heartbeat
       command_loop
     end
 
+    def setup_option
+      @log.info @option.inspect
+      @heartbeat_interval = @option[:heartbeat_interval]
+      @shell_cmd = @option[:shell_command]
+      @shell_rc = @option[:shell_rc] || []
+      (@option[:pass_env]||{}).each do |k,v|
+        ENV[k] = v
+      end
+    end
+
     def setup_loop
       while line = get_line
         case line
-          #
-        when /^export:(\w+)=(.*)$/o
-          k,v = $1,$2
-          ENV[k] = v
-          #
-        when /^heartbeat:(.*)$/o
-          @heartbeat_interval = $1.to_i
-          #
-        when /^shell_command:(.*)$/o
-          @shell_cmd = $1
-          #
-        when /^shell_rc:(.*)$/o
-          @shell_rc << $1
-          #
         when /^open:(.*)$/o
           $1.split.each do |id|
             Executor.new(@dir_class,id,@shell_cmd,@shell_rc)

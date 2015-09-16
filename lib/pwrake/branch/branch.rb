@@ -67,7 +67,7 @@ module Pwrake
         if /^(\d+):(\S+) (\d+)?$/ =~ s
           id, host, ncore = $1,$2,$3
           ncore &&= ncore.to_i
-          comm = WorkerCommunicator.new(id,host,ncore,@dispatcher,@options.worker_option)
+          comm = WorkerCommunicator.new(id,host,ncore,@dispatcher,@options)
           @wk_comm[comm.ior] = comm
           @comm_set << comm
           @dispatcher.attach_hb(comm.ior,comm)
@@ -101,7 +101,7 @@ module Pwrake
       if !(io_list.empty? && io_fail.empty?)
         t = io_list.map{|io| @wk_comm[io].host}.join(',')
         f = io_fail.map{|io| @wk_comm[io].host}.join(',')
-        raise RuntimeError, "error in connection to worker: fail:(#{f}),timeout:(#{t})"
+        raise RuntimeError, "error in connection to worker: timeout:[#{t}],fail:[#{f}]"
       end
 
       # ncore
@@ -112,11 +112,6 @@ module Pwrake
       end
       @iow.puts "ncore:done"
       @iow.flush
-
-      # pass env
-      @wk_comm.each_value do |comm|
-        comm.pass_env
-      end
 
       # shells
       @shells = []

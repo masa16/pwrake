@@ -3,20 +3,18 @@ module Pwrake
   class Option
 
     attr_reader :worker_option
+    attr_reader :worker_progs
     attr_reader :queue_class
 
     def setup_filesystem
 
-      progs = %w[ writer log_executor executor invoker shared_directory ]
-
+      @worker_progs = %w[ writer log_executor executor invoker shared_directory ]
       @worker_option = {
-        :worker_progs => progs + %w[ worker_main ],
-        :worker_cmd => "pwrake_worker",
         :base_dir  => "",
         :work_dir  => self['WORK_DIR'],
         :log_dir   => self['LOG_DIR'],
         :pass_env  => self['PASS_ENV'],
-        :ssh_opt   => self['SSH_OPTION'],
+        :ssh_option => self['SSH_OPTION'],
         :shell_command => self['SHELL_COMMAND'],
         :shell_rc  => self['SHELL_RC'],
         :heartbeat_timeout => self['HEARTBEAT_TIMEOUT']
@@ -41,11 +39,12 @@ module Pwrake
         prefix = self['GFARM_PREFIX']
         mntpnt = "#{base}/#{prefix}"
         @worker_option.merge!({
-          :worker_progs => progs + %w[ gfarm_directory worker_gfarm ],
+          :shared_directory => "GfarmDirectory",
           :base_dir => mntpnt,
           :work_dir => GfarmPath.pwd.to_s,
           :single_mp => self['GFARM_SINGLE_MP']
         })
+        @worker_progs << "gfarm_directory"
 
 	if self['DISABLE_AFFINITY']
 	  @queue_class = "TaskQueue"
@@ -57,7 +56,9 @@ module Pwrake
         @filesystem  = 'nfs'
         @queue_class = "TaskQueue"
         #@num_noaction_threads = (n_noaction_th || 1).to_i
+        @worker_option[:shared_directory] = "SharedDirectory"
       end
+      @worker_progs << "worker_main"
       Log.debug "@queue_class=#{@queue_class}"
     end
 

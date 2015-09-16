@@ -7,8 +7,10 @@ module Pwrake
     @@current_id = 0
     @@hostname = `hostname`.chomp
 
-    def self.init(*args)
-      @@prefix, @@work_dir, @@log_dir, = args
+    def self.init(opts)
+      @@prefix   = opts[:base_dir]
+      @@work_dir = opts[:work_dir]
+      @@log_dir  = opts[:log_dir]
       Dir.chdir(ENV['HOME'])
     end
 

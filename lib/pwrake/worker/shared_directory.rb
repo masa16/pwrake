@@ -8,8 +8,10 @@ module Pwrake
     @@work_dir = nil
     @@log_dir = nil
 
-    def self.init(*args)
-      @@prefix, @@work_dir, @@log_dir, = args
+    def self.init(opts)
+      @@prefix   = opts[:base_dir]
+      @@work_dir = opts[:work_dir]
+      @@log_dir  = opts[:log_dir]
     end
 
     # instance methods

@@ -1,11 +1,12 @@
 require "thread"
 require "fileutils"
 
-base_dir, work_dir, log_dir, n_core = 4.times.map{ARGF.gets.chomp}
+ncore = Marshal.load($stdin)
+opts = Marshal.load($stdin)
 begin
-  dir_cls = Pwrake::SharedDirectory
-  dir_cls.init(base_dir, work_dir, log_dir)
-  Pwrake::Invoker.new(dir_cls, n_core).run
+  dc = Pwrake.const_get(opts[:shared_directory])
+  dc.init(opts)
+  Pwrake::Invoker.new(dc, ncore, opts).run
 rescue => exc
   log = Pwrake::LogExecutor.instance
   log.error exc
