@@ -20,6 +20,8 @@ module Pwrake
       @logger.level = @level
     end
 
+    attr_reader :path
+
     def opened?
       @opened
     end
@@ -27,9 +29,10 @@ module Pwrake
     def open(dir_class)
       @dir = dir_class.new
       @dir.open
+      @path = @dir.log_path
       fn = "worker-#{`hostname`.chomp}-#{Process.pid}.log"
-      @logfile = (@dir.log_path + fn).to_s
-      ::FileUtils.mkdir_p(@dir.log_path.to_s)
+      @logfile = (@path + fn).to_s
+      ::FileUtils.mkdir_p(@path.to_s)
       @logger = @logger_file = ::Logger.new(@logfile)
       @opened = true
       @logger.level = @level

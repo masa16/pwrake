@@ -42,6 +42,7 @@ module Pwrake
           :shared_directory => "GfarmDirectory",
           :base_dir => mntpnt,
           :work_dir => GfarmPath.pwd.to_s,
+          :debug_gfarm2fs => self['DEBUG'],
           :single_mp => self['GFARM_SINGLE_MP']
         })
         @worker_progs << "gfarm_directory"
