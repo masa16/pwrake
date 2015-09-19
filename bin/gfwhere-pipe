@@ -32,20 +32,25 @@ module Gfarm
     end
     module_function :find_executable
 
-    LIBGFARM_PATH = nil
-    LIBGFARM_FILE = "libgfarm.so*"
-    if LIBGFARM_PATH
-      path = File.join(LIBGFARM_PATH,LIBGFARM_FILE)
-    elsif x = find_executable('gfwhere')
-      d = File.dirname(x)
-      %w[lib64 lib].each do |l|
-        f = File.join(d,"..",l,LIBGFARM_FILE)
-        g = Dir.glob(f)
-        if !g.empty?
-          path = g[0]
-          break
-        end
+    if LIBGFARM_PATH = ENV['LIBGFARM_PATH']
+      dirs = LIBGFARM_PATH.split(":")
+    elsif d = find_executable('gfwhere')
+      d = File.dirname(File.dirname(d))
+      dirs = %w[lib64 lib].map{|l| File.join(d,l)}
+    else
+      raise StandardError, "cannot find libgfarm path"
+    end
+    path = nil
+    dirs.each do |d|
+      f = File.join(d,"libgfarm.so*")
+      g = Dir.glob(f)
+      if !g.empty?
+        path = g[0]
+        break
       end
+    end
+    if !(path && File.exist?(path))
+      raise StandardError, "cannot find libgfarm"
     end
     extend ::FFI::Library
     ffi_lib path
