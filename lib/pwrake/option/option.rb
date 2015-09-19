@@ -105,6 +105,8 @@ module Pwrake
         'PASS_ENV',
         ['SHELL_COMMAND', proc{|v| v||ENV['SHELL']}],
         ['SHELL_RC','SHELLRC'],
+        'GFARM2FS_OPTION',
+        ['GFARM2FS_DEBUG_WAIT', proc{|v| v ? v.to_i : 1}],
         'GNU_TIME',
         'DEBUG',
         'PLOT_PARALLELISM',

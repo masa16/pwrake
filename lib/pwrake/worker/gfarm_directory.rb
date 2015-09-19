@@ -4,7 +4,9 @@ module Pwrake
     @@prefix = nil
     @@work_dir = nil
     @@log_dir = nil
-    @@debug_gfarm2fs = nil
+    @@gfarm2fs_option = nil
+    @@gfarm2fs_debug = nil
+    @@gfarm2fs_debug_wait = 1
     @@current_id = 0
     @@hostname = `hostname`.chomp
 
@@ -12,7 +14,9 @@ module Pwrake
       @@prefix   = opts[:base_dir]
       @@work_dir = opts[:work_dir]
       @@log_dir  = opts[:log_dir]
-      @@debug_gfarm2fs = opts[:debug_gfarm2fs]
+      @@gfarm2fs_option = opts[:gfarm2fs_option]
+      @@gfarm2fs_debug = opts[:gfarm2fs_debug]
+      @@gfarm2fs_debug_wait = opts[:gfarm2fs_debug_wait]
       Dir.chdir(ENV['HOME'])
     end
 
@@ -51,11 +55,11 @@ module Pwrake
     def open
       FileUtils.mkdir_p @gfarm_mountpoint
       path = @log.path
-      if @@debug_gfarm2fs && path
+      if @@gfarm2fs_debug && path
         f = path+("gfarm2fs-"+`hostname`.chomp+"-"+@suffix)
-        spawn_cmd "gfarm2fs -d #{@gfarm_mountpoint} > #{f} 2>&1 & sleep 0.3"
+        spawn_cmd "gfarm2fs #{@@gfarm2fs_option} -d #{@gfarm_mountpoint} > #{f} 2>&1 & sleep #{@@gfarm2fs_debug_wait}"
       else
-        spawn_cmd "gfarm2fs #{@gfarm_mountpoint}"
+        spawn_cmd "gfarm2fs #{@@gfarm2fs_option} #{@gfarm_mountpoint}"
       end
       super
     end
