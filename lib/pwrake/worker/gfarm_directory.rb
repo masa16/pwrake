@@ -33,11 +33,11 @@ module Pwrake
     end
 
     def spawn_cmd(cmd)
+      @log.info "spawn_cmd: "+cmd
       r,w = IO.pipe
       pid = spawn(cmd,[:out,:err]=>w)
       w.close
-      Process.waitpid(pid)
-      status = $?
+      pidmy,status = Process.waitpid2(pid)
       a = []
       while s = r.gets
         a << s.chomp
