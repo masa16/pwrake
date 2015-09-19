@@ -306,6 +306,37 @@ module Pwrake
     end
     attr_reader :host_map
 
+
+    def clear_gfarm2fs
+      setup_hosts
+      d = File.join(self['GFARM_BASEDIR'],self['GFARM_PREFIX'])
+      rcmd = "
+for i in #{d}*; do
+  if [ -d \"$i\" ]; then
+    case \"$i\" in
+      *_000) ;;
+      *) fusermount -u $i; rmdir $i ;;
+    esac
+  fi
+done
+sleep 1
+for i in #{d}*_000; do
+  if [ -d \"$i\" ]; then
+    fusermount -u $i; rmdir $i
+  fi
+done
+"
+      threads = []
+      @host_map.each do |k,hosts|
+        hosts.each do |info|
+          threads << Thread.new do
+            system "ssh #{info.name} '#{rcmd}'"
+          end
+        end
+      end
+      threads.each{|t| t.join}
+    end
+
     # ----- finish -----
 
     def finish_option

@@ -139,7 +139,14 @@ module Pwrake
            Report.new(value||'.',[]).report_html
            exit
          }
-       ]
+       ],
+       ['--clear-gfarm2fs',"[Pw] Clear gfarm2fs mountpoints left after failure.",
+         lambda { |value|
+           Option.new.clear_gfarm2fs
+           exit
+         }
+       ],
+
 
       ])
       opts

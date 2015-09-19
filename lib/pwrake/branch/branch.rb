@@ -163,12 +163,12 @@ module Pwrake
           id,msg = $1,$2
           m = "worker(#{wk.host},chan=#{id}) err>#{msg}"
           Log.fatal m
-          raise m
+          raise m # fix me
           #
         else
           m = "unexpected return from worker #{m}:`#{s.chomp}'"
           Log.fatal m
-          raise m
+          raise m # fix me
         end
         break if waiters.empty?
       end
