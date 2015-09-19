@@ -36,19 +36,24 @@ module Pwrake
         begin
           @dir.open
           @dir.open_messages.each{|m| @log.info(m)}
-          @pid = Kernel.spawn(@shell_cmd,
-                              :out=>@spawn_out,
-                              :err=>@spawn_err,
-                              :in=>@spawn_in,
-                              :chdir=>@dir.current)
-          @out.puts "open:#{@id}"
-          @shell_rc.each do |cmd|
-            run_rc(cmd)
+          begin
+            @pid = Kernel.spawn(@shell_cmd,
+                                :out=>@spawn_out,
+                                :err=>@spawn_err,
+                                :in=>@spawn_in,
+                                :chdir=>@dir.current)
+            @out.puts "open:#{@id}"
+            @shell_rc.each do |cmd|
+              run_rc(cmd)
+            end
+            while cmd = @queue.deq
+              run(cmd)
+            end
+            @sh_in.puts("exit") if !@killed
+          ensure
+            pid,status = Process.waitpid2(@pid)
+            @log.info("shell exit status: "+status.inspect)
           end
-          while cmd = @queue.deq
-            run(cmd)
-          end
-          @sh_in.puts("exit") if !@killed
         rescue => exc
           put_exc(exc)
           @log.error exc
