@@ -55,11 +55,16 @@ module Pwrake
     def open
       FileUtils.mkdir_p @gfarm_mountpoint
       path = @log.path
-      if @@gfarm2fs_debug && path
-        f = path+("gfarm2fs-"+`hostname`.chomp+"-"+@suffix)
-        spawn_cmd "gfarm2fs #{@@gfarm2fs_option} -d #{@gfarm_mountpoint} > #{f} 2>&1 & sleep #{@@gfarm2fs_debug_wait}"
-      else
-        spawn_cmd "gfarm2fs #{@@gfarm2fs_option} #{@gfarm_mountpoint}"
+      begin
+        if @@gfarm2fs_debug && path
+          f = path+("gfarm2fs-"+`hostname`.chomp+"-"+@suffix)
+          spawn_cmd "gfarm2fs #{@@gfarm2fs_option} -d #{@gfarm_mountpoint} > #{f} 2>&1 & sleep #{@@gfarm2fs_debug_wait}"
+        else
+          spawn_cmd "gfarm2fs #{@@gfarm2fs_option} #{@gfarm_mountpoint}"
+        end
+      rescue => exc
+        sleep 1
+        raise exc
       end
       super
     end
