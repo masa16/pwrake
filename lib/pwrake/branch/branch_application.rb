@@ -25,6 +25,7 @@ module Pwrake
             @branch.run
           rescue => e
             Log.fatal e
+            @branch.kill
             raise e
           end
         ensure
@@ -41,6 +42,7 @@ module Pwrake
             @branch.run
           rescue => e
             Log.fatal e
+            @branch.kill
             raise e
           end
         ensure

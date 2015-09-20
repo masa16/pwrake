@@ -133,6 +133,7 @@ module Pwrake
       Log.debug "all fiber started"
 
       waiters = {}
+      errors = []
       @shells.each{|shl| waiters[shl.id]=true}
 
       # receive open notice from worker
@@ -163,14 +164,20 @@ module Pwrake
           id,msg = $1,$2
           m = "worker(#{wk.host},chan=#{id}) err>#{msg}"
           Log.fatal m
-          raise m # fix me
+          errors << m
+          waiters.delete(id)
           #
         else
           m = "unexpected return from worker #{m}:`#{s.chomp}'"
           Log.fatal m
-          raise m # fix me
+          errors << m
+          waiters.clear
         end
-        break if waiters.empty?
+        waiters.empty?
+      end
+
+      if !errors.empty?
+        raise "Failed to start workers"
       end
 
       # setup end
@@ -235,6 +242,11 @@ module Pwrake
         Log.warn(msg)
       when /leave/i
       end
+    end
+
+    def kill(sig="INT")
+      Log.info "#{self.class}#kill #{sig}"
+      @comm_set.kill(sig)
     end
 
     def finish
