@@ -24,9 +24,10 @@ module Pwrake
       BY_FIBER[Fiber.current]
     end
 
-    def initialize(comm,opt={})
+    def initialize(comm,task_q,opt={})
       @comm = comm
       @host = comm.host
+      @task_q = task_q
       @lock = DummyMutex.new
       @@current_id = @@current_id.succ
       @id = @@current_id
@@ -39,9 +40,9 @@ module Pwrake
 
     def start
       BY_FIBER[Fiber.current] = self
-      @chan = Channel.new(@comm,@id)
-      @comm.add_channel(@id,@chan)
-      @chan.open
+      @event_q = FiberQueue.new
+      @comm.add_queue(@id,@event_q)
+      _open
       OPEN_LIST[__id__] = self
     end
 
@@ -55,7 +56,7 @@ module Pwrake
         _system "exit"
         #end
         OPEN_LIST.delete(__id__)
-        @comm.delete_channel(@id)
+        @comm.queue.delete(@id)
       end
     end
 
@@ -99,11 +100,21 @@ module Pwrake
 
     private
 
+    def _puts(s)
+      @comm.puts("#{@id}:#{s}")
+      @comm.flush
+    end
+
+    def _open
+      @comm.puts("open:#{@id}")
+      @comm.flush
+    end
+
     def _system(cmd)
       @cmd = cmd
       #raise "@chan is closed" if @chan.closed?
       @lock.synchronize do
-        @chan.puts(cmd)
+        _puts(cmd)
         status = io_read_loop{}
         Integer(status||1) == 0
       end
@@ -114,7 +125,7 @@ module Pwrake
       #raise "@chan is closed" if @chan.closed?
       a = []
       @lock.synchronize do
-        @chan.puts(cmd)
+        _puts(cmd)
         status = io_read_loop{|x| a << x}
       end
       a.join("\n")
@@ -126,7 +137,7 @@ module Pwrake
       status = nil
       start_time = Time.now
       begin
-        @chan.puts(cmd)
+        _puts(cmd)
         @status = io_read_loop(&block)
       ensure
         end_time = Time.now
@@ -137,7 +148,7 @@ module Pwrake
 
     def io_read_loop
       # @chan.deq must be called in a Fiber
-      while x = @chan.deq  # receive from WorkerCommunicator#on_read
+      while x = @event_q.deq  # receive from WorkerCommunicator#on_read
         #$stderr.puts "x=#{x.inspect}"
         case x[0]
         when :start
@@ -157,6 +168,44 @@ module Pwrake
           msg = "Shell#io_read_loop: Invalid result: #{x.inspect}"
           $stderr.puts(msg)
           Log.error(msg)
+        end
+      end
+    end
+
+    public
+
+    def create_fiber(iow)
+      Fiber.new do
+        start
+        Log.debug "shell start id=#{@id} host=#{@host}"
+        begin
+          while task_str = @task_q.deq
+            Log.debug "task_str=#{task_str}"
+            if /^(\d+):(.*)$/ =~ task_str
+              task_id, task_name = $1.to_i, $2
+            else
+              raise RuntimeError, "invalid task_str: #{task_str}"
+            end
+            #set_current_task(task_id,task_name)
+            @task_id = task_id
+            @task_name = task_name
+            task = Rake.application[task_name]
+            begin
+              task.execute if task.needed?
+            rescue Exception=>e
+              if task.kind_of?(Rake::FileTask) && File.exist?(task.name)
+                #handle_failed_target(task.name)
+              end
+              iow.puts "taskfail:#{@id}:#{task.name}"
+              iow.flush
+              raise e
+            end
+            iow.puts "taskend:#{@id}:#{task.name}"
+            iow.flush
+          end
+        ensure
+          Log.debug "closing shell id=#{@id}"
+          close
         end
       end
     end

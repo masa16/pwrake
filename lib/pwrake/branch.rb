@@ -12,7 +12,6 @@ require "pwrake/branch/file_utils"
 
 require "pwrake/branch/shell"
 require "pwrake/branch/worker_communicator"
-require "pwrake/branch/channel"
 require "pwrake/branch/branch_handler"
 
 require "pwrake/option/option"

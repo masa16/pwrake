@@ -4,14 +4,14 @@ module Pwrake
 
     RE_ID='\d+'
     attr_reader :id, :host, :ncore
-    attr_reader :channel
+    attr_reader :queue
 
     @@worker_communicators = []
 
     def initialize(id,host,ncore,dispatcher,option)
       @id = id
       @ncore = @n_total_core = ncore
-      @channel = {}
+      @queue = {}
       #
       @dispatcher = dispatcher
       @worker_progs = option.worker_progs
@@ -53,16 +53,8 @@ module Pwrake
       @ncore = ncore if @ncore.nil?
     end
 
-    def add_channel(id,channel)
-      @channel[id] = channel
-    end
-
-    def delete_channel(id)
-      @channel.delete(id)
-    end
-
-    def channel_empty?
-      @channel.empty?
+    def add_queue(id,queue)
+      @queue[id] = queue
     end
 
     def on_read(io)   # return to Shell#io_read_loop
@@ -72,27 +64,27 @@ module Pwrake
       case s
       when /^(#{RE_ID}):(.*)$/
         id,item = $1,$2
-        @channel[id].enq([:out,item])
+        @queue[id].enq([:out,item])
         #
       when /^(#{RE_ID})e:(.*)$/
         id,item = $1,$2
-        @channel[id].enq([:err,item])
+        @queue[id].enq([:err,item])
         #
       when /^start:(#{RE_ID})$/
         id = $1
-        @channel[id].enq([:start])
+        @queue[id].enq([:start])
         #
       when /^end:(#{RE_ID})(?::(.*))?$/
         id,status = $1,$2
-        @channel[id].enq([:end,status])
+        @queue[id].enq([:end,status])
         #
       when /^err:(#{RE_ID}):(.*)$/
         id,stat_val,stat_cond = $1,$2,$3
-        @channel[id].enq([:end,stat_val,stat_cond])
+        @queue[id].enq([:end,stat_val,stat_cond])
         #
       when /^open:(#{RE_ID})$/
         id = $1
-        @channel[id].enq([:open])
+        @queue[id].enq([:open])
         #
       when /^heartbeat$/
         @dispatcher.heartbeat(io)

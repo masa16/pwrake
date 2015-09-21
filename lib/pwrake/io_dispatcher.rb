@@ -14,13 +14,13 @@ module Pwrake
       @rd_io = []
       @rd_hdl = {}
       @hb_time = {}
-      @ior,@iow = IO.pipe
-      attach(@ior,ExitHandler.new)
+      ior,@io_exit = IO.pipe
+      attach(ior,ExitHandler.new)
     end
 
     def finish
       Log.debug "#{self.class}.finish"
-      @iow.puts("")
+      @io_exit.puts("")
     end
 
     def attach(io,hdl=nil)

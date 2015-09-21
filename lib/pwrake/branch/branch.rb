@@ -4,7 +4,7 @@ module Pwrake
 
     def initialize(opts,r,w)
       @options = opts
-      @queue = {}  # worker_id => FiberQueue.new
+      @task_q = {}  # worker_id => FiberQueue.new
       @timeout = @options['HEARTBEAT_TIMEOUT']
       @exit_cmd = "exit_connection"
       @shells = []
@@ -21,7 +21,7 @@ module Pwrake
       @comm_set = CommunicatorSet.new
       setup_shells
       setup_fibers
-      bh = BranchHandler.new(@queue,@iow,@comm_set)
+      bh = BranchHandler.new(@task_q,@iow,@comm_set)
       @dispatcher.attach(@ior,bh)
       @dispatcher.event_loop(@timeout)
     end
@@ -71,7 +71,7 @@ module Pwrake
           @wk_comm[comm.ior] = comm
           @comm_set << comm
           @dispatcher.attach_hb(comm.ior,comm)
-          @queue[id] = FiberQueue.new
+          @task_q[id] = FiberQueue.new
         end
       end
 
@@ -117,13 +117,13 @@ module Pwrake
       @shells = []
       @wk_comm.each_value do |comm|
         comm.ncore.times do
-          @shells << shl = Shell.new(comm,@options.worker_option)
+          @shells << Shell.new(comm,@task_q[comm.id],@options.worker_option)
         end
       end
     end
 
     def setup_fibers
-      @fiber_list = @shells.map{|shl| create_fiber(shl)}
+      @fiber_list = @shells.map{|shell| shell.create_fiber(@iow)}
 
       # start fiber
       @fiber_list.each do |fb|
@@ -162,7 +162,7 @@ module Pwrake
           #
         when /^exc:(\d+):(.*)$/
           id,msg = $1,$2
-          m = "worker(#{wk.host},chan=#{id}) err>#{msg}"
+          m = "worker(#{wk.host},id=#{id}) err>#{msg}"
           Log.fatal m
           errors << m
           waiters.delete(id)
@@ -190,42 +190,6 @@ module Pwrake
       @iow.flush
     end
 
-    def create_fiber(shell)
-      Fiber.new do
-        shell.start
-        Log.debug "shell start id=#{shell.id} host=#{shell.host}"
-        comm = shell.communicator
-        queue = @queue[comm.id]
-        begin
-          while task_str = queue.deq
-            tm = Time.now
-            if /^(\d+):(.*)$/ =~ task_str
-              task_id, task_name = $1.to_i, $2
-            else
-              raise RuntimeError, "invalid task_str: #{task_str}"
-            end
-            shell.set_current_task(task_id,task_name)
-            task = Rake.application[task_name]
-            begin
-              task.execute if task.needed?
-            rescue Exception=>e
-              if task.kind_of?(Rake::FileTask) && File.exist?(task.name)
-                handle_failed_target(task.name)
-              end
-              @iow.puts "taskfail:#{shell.id}:#{task.name}"
-              @iow.flush
-              raise e
-            end
-            @iow.puts "taskend:#{shell.id}:#{task.name}"
-            @iow.flush
-            #Log.debug "taskend:#{shell.id}:#{task.name}:time=#{Time.now-tm}"
-          end
-        ensure
-          Log.debug "closing shell id=#{shell.id}"
-          shell.close
-        end
-      end
-    end
 
     def handle_failed_target(name)
       case @options['FAILED_TARGET']
