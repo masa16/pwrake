@@ -21,7 +21,7 @@ module Pwrake
       @comm_set = CommunicatorSet.new
       setup_shells
       setup_fibers
-      bh = BranchHandler.new(@task_q,@iow,@comm_set)
+      bh = MasterHandler.new(@task_q,@iow,@comm_set)
       @dispatcher.attach(@ior,bh)
       @dispatcher.event_loop(@timeout)
     end

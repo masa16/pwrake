@@ -12,7 +12,7 @@ require "pwrake/branch/file_utils"
 
 require "pwrake/branch/shell"
 require "pwrake/branch/worker_communicator"
-require "pwrake/branch/branch_handler"
+require "pwrake/branch/master_handler"
 
 require "pwrake/option/option"
 require "pwrake/option/option_filesystem"

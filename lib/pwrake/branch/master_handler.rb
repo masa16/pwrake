@@ -1,7 +1,7 @@
 
 module Pwrake
 
-  class BranchHandler
+  class MasterHandler
 
     RE_ID='\d+'
 
@@ -33,7 +33,7 @@ module Pwrake
         @comm_set.terminate(sig)
 
       else
-        puts "Invalid item for BranchHandler#on_read: #{s}"
+        puts "Invalid item for MasterHandler#on_read: #{s}"
       end
       return false
     end
