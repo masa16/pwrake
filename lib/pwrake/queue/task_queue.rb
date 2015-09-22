@@ -36,6 +36,7 @@ module Pwrake
     def init_queue(core_map, group_map=nil)
       @q_input = @array_class.new(core_map.size)
       @q_no_input = Array.new
+      @n_turn = 1
     end
 
     attr_accessor :enable_steal
@@ -61,22 +62,25 @@ module Pwrake
       end
     end
 
-
-    def deq_task(&block) # simple version
-      queued = deq_loop(0,&block)
+    def deq_task(&block) # locality version
+      Log.debug "deq_task:"+(empty? ? " empty" : "\n#{inspect_q}")
+      queued = 0
+      @n_turn.times do |turn|
+        next if turn_empty?(turn)
+        queued += deq_turn(turn,&block)
+      end
       if queued>0
         Log.debug "queued:#{queued} @idle_cores:#{@idle_cores.inspect}"
       end
     end
 
-    def deq_loop(turn,&block)
+    def deq_turn(turn,&block)
       queued = 0
       while true
         count = 0
         @idle_cores.keys.each do |hid|
           if turn_empty?(turn)
             return queued
-          #if t = deq(@workers[hid].host)
           elsif tw = deq_impl(hid,turn)
             Log.debug "deq: #{tw.name}"
             if @idle_cores[hid] < tw.n_used_cores
@@ -98,7 +102,7 @@ module Pwrake
       empty?
     end
 
-    def deq_impl(hint=nil, steal=nil)
+    def deq_impl(hint=nil, turn=nil)
       @q_no_action.shift ||
         @q_input.shift ||
         @q_no_input.shift
@@ -118,6 +122,27 @@ module Pwrake
 
     def task_end(tw, hid)
       @idle_cores.increase(hid, tw.n_used_cores)
+    end
+
+    def _qstr(h,q)
+      s = " #{h}: size=#{q.size} "
+      case q.size
+      when 0
+        s << "[]\n"
+      when 1
+        s << "[#{q.first.name}]\n"
+      when 2
+        s << "[#{q.first.name}, #{q.last.name}]\n"
+      else
+        s << "[#{q.first.name},.. #{q.last.name}]\n"
+      end
+      s
+    end
+
+    def inspect_q
+      _qstr("noaction",@q_no_action) +
+      _qstr("input",   @q_input) +
+      _qstr("no_input",@q_no_input)
     end
 
   end
