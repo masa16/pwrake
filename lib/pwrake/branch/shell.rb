@@ -60,10 +60,6 @@ module Pwrake
       end
     end
 
-    def communicator
-      @comm
-    end
-
     def set_current_task(task_id,task_name)
       @task_id = task_id
       @task_name = task_name

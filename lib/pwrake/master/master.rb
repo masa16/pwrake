@@ -90,14 +90,8 @@ module Pwrake
       # receive ncore from WorkerCommunicator at Branch
       #Log.debug "@comm_by_io.keys: #{@comm_by_io.keys.inspect}"
       sum_ncore = 0
-      io_list = @comm_by_io.keys
-      io_fail = []
-      fail_msg = []
-      IODispatcher.event_once(io_list,10) do |io|
-        if io.eof?
-          io_fail << io
-          break
-        end
+      IODispatcher.event_once(@comm_by_io,10) do |io|
+        msg = nil
         while s = io.gets
           s.chomp!
           case s
@@ -110,16 +104,11 @@ module Pwrake
             @idle_cores[id] = ncore
             sum_ncore += ncore
           else
-            fail_msg << "#{@comm_by_io[io].host}:#{s}"
-            io_fail << io
+            msg = "#{@comm_by_io[io].host}:#{s}"
             break
           end
         end
-      end
-      if !(io_list.empty? && io_fail.empty?)
-        t = io_list.map{|io| @comm_by_io[io].host}.join(',')
-        f = io_fail.map{|io| @comm_by_io[io].host}.join(',')
-        raise "fail to receive ncore from branch: timeout:[#{t}],fail:[#{f}],msg=#{fail_msg.join(',')}"
+        msg
       end
 
       Log.info "num_cores=#{sum_ncore}"
@@ -130,25 +119,13 @@ module Pwrake
 
       # wait for branch setup end
       @branch_setup_thread = Thread.new do
-        io_list = @comm_by_io.keys
-        io_fail = []
-        fail_msg = []
-        IODispatcher.event_once(io_list,nil) do |io|
-          if io.eof?
-            io_fail << io
-            break
-          end
+        IODispatcher.event_once(@comm_by_io,nil) do |io|
           s = io.gets
           if /^branch_setup:done$/ !~ s
-            fail_msg << "#{@comm_by_io[io].host}:#{s}"
-            io_fail << io
-            break
+            "#{@comm_by_io[io].host}:#{s}"
+          else
+            nil
           end
-        end
-        if !(io_list.empty? && io_fail.empty?)
-          t = io_list.map{|io| @comm_by_io[io].host}.join(',')
-          f = io_fail.map{|io| @comm_by_io[io].host}.join(',')
-          raise "fail to setup branch: timeout:[#{t}],fail:[#{f}],msg=#{fail_msg.join(',')}"
         end
       end
     end

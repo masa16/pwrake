@@ -76,32 +76,23 @@ module Pwrake
       end
 
       # receive ncore from worker node
-      io_list = @wk_comm.keys
-      io_fail = []
-      IODispatcher.event_once(io_list,@timeout) do |io|
-        if io.eof?
-          io_fail << io
-        else
-          while s = io.gets
-            case s
-            when /^ncore:(\d+)$/
-              @wk_comm[io].set_ncore($1.to_i)
-              Log.debug "#{s.chomp} @#{@wk_comm[io].host}"
-              break
-              #
-            when /^log:(.*)$/
-              Log.debug "worker(#{@wk_comm[io].host})>#{$1}"
-              #
-            else
-              Log.debug "fail to receive #{s.chomp} @#{@wk_comm[io].host}"
-            end
+      IODispatcher.event_once(@wk_comm,@timeout) do |io|
+        msg = nil
+        while s = io.gets
+          case s
+          when /^ncore:(\d+)$/
+            @wk_comm[io].set_ncore($1.to_i)
+            Log.debug "#{s.chomp} @#{@wk_comm[io].host}"
+            break
+          when /^log:(.*)$/
+            Log.debug "worker(#{@wk_comm[io].host})>#{$1}"
+          else
+            Log.debug "fail to receive #{s.chomp} @#{@wk_comm[io].host}"
+            msg = "unknown message:#{s.chomp}"
+            break
           end
         end
-      end
-      if !(io_list.empty? && io_fail.empty?)
-        t = io_list.map{|io| @wk_comm[io].host}.join(',')
-        f = io_fail.map{|io| @wk_comm[io].host}.join(',')
-        raise RuntimeError, "error in connection to worker: timeout:[#{t}],fail:[#{f}]"
+        msg
       end
 
       # ncore

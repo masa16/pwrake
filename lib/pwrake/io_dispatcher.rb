@@ -89,12 +89,29 @@ module Pwrake
       end
     end
 
-    def self.event_once(io_list,timeout)
+    def self.event_once(comm_map,timeout)
+      io_list = comm_map.keys
+      io_fail = {}
       while !io_list.empty? and io_sel = select(io_list,nil,nil,timeout)
+        break if io_sel[0].empty?
         for io in io_sel[0]
-          yield(io)
+          if io.eof?
+            io_fail[comm_map[io].host] = "EOF"
+          elsif msg=yield(io)
+            io_fail[comm_map[io].host] = msg
+          end
           io_list.delete(io)
         end
+      end
+      if !(io_list.empty? && io_fail.empty?)
+        m = "Communication error: "
+        if !io_fail.empty?
+          m << "fail=#{io_fail.inspect},"
+        end
+        if !io_list.empty?
+          m << "timeout=[#{io_list.map{|io| comm_map[io].host}.join(',')}],"
+        end
+        raise RuntimeError, m
       end
     end
 
