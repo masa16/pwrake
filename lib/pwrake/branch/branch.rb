@@ -19,10 +19,10 @@ module Pwrake
     def run
       @dispatcher = IODispatcher.new
       @comm_set = CommunicatorSet.new
+      @master_hdl = MasterHandler.new(@task_q,@iow,@comm_set)
       setup_shells
       setup_fibers
-      bh = MasterHandler.new(@task_q,@iow,@comm_set)
-      @dispatcher.attach(@ior,bh)
+      @dispatcher.attach(@ior,@master_hdl)
       @dispatcher.event_loop(@timeout)
     end
 
@@ -98,11 +98,9 @@ module Pwrake
       # ncore
       @wk_comm.each_value do |comm|
         # set WorkerChannel#ncore at Master
-        @iow.puts "ncore:#{comm.id}:#{comm.ncore}"
-        @iow.flush
+        @master_hdl.ncore(comm)
       end
-      @iow.puts "ncore:done"
-      @iow.flush
+      @master_hdl.ncore_done
 
       # shells
       @shells = []
@@ -114,7 +112,7 @@ module Pwrake
     end
 
     def setup_fibers
-      @fiber_list = @shells.map{|shell| shell.create_fiber(@iow)}
+      @fiber_list = @shells.map{|shell| shell.create_fiber(@master_hdl)}
 
       # start fiber
       @fiber_list.each do |fb|
@@ -177,8 +175,7 @@ module Pwrake
       end
 
       Log.debug "branch setup end"
-      @iow.puts "branch_setup:done"
-      @iow.flush
+      @master_hdl.branch_setup_done
     end
 
 
@@ -214,10 +211,9 @@ module Pwrake
       end
       @dispatcher.finish
 
-      @iow.puts "branch_end"
-      @iow.flush
+      @master_hdl.branch_end
       @ior.close
-      @iow.close
+      @master_hdl.close
     end
 
   end # Pwrake::Branch

@@ -170,7 +170,7 @@ module Pwrake
 
     public
 
-    def create_fiber(iow)
+    def create_fiber(hdl)
       Fiber.new do
         start
         Log.debug "shell start id=#{@id} host=#{@host}"
@@ -192,12 +192,10 @@ module Pwrake
               if task.kind_of?(Rake::FileTask) && File.exist?(task.name)
                 #handle_failed_target(task.name)
               end
-              iow.puts "taskfail:#{@id}:#{task.name}"
-              iow.flush
+              hdl.taskfail(@id,task.name)
               raise e
             end
-            iow.puts "taskend:#{@id}:#{task.name}"
-            iow.flush
+            hdl.taskend(@id,task.name)
           end
         ensure
           Log.debug "closing shell id=#{@id}"
