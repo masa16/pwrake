@@ -51,7 +51,9 @@ module Pwrake
 
     def setup_shells
       s = @ior.gets
-      raise if s.chomp != "begin_worker_list"
+      if s.chomp != "host_list_begin"
+        raise "received=#{s.chomp}, expected=host_list_begin"
+      end
 
       if fn = @options["PROFILE"]
         if dir = @options['LOG_DIR']
@@ -63,8 +65,8 @@ module Pwrake
 
       while s = @ior.gets
         s.chomp!
-        break if s == "end_worker_list"
-        if /^(\d+):(\S+) (\d+)?$/ =~ s
+        break if s == "host_list_end"
+        if /^host:(\d+) (\S+) (\d+)?$/ =~ s
           id, host, ncore = $1,$2,$3
           ncore &&= ncore.to_i
           comm = WorkerCommunicator.new(id,host,ncore,@dispatcher,@options)

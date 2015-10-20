@@ -153,9 +153,5 @@ module Pwrake
         @q_remote.empty?
     end
 
-    def finish
-      super
-    end
-
   end
 end

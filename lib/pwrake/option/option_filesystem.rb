@@ -65,15 +65,23 @@ module Pwrake
       Log.debug "@queue_class=#{@queue_class}"
     end
 
-    def pool_postprocess(dispatcher)
-      require "pwrake/master/fiber_pool"
-      require "pwrake/gfarm/gfwhere_handler"
+    def max_postprocess_pool
       case @filesystem
       when 'gfarm'
-        max = self['MAX_GFWHERE_WORKER']
-        FiberPool.new(GfwhereHandler,max,dispatcher)
+        self['MAX_GFWHERE_WORKER']
       else
-        nil
+        1
+      end
+    end
+
+    def postprocess(runner)
+      case @filesystem
+      when 'gfarm'
+        require "pwrake/gfarm/gfarm_postprocess"
+        GfarmPostprocess.new(runner)
+      else
+        require "pwrake/master/postprocess"
+        Postprocess.new(runner)
       end
     end
 

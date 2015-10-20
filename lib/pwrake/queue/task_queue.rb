@@ -5,7 +5,6 @@ module Pwrake
     def initialize(core_map, group_map=nil)
       @q = []
       @empty = []
-      @finished = false
 
       @enable_steal = true
       @q_no_action = NoActionQueue.new

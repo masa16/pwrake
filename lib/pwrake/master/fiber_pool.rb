@@ -2,13 +2,12 @@ module Pwrake
 
   class FiberPool
 
-    def initialize(handler_class,max_fiber,dispatcher)
-      @handler_class = handler_class
+    def initialize(max_fiber=2,&block)
+      @new_fiber_block = block
       @max_fiber = max_fiber
-      @dispatcher = dispatcher
-      @waiter = []
+      @n_fiber = 0
+      @idle_fiber = []
       @q = []
-      @handlers = []
       @new_fiber_start_time = Time.now-10
     end
 
@@ -18,12 +17,12 @@ module Pwrake
 
     def enq(x)
       @q.push(x)
-      if @waiter.empty? and
-          @handlers.size < @max_fiber and
+      if @idle_fiber.empty? and @n_fiber < @max_fiber and
           Time.now - @new_fiber_start_time > 0.1
-        @waiter << new_fiber
+        @idle_fiber << new_fiber
+        @n_fiber += 1
       end
-      f = @waiter.shift
+      f = @idle_fiber.shift
       f.resume if f
       @finished
     end
@@ -31,7 +30,7 @@ module Pwrake
     def deq
       while @q.empty?
         return nil if @finished
-        @waiter.push(Fiber.current)
+        @idle_fiber.push(Fiber.current)
         Fiber.yield
       end
       @q.shift
@@ -39,29 +38,13 @@ module Pwrake
 
     def finish
       @finished = true
-      @dispatcher.finish
-      while f=@waiter.shift
+      while f = @idle_fiber.shift
         f.resume
       end
     end
 
     def new_fiber
-      handler = @handler_class.new
-      @handlers << handler
-      @dispatcher.attach(handler.io,handler)
-      #
-      Log.debug "fiber_pool new_fiber count=#{@handlers.size}"
-      @new_fiber_start_time = Time.now
-      Fiber.new do
-        while t = deq()
-          r = handler.run(t)
-          @block.call(t,r)
-          if @finished && @q.empty?
-            @dispatcher.detach(handler.io)
-            handler.close
-          end
-        end
-      end
+      @new_fiber_block.call(self)
     end
 
   end

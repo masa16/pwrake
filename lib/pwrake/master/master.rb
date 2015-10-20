@@ -3,13 +3,14 @@ module Pwrake
   class Master
 
     def initialize
-      @dispatcher = IODispatcher.new
+      @runner = Runner.new
       @hostid_by_taskname = {}
       @idle_cores = IdleCores.new
-      @workers = {}
-      @writer = {}
       @option = Option.new
       @exit_task = []
+      @hdl_list = []
+      @channels = {}
+      @hosts = {}
       init_logger
     end
 
@@ -60,176 +61,172 @@ module Pwrake
     end
 
     def setup_branches
-      @conn_list = CommunicatorSet.new
       [:TERM,:INT].each do |sig|
         Signal.trap(sig) do
-          @conn_list.terminate(sig)
+          @hdl_list.each do |hdl|
+            hdl.kill(sig)
+          end
         end
       end
-      @comm_by_io = {}
+
+      sum_ncore = 0
 
       @option.host_map.each do |sub_host, wk_hosts|
-        conn = BranchCommunicator.new(sub_host,@option,self)
-        @conn_list << conn
-        @dispatcher.attach(conn.ior,conn)
-        @writer[conn.ior] = $stdout
-        @writer[conn.ioe] = $stderr
-        @comm_by_io[conn.ior] = conn
-        conn.send_cmd "begin_worker_list"
+        hdl = Handler.new(@runner) do |w0,w1,r2|
+          Thread.new(r2,w0,@option) do |r,w,o|
+            Rake.application.run_branch_in_thread(r,w,o)
+          end
+        end
+        hdl.host = sub_host
+        hdl.set_close_block do |h|
+          h.put_line "exit_branch"
+        end
+        @hdl_list << hdl
+        chan = Channel.new(hdl)
+        chan.put_line "host_list_begin"
+
         wk_hosts.each do |host_info|
           name = host_info.name
           ncore = host_info.ncore
-          Log.debug "connecting #{name} ncore=#{ncore}"
-          chan = WorkerChannel.new(conn,name,ncore)
-          @workers[chan.id] = chan
-          #conn.send_cmd "#{chan.id}:#{name} #{ncore}"
+          host_id = host_info.id
+          Log.debug "connecting #{name} ncore=#{ncore} id=#{host_id}"
+          chan.put_line "host:#{host_id} #{name} #{ncore}"
+          @channels[host_id] = chan
+          @hosts[host_id] = name
         end
-        conn.send_cmd "end_worker_list"
-      end
+        chan.put_line "host_list_end"
 
-      # receive ncore from WorkerCommunicator at Branch
-      #Log.debug "@comm_by_io.keys: #{@comm_by_io.keys.inspect}"
-      sum_ncore = 0
-      IODispatcher.event_once(@comm_by_io,10) do |io|
-        msg = nil
-        while s = io.gets
-          s.chomp!
-          case s
-          when /ncore:done/
-            break
-          when /ncore:(\d+):(\d+)/
-            id, ncore = $1.to_i, $2.to_i
-            Log.debug "worker_id=#{id} ncore=#{ncore}"
-            @workers[id].ncore = ncore
-            @idle_cores[id] = ncore
-            sum_ncore += ncore
-          else
-            msg = "#{@comm_by_io[io].host}:#{s}"
-            break
+        create_fiber([chan]) do |chan|
+          while s = chan.get_line
+            case s
+            when /ncore:done/
+              break
+            when /ncore:(\d+):(\d+)/
+              id, ncore = $1.to_i, $2.to_i
+              Log.debug "worker_id=#{id} ncore=#{ncore}"
+              #@workers[id].ncore = ncore
+              @idle_cores[id] = ncore
+              sum_ncore += ncore
+            else
+              msg = "#{hdl.host}:#{s.inspect}"
+              raise "invalid return: #{msg}"
+            end
           end
         end
-        msg
+        @runner.run
+
       end
 
       Log.info "num_cores=#{sum_ncore}"
-      @workers.each do |id,wk|
-        Log.info "#{wk.host} id=#{wk.id} ncore=#{wk.ncore}"
+      @hosts.each do |id,host|
+        Log.info "#{host} id=#{id} ncore=#{@idle_cores[id]}"
       end
-      @task_queue = Pwrake.const_get(@option.queue_class).new(@idle_cores)
+      q_class = Pwrake.const_get(@option.queue_class)
+      @task_queue = q_class.new(@idle_cores)
 
       # wait for branch setup end
       @branch_setup_thread = Thread.new do
-        IODispatcher.event_once(@comm_by_io,nil) do |io|
-          s = io.gets
+        create_fiber(@channels.values) do |chan|
+          s = chan.get_line
           if /^branch_setup:done$/ !~ s
-            "#{@comm_by_io[io].host}:#{s}"
-          else
-            nil
+            raise "branch_setup failed" # "#{x.handler.host}:#{s}"
           end
         end
+        @runner.run
+      end
+    end
+
+    def create_fiber(channels,&blk)
+      channels.each do |chan|
+        fb = Fiber.new(&blk)
+        fb.resume(chan)
       end
     end
 
     def invoke(t, args)
-      @exit_task << t
+      @exit_task << t.name
       t.pw_search_tasks(args)
       @branch_setup_thread.join
-      wake_idle_core
-      @dispatcher.event_loop
+      send_task_to_idle_core
+      #
+      create_fiber(@channels.values) do |chan|
+        while s = chan.get_line
+          case s
+          when /^task(\w+):(\d*):(.*)$/o
+            status, shell_id, task_name = $1, $2.to_i, $3
+            tw = Rake.application[task_name].wrapper
+            tw.shell_id = shell_id
+            tw.status = status
+            hid = @hostid_by_taskname.delete(task_name)
+            @task_queue.task_end(tw,hid) # @idle_cores.increase(..
+            @post_pool.enq(tw)
+            @exit_task.delete(tw.name)
+            # returns true (end of loop) if @exit_task.empty?
+            if tw.status=="fail" || @exit_task.empty?
+              break
+            end
+          when /^branch_end$/o
+            Log.warn "receive #{s.chomp} from branch"
+            break
+          else
+            $stderr.puts(s)
+          end
+          #puts "exit_task=#{@exit_task}"
+        end
+      end
+      @runner.run
+      @post_pool.finish
     end
 
-    def wake_idle_core
-      #Log.debug "#{self.class}#wake_idle_core start"
+    def send_task_to_idle_core
+      #Log.debug "#{self.class}#send_task_to_idle_core start"
       tm = Time.now
       # @idle_cores.decrease(..
       @task_queue.deq_task do |tw,hid|
         tw.preprocess
         @hostid_by_taskname[tw.name] = hid
         #if tw.has_action?
-          @workers[hid].send_task(tw)
-          tw.exec_host = @workers[hid].host
+          s = "#{hid}:#{tw.task_id}:#{tw.name}"
+          @channels[hid].put_line(s)
+          tw.exec_host = @hosts[hid]
         #else
         #  taskend_proc("noaction",-1,tw.name)
         #end
       end
-      #Log.debug "#{self.class}#wake_idle_core end time=#{Time.now-tm}"
-    end
-
-    def respond_from_branch(io) # called from BranchCommunicator#on_read
-      if io.eof?
-        Log.warn "EOF from branch"
-        return true
-      end
-      s = io.gets
-      case s
-      when /^taskend:(\d*):(.*)$/o
-        taskend_proc("end",$1.to_i,$2)
-        # returns true (end of loop) if @exit_task.empty?
-      when /^taskfail:(\d*):(.*)$/o
-        taskend_proc("fail",$1.to_i,$2)
-        # returns true (end of loop)
-      when /^branch_end$/o
-        s.chomp!
-        Log.warn "receive #{s} from branch"
-        @dispatcher.detach(io)
-        @comm_by_io.delete(io)
-        #@post_proc.finish if @post_proc
-        @comm_by_io.empty? # exit condition
-      else
-        @writer[io].print(s)
-        nil
-      end
-    end
-
-    def taskend_proc(status, shell_id, task_name)
-      tw = Rake.application[task_name].wrapper
-      tw.shell_id = shell_id
-      tw.status = status
-      id = @hostid_by_taskname.delete(task_name)
-      @task_queue.task_end(tw, id) # @idle_cores.increase(..
-      if @post_proc && tw.task.kind_of?(Rake::FileTask)
-        @post_proc.enq(tw)
-      else
-        tw.postprocess([])
-        taskend_end(tw)
-      end
+      #Log.debug "#{self.class}#send_task_to_idle_core end time=#{Time.now-tm}"
     end
 
     def setup_postprocess
-      @post_proc = @option.pool_postprocess(@dispatcher)
-      if @post_proc
-        @post_proc.set_block do |tw,loc|
-          tw.postprocess(loc)
-          taskend_end(tw)
+      n = @option.max_postprocess_pool
+      @post_pool = FiberPool.new(n) do |pool|
+        puts "--- create new fiber"
+        postproc = @option.postprocess(@runner)
+        Fiber.new do
+          while tw = pool.deq()
+            loc = postproc.run(tw.name)
+            tw.postprocess(loc)
+            if tw.status=="fail" || @exit_task.empty?
+              @post_pool.finish
+            else
+              send_task_to_idle_core
+            end
+          end
+          postproc.close
+          puts "--- end of fiber"
         end
-      end
-    end
-
-    def taskend_end(tw)
-      @exit_task.delete(tw.task)
-      if tw.status=="fail" || @exit_task.empty?
-        @post_proc.finish if @post_proc
-        true
-      else
-        wake_idle_core
-        nil
       end
     end
 
     def finish
-      #@task_queue.finish if @task_queue
       @branch_setup_thread.join
-      @conn_list.close_all
-      @dispatcher.finish
-      @dispatcher.event_loop_block do |io|
-        comm = @comm_by_io[io]
-        s = io.gets
-        if comm && (s.nil? || /^branch_end$/o =~ s)
-          Log.debug "#{self.class}#finish: host=#{comm.host} s=#{s.chomp}"
-          @dispatcher.detach(io)
-          @comm_by_io.delete(io)
+      create_fiber(@channels.values) do |chan|
+        s = chan.get_line
+        if s.nil? || /^branch_end$/o =~ s
+          Log.debug "#{self.class}#finish: host=#{comm.host} s=#{s}"
         end
-        @comm_by_io.empty? # exit condition
+      end
+      @hdl_list.each do |hdl|
+        hdl.close
       end
       @task_logger.close if @task_logger
       Log.debug "master:finish"

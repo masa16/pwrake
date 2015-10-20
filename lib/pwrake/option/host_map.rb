@@ -2,11 +2,15 @@ module Pwrake
 
   class HostInfo
 
+    @@id = 0
+
     def initialize(name,ncore,weight,group=nil)
       @name = name
       @ncore = ncore
       @weight = weight
       @group = group
+      @id = @@id
+      @@id = @@id.succ
     end
 
     def merge(info)
@@ -29,7 +33,7 @@ module Pwrake
       end
     end
 
-    attr_reader :name, :ncore, :weight, :group
+    attr_reader :name, :ncore, :weight, :group, :id
   end
 
   class HostMap < Hash
