@@ -43,7 +43,6 @@ module Pwrake
           rescue => e
             Log.fatal e
             @branch.kill
-            raise e
           end
         ensure
           @branch.finish

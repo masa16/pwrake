@@ -6,6 +6,7 @@ module Pwrake
     extend Forwardable
 
     @@current_id = 1
+    @@task_logger = nil
 
     def initialize(task,task_args=nil)
       @task = task
@@ -41,6 +42,24 @@ module Pwrake
       t.strftime("%F %T.%L")
     end
 
+    def self.init_task_logger(option)
+      if tasklog = option['TASKLOG']
+        if log_dir = option['LOG_DIR']
+          ::FileUtils.mkdir_p(log_dir)
+          tasklog = File.join(log_dir,tasklog)
+        end
+        @@task_logger = File.open(tasklog,'w')
+        @@task_logger.print %w[
+          task_id task_name start_time end_time elap_time preq preq_host
+          exec_host shell_id has_action executed file_size file_mtime file_host
+        ].join(',')+"\n"
+      end
+    end
+
+    def self.close_task_logger
+      @@task_logger.close if @@task_logger
+    end
+
     def preprocess
       if @shell = Pwrake::Shell.current
         @shell.current_task = self
@@ -61,7 +80,9 @@ module Pwrake
       #Log.debug "postprocess time=#{Time.now-tm_taskend}"
       log_task
       @shell.current_task = nil if @shell
-      @task.pw_enq_subsequents
+      if @status=="end"
+        @task.pw_enq_subsequents
+      end
     end
 
     def log_task
@@ -73,7 +94,7 @@ module Pwrake
       if loc && !loc.empty? && shell && !actions.empty?
         Rake.application.count( loc, shell.host )
       end
-      return if !Rake.application.task_logger
+      return if !@@task_logger
       #
       elap = @time_end - @time_start
       if is_file_task?
@@ -112,7 +133,7 @@ module Pwrake
       #
       # task_id task_name start_time end_time elap_time preq preq_host
       # exec_host shell_id has_action executed file_size file_mtime file_host
-      Rake.application.task_logger.print s+"\n"
+      @@task_logger.print s+"\n"
     end
 
     def is_file_task?

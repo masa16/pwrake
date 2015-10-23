@@ -43,9 +43,10 @@ module Pwrake
 
     def run
       setup_option
-      setup_loop
-      start_heartbeat
-      command_loop
+      if setup_loop
+        start_heartbeat
+        command_loop
+      end
     end
 
     def setup_option
@@ -61,24 +62,17 @@ module Pwrake
     def setup_loop
       while line = get_line
         case line
-        when /^open:(.*)$/o
+        when /^(\d+):open$/o
           $1.split.each do |id|
             Executor.new(@dir_class,id,@shell_cmd,@shell_rc)
           end
-          #
-        when /^kill:(.*)$/o
-          kill_all($1)
-          Kernel.exit
-          #
-        when "exit_worker"
-          Kernel.exit
-          #
         when "setup_end"
-          return
+          return true
         else
-          raise RuntimeError,"invalid line: #{line}"
+          return false if common_line(line)
         end
       end
+      false
     end
 
     def start_heartbeat
@@ -95,45 +89,42 @@ module Pwrake
     def command_loop
       while line = get_line
         case line
-          #
         when /^(\d+):(.*)$/o
           id,cmd = $1,$2
           ex = Executor::LIST[id]
           if ex.nil?
             if cmd=="exit"
-              @out.puts "end:#{id}"
+              @out.puts "#{id}:end"
               next
             else
               ex = Executor.new(@dir_class,id,@shell_cmd,@shell_rc)
             end
           end
           ex.execute(cmd)
-          #
-        when "exit_worker"
-          return
-          #
-        when /^kill:(\d+):(.*)$/o
-          kill_one($1,$2)
-          #
-        when /^kill:(.*)$/o
-          kill_all($1)
-          return
-          #
-        when /^p$/o
-          puts "Executor::LIST = #{Executor::LIST.inspect}"
-          #
         else
-          msg = "invalid line: #{line}"
-          @log.fatal msg
-          raise RuntimeError,msg
+          break if common_line(line)
         end
       end
     end
 
-    def kill_one(id,sig)
-      sig = sig.to_i if /^\d+$/=~sig
-      exc = Executor::LIST[id]
-      exc.kill(sig)
+    def common_line(line)
+      case line
+      when "exit_worker"
+        return true
+        #
+      when /^kill:(.*)$/o
+        kill_all($1)
+        return true
+        #
+      when /^p$/o
+        puts "Executor::LIST = #{Executor::LIST.inspect}"
+        return false
+        #
+      else
+        msg = "invalid line: #{line}"
+        @log.fatal msg
+        raise RuntimeError,msg
+      end
     end
 
     def kill_all(sig)

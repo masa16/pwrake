@@ -42,7 +42,7 @@ module Pwrake
                                 :err=>@spawn_err,
                                 :in=>@spawn_in,
                                 :chdir=>@dir.current)
-            @out.puts "open:#{@id}"
+            @out.puts "#{@id}:open"
             @shell_rc.each do |cmd|
               run_rc(cmd)
             end
@@ -55,7 +55,7 @@ module Pwrake
             @log.info("shell exit status: "+status.inspect)
           end
         rescue => exc
-          put_exc(exc)
+          @out.puts "#{@id}:exc:#{exc}"
           @log.error exc
         ensure
           @dir.close_messages.each{|m| @log.info(m)}
@@ -78,7 +78,7 @@ module Pwrake
         #
       when /^exit\b/
         close
-        put_end
+        @out.puts "#{@id}:exit"
         #
       when String
         run_command(cmd)
@@ -95,7 +95,6 @@ module Pwrake
       end
       term = "\necho '#{@terminator}':$? \necho '#{@terminator}' 1>&2"
       @sh_in.puts(cmd+term)
-      @log.info "<start:#{@id}" if @log
       status = ""
       io_set = [@sh_out,@sh_err]
       loop do
@@ -108,19 +107,19 @@ module Pwrake
               status = s[TLEN+1..-1]
               io_set.delete(@sh_out)
             else
-              @log.info "<#{@id}:"+s if @log
+              @log.info "<#{@id}:o:"+s if @log
             end
           when @sh_err
             if s[0,TLEN] == @terminator
               io_set.delete(@sh_err)
             else
-              @log.info "<#{@id}e:"+s if @log
+              @log.info "<#{@id}:e:"+s if @log
             end
           end
         end
         break if io_set.empty?
       end
-      @log.info "<end:#{@id}:#{status}" if @log
+      @log.info "<#{@id}:z:#{status}" if @log
     end
 
     def run_command(cmd)
@@ -130,7 +129,6 @@ module Pwrake
       end
       term = "\necho '#{@terminator}':$? \necho '#{@terminator}' 1>&2"
       @sh_in.puts(cmd+term)
-      @out.puts "start:#{@id}"
       status = ""
       io_set = [@sh_out,@sh_err]
       loop do
@@ -143,27 +141,19 @@ module Pwrake
               status = s[TLEN+1..-1]
               io_set.delete(@sh_out)
             else
-              @out.puts "#{@id}:"+s
+              @out.puts "#{@id}:o:"+s
             end
           when @sh_err
             if s[0,TLEN] == @terminator
               io_set.delete(@sh_err)
             else
-              @out.puts "#{@id}e:"+s
+              @out.puts "#{@id}:e:"+s
             end
           end
         end
         break if io_set.empty?
       end
-      @out.puts "end:#{@id}:#{status}"
-    end
-
-    def put_end
-      @out.puts "end:#{@id}"
-    end
-
-    def put_exc(exc)
-      @out.puts "exc:#{@id}:#{exc}"
+      @out.puts "#{@id}:z:#{status}"
     end
 
     def close

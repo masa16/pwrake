@@ -1,28 +1,27 @@
 module Pwrake
 
-  class WorkerCommunicator < Communicator
+  class WorkerCommunicator
 
     RE_ID='\d+'
-    attr_reader :id, :host, :ncore
-    attr_reader :queue
+    attr_reader :id, :host, :ncore, :handler
 
-    @@worker_communicators = []
-
-    def initialize(id,host,ncore,dispatcher,option)
+    def initialize(id,host,ncore,runner,option)
       @id = id
       @ncore = @n_total_core = ncore
-      @queue = {}
       #
-      @dispatcher = dispatcher
+      @runner = runner
       @worker_progs = option.worker_progs
       @option = option.worker_option
       @heartbeat_timeout = @option[:heartbeat_timeout]
-      super(host)
-      @close_command = "exit_worker"
-      @@worker_communicators << self
+      @host = host
+      setup_connection
     end
 
-    def setup_connection(w0,w1,r2)
+    def channel
+      @default_channel
+    end
+
+    def setup_connection
       d = File.dirname(__FILE__)+'/../worker/'
       worker_code = ""
       @worker_progs.each do |f|
@@ -35,80 +34,66 @@ module Pwrake
         cmd = "ssh -x -T -q #{@option[:ssh_option]} #{@host} \"#{rb_cmd}\""
       end
       Log.debug cmd
-      @pid = spawn(cmd,:pgroup=>true,:out=>w0,:err=>w1,:in=>r2)
-      w0.close
-      w1.close
-      r2.close
+      @handler = Handler.new(@runner) do |w0,w1,r2|
+        @pid = spawn(cmd,:pgroup=>true,:out=>w0,:err=>w1,:in=>r2)
+        w0.close
+        w1.close
+        r2.close
+      end
+      @handler.set_close_block do |hdl|
+        hdl.put_line "exit_worker"
+      end
+      @iow = @handler.iow
       @iow.write worker_code
       Marshal.dump(@ncore,@iow)
       Marshal.dump(@option,@iow)
-      @heartbeat = Time.now
+      @default_channel = Channel.new(@handler)
     end
 
     def close
-      super
+      if !@closed
+        @closed = true
+        @handler.close
+      end
     end
 
     def set_ncore(ncore)
       @ncore = ncore if @ncore.nil?
     end
 
-    def add_queue(id,queue)
-      @queue[id] = queue
+
+    def ncore_proc(s)
+      if /^ncore:(\d+)$/ =~ s
+        set_ncore($1.to_i)
+        Log.debug "#{s.chomp} @#{@host}"
+        return false
+      else
+        return common_line(s)
+      end
     end
 
-    def on_read(io)   # return to Shell#io_read_loop
-      s = io.gets
-      # $chk.print ">#{s}" if $dbg
-      # $stderr.puts ">"+s
+    def common_line(s)
+      Log.debug "WorkerCommunicator#common_line: #{s.chomp} id=#{@id} host=#{@host}"
       case s
-      when /^(#{RE_ID}):(.*)$/
-        id,item = $1,$2
-        @queue[id].enq([:out,item])
-        #
-      when /^(#{RE_ID})e:(.*)$/
-        id,item = $1,$2
-        @queue[id].enq([:err,item])
-        #
-      when /^start:(#{RE_ID})$/
-        id = $1
-        @queue[id].enq([:start])
-        #
-      when /^end:(#{RE_ID})(?::(.*))?$/
-        id,status = $1,$2
-        @queue[id].enq([:end,status])
-        #
-      when /^err:(#{RE_ID}):(.*)$/
-        id,stat_val,stat_cond = $1,$2,$3
-        @queue[id].enq([:end,stat_val,stat_cond])
-        #
-      when /^open:(#{RE_ID})$/
-        id = $1
-        @queue[id].enq([:open])
-        #
       when /^heartbeat$/
-        @dispatcher.heartbeat(io)
-        #
-      when /^ncore:(\d+)$/
-        @n_total_core = $1
-        #
+        @runner.heartbeat(io)
       when /^worker_end$/
-        Log.debug "#{self.class}#on_read: #{s.chomp} id=#{@id} host=#{@host}"
-        @@worker_communicators.delete(self)
-        return @@worker_communicators.empty?
-        #
-      when /^exc:(#{RE_ID}):(.*)$/
-        id,msg = $1,$2
-        Log.error "worker(#{host},id=#{id}) err>#{msg}"
-        return true
-        #
+        #close
+        return false
       when /^log:(.*)$/
         Log.info "worker(#{host})>#{$1}"
-        #
       else
         Log.warn "worker(#{host}) out>#{s.chomp}"
       end
-      return false
+      true
+    end
+
+    def start_default_fiber
+      Fiber.new do
+        while common_line(@default_channel.get_line)
+        end
+        Log.debug "#{self.class}#start_default_fiber: end of fiber"
+      end.resume
     end
 
   end
