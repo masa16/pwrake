@@ -1,28 +1,33 @@
 module Pwrake
 
-  class CommunicatorSet < Array
+  class HandlerSet < Array
 
     def initialize
       super
-      @signal_procs = []
       @killed = 0
     end
 
-    def signal_trap(&block)
-      @signal_procs << block
-    end
-
-    def kill(sig)
-      each{|comm| comm.kill(sig)}
+    def kill_all(sig)
+      each{|hdl| hdl.kill(sig)}
     end
 
     def close_all
-      each{|comm| comm.close}
-      clear
+      each{|hdl| hdl.close}
     end
 
-    def kill_procs(sig)
-      @signal_procs.each{|b| b.call(sig)}
+    def wait_close(meth_name, end_msg)
+      each do |hdl|
+        while line = hdl.ior.gets
+          line.chomp!
+          m = "#{meth_name}: #{line} host=#{hdl.host}"
+          if line == end_msg
+            Log.debug m
+          else
+            Log.error m
+          end
+        end
+      end
+      clear
     end
 
     def terminate(sig)
@@ -37,9 +42,8 @@ module Pwrake
       case @killed
       when 0
         $stderr.puts "Exiting..."
-        kill(sig)
-        close_all
-        kill_procs(sig)
+        kill_all(sig)
+        close_all()
       when 1
         $stderr.puts "Once more Ctrl-C (SIGINT) for exit."
       else

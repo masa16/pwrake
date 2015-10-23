@@ -64,7 +64,9 @@ module Pwrake
       else
         # End of IO
         @channel.each do |ch,chan|
-          chan.run_fiber(nil)
+          if chan.fiber
+            chan.run_fiber(nil)
+          end
         end
       end
     end
@@ -76,20 +78,22 @@ module Pwrake
         @iow.print line.to_str+"\n"
         @iow.flush
       rescue Errno::EPIPE => e
-        $stderr.puts "Errno::EPIPE in #{self.class}.print '#{line.chomp}'"
         if Rake.application.options.debug
+          $stderr.puts "Errno::EPIPE in #{self.class}.put_line '#{line.chomp}'"
           $stderr.puts e.backtrace.join("\n")
         end
-        raise e
-        #exit(1)
+        #raise e
       end
     end
 
     def close
-      if @close_block
-        @close_block.call(self)
+      if @closed
+        $stderr.puts "already closed handler"
       end
-      #put_line @close_command
+      if @close_block && !@closed
+        @close_block.call(self)
+        @closed = true
+      end
     end
 
     def kill(sig)

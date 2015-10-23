@@ -8,7 +8,7 @@ module Pwrake
       @idle_cores = IdleCores.new
       @option = Option.new
       @exit_task = []
-      @hdl_list = []
+      @hdl_set = HandlerSet.new
       @channels = {}
       @hosts = {}
       init_logger
@@ -17,7 +17,6 @@ module Pwrake
     attr_reader :task_queue
     attr_reader :option
     attr_reader :logger
-    attr_reader :task_logger
 
     def init_logger
       logfile = @option['LOGFILE']
@@ -40,32 +39,16 @@ module Pwrake
       end
     end
 
-
     def init(hosts=nil)
       @option.init
-      init_tasklog
-    end
-
-    def init_tasklog
-      if tasklog = @option['TASKLOG']
-        if dir = @option['LOG_DIR']
-          ::FileUtils.mkdir_p(dir)
-          tasklog = File.join(dir,tasklog)
-        end
-        @task_logger = File.open(tasklog,'w')
-        @task_logger.print %w[
-          task_id task_name start_time end_time elap_time preq preq_host
-          exec_host shell_id has_action executed file_size file_mtime file_host
-        ].join(',')+"\n"
-      end
+      TaskWrapper.init_task_logger(@option)
     end
 
     def setup_branches
+      @killed = 0
       [:TERM,:INT].each do |sig|
         Signal.trap(sig) do
-          @hdl_list.each do |hdl|
-            hdl.kill(sig)
-          end
+          @hdl_set.terminate(sig)
         end
       end
 
@@ -81,7 +64,7 @@ module Pwrake
         hdl.set_close_block do |h|
           h.put_line "exit_branch"
         end
-        @hdl_list << hdl
+        @hdl_set << hdl
         chan = Channel.new(hdl)
         chan.put_line "host_list_begin"
 
@@ -114,7 +97,6 @@ module Pwrake
           end
         end
         @runner.run
-
       end
 
       Log.info "num_cores=#{sum_ncore}"
@@ -159,16 +141,45 @@ module Pwrake
             tw.status = status
             hid = @hostid_by_taskname.delete(task_name)
             @task_queue.task_end(tw,hid) # @idle_cores.increase(..
-            @post_pool.enq(tw)
+            # check failure
+            if tw.status=="fail"
+              Log.warn "taskfail: #{tw.name}"
+              if tw.is_file_task? && File.exist?(tw.name)
+                handle_failed_target(tw.name)
+              end
+              # failure termination
+              case @option['FAILURE_TERMINATION']
+              when 'kill'
+                if !@no_more_run
+                  $stderr.puts "... kills running tasks"
+                  @no_more_run = true
+                  @hdl_set.kill_all("INT")
+                end
+              when 'continue'
+                $stderr.puts "... continues runable tasks"
+              else # 'WAIT'
+                if !@no_more_run
+                  $stderr.puts "... waits for running tasks"
+                  @no_more_run = true
+                end
+              end
+            end
+            # check exit
             @exit_task.delete(tw.name)
-            # returns true (end of loop) if @exit_task.empty?
-            if tw.status=="fail" || @exit_task.empty?
+            if @exit_task.empty?
+              @no_more_run = true
+            end
+            # postprocess
+            @post_pool.enq(tw) # must be after @no_more_run = true
+            #if @no_more_run && @hostid_by_taskname.empty?
+            if @hostid_by_taskname.empty?
               break
             end
           when /^branch_end$/o
-            Log.warn "receive #{s.chomp} from branch"
+            Log.debug "receive #{s.chomp} from branch"
             break
           else
+            Log.error "unknown result: #{s.inspect}"
             $stderr.puts(s)
           end
           #puts "exit_task=#{@exit_task}"
@@ -199,36 +210,45 @@ module Pwrake
     def setup_postprocess
       n = @option.max_postprocess_pool
       @post_pool = FiberPool.new(n) do |pool|
-        puts "--- create new fiber"
         postproc = @option.postprocess(@runner)
         Fiber.new do
           while tw = pool.deq()
             loc = postproc.run(tw.name)
             tw.postprocess(loc)
-            if tw.status=="fail" || @exit_task.empty?
-              @post_pool.finish
-            else
+            if !@no_more_run
               send_task_to_idle_core
             end
           end
           postproc.close
-          puts "--- end of fiber"
         end
+      end
+    end
+
+    def handle_failed_target(name)
+      case @option['FAILED_TARGET']
+        #
+      when /rename/i, NilClass
+        dst = name+"._fail_"
+        ::FileUtils.mv(name,dst)
+        msg = "Rename failed target file '#{name}' to '#{dst}'"
+        $stderr.puts(msg)
+        Log.warn(msg)
+        #
+      when /delete/i
+        ::FileUtils.rm(name)
+        msg = "Delete failed target file '#{name}'"
+        $stderr.puts(msg)
+        Log.warn(msg)
+        #
+      when /leave/i
       end
     end
 
     def finish
       @branch_setup_thread.join
-      create_fiber(@channels.values) do |chan|
-        s = chan.get_line
-        if s.nil? || /^branch_end$/o =~ s
-          Log.debug "#{self.class}#finish: host=#{comm.host} s=#{s}"
-        end
-      end
-      @hdl_list.each do |hdl|
-        hdl.close
-      end
-      @task_logger.close if @task_logger
+      @hdl_set.close_all
+      @hdl_set.wait_close("Master#finish","branch_end")
+      TaskWrapper.close_task_logger
       Log.debug "master:finish"
     end
 

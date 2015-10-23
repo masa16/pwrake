@@ -112,6 +112,7 @@ module Pwrake
         'PLOT_PARALLELISM',
         'SHOW_CONF',
         'FAILED_TARGET', # rename(default), delete, leave
+        'FAILURE_TERMINATION', # wait, kill, continue
         'QUEUE_PRIORITY', # RANK(default), FIFO, LIFO, DFS
         #'NOACTION_QUEUE_PRIORITY', # FIFO(default), LIFO, RAND
         #'NUM_NOACTION_THREADS', # default=4 when gfarm, else 1

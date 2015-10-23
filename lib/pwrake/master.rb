@@ -5,6 +5,7 @@ require "logger"
 
 require "pwrake/iomux/runner"
 require "pwrake/iomux/handler"
+require "pwrake/iomux/handler_set"
 require "pwrake/iomux/channel"
 
 require "pwrake/logger"

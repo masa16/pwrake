@@ -22,7 +22,11 @@ module Pwrake
     end
 
     def run_fiber(*args)
-      @fiber.resume(*args)
+      if @fiber.nil?
+        $stderr.puts "@fiber is nil, args=#{args.inspect}"
+      else
+        @fiber.resume(*args)
+      end
     end
 
     def get_line
