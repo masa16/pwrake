@@ -9,6 +9,7 @@ module Pwrake
       @option = option
       @out = Writer.instance # firstly replace $stderr
       @log = LogExecutor.instance
+      @log.init(@option)
       @log.open(@dir_class)
       @out.add_logger(@log)
       @ncore = case n_core

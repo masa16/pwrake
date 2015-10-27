@@ -128,6 +128,7 @@ module Pwrake
               v
             end
           }],
+        'OUTPUT_WORKER_LOG',
         ['LOGFILE','LOG',
           proc{|v|
             if v

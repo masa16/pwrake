@@ -13,6 +13,7 @@ module Pwrake
         :base_dir  => "",
         :work_dir  => self['WORK_DIR'],
         :log_dir   => self['LOG_DIR'],
+        :output_log => self['OUTPUT_WORKER_LOG'],
         :pass_env  => self['PASS_ENV'],
         :ssh_option => self['SSH_OPTION'],
         :shell_command => self['SHELL_COMMAND'],
