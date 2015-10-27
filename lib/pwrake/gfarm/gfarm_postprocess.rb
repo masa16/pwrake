@@ -24,7 +24,7 @@ module Pwrake
       if s != filename
         raise "gfwhere: file=#{filename}, result=#{s}"
       end
-      while s = chan.get_line
+      while s = @chan.get_line
         s.chomp!
         case s
         when /^gfarm:\/\//
