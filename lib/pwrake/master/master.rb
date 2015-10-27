@@ -172,7 +172,7 @@ module Pwrake
             # postprocess
             @post_pool.enq(tw) # must be after @no_more_run = true
             #if @no_more_run && @hostid_by_taskname.empty?
-            if @hostid_by_taskname.empty?
+            if (@no_more_run || @task_queue.empty?) && @hostid_by_taskname.empty?
               break
             end
           when /^branch_end$/o
@@ -184,6 +184,7 @@ module Pwrake
           end
           #puts "exit_task=#{@exit_task}"
         end
+        Log.debug "Master#invoke: ending fiber"
       end
       @runner.run
       @post_pool.finish
