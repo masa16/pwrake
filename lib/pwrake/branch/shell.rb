@@ -1,6 +1,3 @@
-require 'pwrake/branch/shell_profiler'
-require 'pwrake/io_dispatcher'
-
 module Pwrake
 
   class DummyMutex
