@@ -7,7 +7,6 @@ module Pwrake
       @hostid_by_taskname = {}
       @idle_cores = IdleCores.new
       @option = Option.new
-      @exit_task = []
       @hdl_set = HandlerSet.new
       @channels = {}
       @hosts = {}
@@ -44,6 +43,41 @@ module Pwrake
       TaskWrapper.init_task_logger(@option)
     end
 
+    def setup_branch_handler(sub_host)
+      if sub_host == "localhost" && /^(n|f)/i !~ ENV['T']
+        hdl = Handler.new(@runner) do |w0,w1,r2|
+          @thread = Thread.new(r2,w0,@option) do |r,w,o|
+            Rake.application.run_branch_in_thread(r,w,o)
+          end
+        end
+      else
+        hdl = Handler.new(@runner) do |w0,w1,r2|
+          dir = File.absolute_path(File.dirname($PROGRAM_NAME))
+          #args = Shellwords.shelljoin(@args)
+          cmd = "ssh -x -T -q #{sub_host} '" +
+            "cd \"#{Dir.pwd}\";"+
+            "PATH=#{dir}:${PATH} exec pwrake_branch'"
+          Log.debug("BranchCommunicator cmd=#{cmd}")
+          #$stderr.puts "BranchCommunicator cmd=#{cmd}"
+          spawn(cmd,:pgroup=>true,:out=>w0,:err=>w1,:in=>r2)
+          w0.close
+          w1.close
+          r2.close
+        end
+        Marshal.dump(@option,hdl.iow)
+        hdl.iow.flush
+        s = hdl.ior.gets
+        if !s or s.chomp != "pwrake_branch start"
+          raise RuntimeError,"pwrake_branch start failed: receive #{s.inspect}"
+        end
+      end
+      hdl.host = sub_host
+      hdl.set_close_block do |h|
+        h.put_line "exit_branch"
+      end
+      return hdl
+    end
+
     def setup_branches
       @killed = 0
       [:TERM,:INT].each do |sig|
@@ -55,15 +89,7 @@ module Pwrake
       sum_ncore = 0
 
       @option.host_map.each do |sub_host, wk_hosts|
-        hdl = Handler.new(@runner) do |w0,w1,r2|
-          Thread.new(r2,w0,@option) do |r,w,o|
-            Rake.application.run_branch_in_thread(r,w,o)
-          end
-        end
-        hdl.host = sub_host
-        hdl.set_close_block do |h|
-          h.put_line "exit_branch"
-        end
+        hdl = setup_branch_handler(sub_host)
         @hdl_set << hdl
         chan = Channel.new(hdl)
         chan.put_line "host_list_begin"
@@ -126,55 +152,48 @@ module Pwrake
     end
 
     def invoke(t, args)
-      @exit_task << t.name
+      failure_termination = @option['FAILURE_TERMINATION']
+      failed = false
       t.pw_search_tasks(args)
       @branch_setup_thread.join
       send_task_to_idle_core
       #
       create_fiber(@channels.values) do |chan|
         while s = chan.get_line
+          Log.debug "Master#invoke: s=#{s.inspect}"
           case s
           when /^task(\w+):(\d*):(.*)$/o
             status, shell_id, task_name = $1, $2.to_i, $3
             tw = Rake.application[task_name].wrapper
             tw.shell_id = shell_id
             tw.status = status
-            hid = @hostid_by_taskname.delete(task_name)
+            hid = @hostid_by_taskname[task_name]
             @task_queue.task_end(tw,hid) # @idle_cores.increase(..
             # check failure
-            if tw.status=="fail"
-              Log.warn "taskfail: #{tw.name}"
-              if tw.is_file_task? && File.exist?(tw.name)
-                handle_failed_target(tw.name)
-              end
-              # failure termination
-              case @option['FAILURE_TERMINATION']
-              when 'kill'
-                if !@no_more_run
+            if tw.status == "fail"
+              Log.error "taskfail: #{tw.name}"
+              if !failed
+                failed = true
+                case failure_termination
+                when 'kill'
                   $stderr.puts "... kills running tasks"
-                  @no_more_run = true
                   @hdl_set.kill_all("INT")
-                end
-              when 'continue'
-                $stderr.puts "... continues runable tasks"
-              else # 'WAIT'
-                if !@no_more_run
+                  @no_more_run = true
+                when 'continue'
+                  $stderr.puts "... continues runable tasks"
+                else # 'wait'
                   $stderr.puts "... waits for running tasks"
                   @no_more_run = true
                 end
               end
-            end
-            # check exit
-            @exit_task.delete(tw.name)
-            if @exit_task.empty?
-              @no_more_run = true
+              if tw.is_file_task? && File.exist?(tw.name)
+                handle_failed_target(tw.name)
+              end
             end
             # postprocess
+            hid = @hostid_by_taskname.delete(task_name)
             @post_pool.enq(tw) # must be after @no_more_run = true
-            #if @no_more_run && @hostid_by_taskname.empty?
-            if (@no_more_run || @task_queue.empty?) && @hostid_by_taskname.empty?
-              break
-            end
+            break if @finished
           when /^branch_end$/o
             Log.debug "receive #{s.chomp} from branch"
             break
@@ -182,21 +201,20 @@ module Pwrake
             Log.error "unknown result: #{s.inspect}"
             $stderr.puts(s)
           end
-          #puts "exit_task=#{@exit_task}"
         end
-        Log.debug "Master#invoke: ending fiber"
+        Log.debug "Master#invoke: fiber end"
       end
       @runner.run
       @post_pool.finish
+      Log.debug "Master#invoke: end of task=#{t.name}"
     end
 
     def send_task_to_idle_core
       #Log.debug "#{self.class}#send_task_to_idle_core start"
-      tm = Time.now
       # @idle_cores.decrease(..
       @task_queue.deq_task do |tw,hid|
-        tw.preprocess
         @hostid_by_taskname[tw.name] = hid
+        tw.preprocess
         #if tw.has_action?
           s = "#{hid}:#{tw.task_id}:#{tw.name}"
           @channels[hid].put_line(s)
@@ -209,18 +227,34 @@ module Pwrake
     end
 
     def setup_postprocess
+      i = 0
       n = @option.max_postprocess_pool
       @post_pool = FiberPool.new(n) do |pool|
         postproc = @option.postprocess(@runner)
+        i += 1
+        Log.debug "New postprocess fiber ##{i}"
         Fiber.new do
+          j = i
           while tw = pool.deq()
+            Log.debug "pool##{j} deq=#{tw.name}"
             loc = postproc.run(tw.name)
             tw.postprocess(loc)
-            if !@no_more_run
+            pool.count_down
+            #Log.debug "@no_more_run=#{@no_more_run.inspect}"
+            #Log.debug "@task_queue.empty?=#{@task_queue.empty?}"
+            #Log.debug "@hostid_by_taskname=#{@hostid_by_taskname.inspect}"
+            #Log.debug "pool.empty?=#{pool.empty?}"
+            if (@no_more_run || @task_queue.empty?) && @hostid_by_taskname.empty? && pool.empty?
+              Log.debug "pool##{j} closing @channels=#{@channels.inspect}"
+              @finished = true
+              @channels.each_value{|ch| ch.finish} # exit
+              break
+            elsif !@no_more_run
               send_task_to_idle_core
             end
           end
           postproc.close
+          Log.debug "pool##{j} end"
         end
       end
     end
@@ -246,11 +280,12 @@ module Pwrake
     end
 
     def finish
+      Log.debug "Master#finish begin"
       @branch_setup_thread.join
       @hdl_set.close_all
       @hdl_set.wait_close("Master#finish","branch_end")
       TaskWrapper.close_task_logger
-      Log.debug "master:finish"
+      Log.debug "Master#finish end"
     end
 
   end

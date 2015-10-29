@@ -33,10 +33,6 @@ module Pwrake
 
     attr_reader :id, :host, :status, :profile
 
-    def finish
-      close
-    end
-
     def open
       if @opened
         Log.warn "already opened: host=#{@host} id=#{@id}"
@@ -104,11 +100,21 @@ module Pwrake
     private
 
     def _puts(s)
+      Log.debug "Shell#_puts(host=#{@host},id=#{@id}): #{s.inspect}"
       @chan.put_line(s)
     end
 
     def _gets
-      @chan.get_line
+      s = @chan.get_line
+      Log.debug "Shell#_gets(host=#{@host},id=#{@id}): #{s.inspect}"
+      if s.nil?
+        begin
+          raise
+        rescue => e
+          Log.debug e
+        end
+      end
+      s
     end
 
     def _system(cmd)
@@ -190,7 +196,6 @@ module Pwrake
         Log.warn "not opened: host=#{@host} id=#{@id}"
       end
       Fiber.new do
-        #start
         BY_FIBER[Fiber.current] = self
         Log.debug "shell start id=#{@id} host=#{@host}"
         begin
@@ -209,13 +214,12 @@ module Pwrake
               result = "taskend:#{@id}:#{task.name}"
             rescue Exception=>e
               result = "taskfail:#{@id}:#{task.name}"
-              Log.fatal e
+              Log.error e
             end
             hdl.put_line result
           end
         ensure
-          Log.debug "closing shell id=#{@id}"
-          close
+          Log.debug "shell id=#{@id} fiber end"
         end
       end
     end

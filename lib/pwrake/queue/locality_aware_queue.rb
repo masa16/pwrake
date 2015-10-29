@@ -28,6 +28,7 @@ module Pwrake
 
     def enq_impl(t)
       hints = t && t.suggest_location
+      Log.debug "enq #{t.name} hints=#{hints.inspect}"
       if hints.nil? || hints.empty?
         @q_remote.push(t)
       else

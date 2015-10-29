@@ -13,8 +13,8 @@ module Pwrake
       @runner = Runner.new
       @master_hdl = Handler.new(@runner,@ior,@iow)
       @master_hdl.set_close_block do |hdl|
-        hdl.iow.close
-        hdl.ior.close
+        #hdl.iow.close
+        #hdl.ior.close
       end
       @master_chan = Channel.new(@master_hdl)
       @wk_comm = {}
@@ -29,6 +29,7 @@ module Pwrake
       setup_fibers
       setup_master_channel
       @runner.run
+      Log.debug "Brandh#run end"
     end
 
     attr_reader :logger
@@ -136,7 +137,8 @@ module Pwrake
       @wk_comm.each_value do |comm|
         #comm.start_default_fiber
         Fiber.new do
-          while comm.common_line(comm.channel.get_line)
+          while s = comm.channel.get_line
+            break unless comm.common_line(s)
           end
           Log.debug "Branch#setup_fiber: end of fiber for default channel"
         end.resume
@@ -155,7 +157,7 @@ module Pwrake
       Fiber.new do
         while s = @master_chan.get_line
           # receive command from main pwrake
-          Log.debug "Branch#setup_master_channel: #{s.inspect}"
+          Log.debug "Branch: receive from master: #{s.inspect}"
           case s
             #
           when /^(\d+):(.+)$/o
@@ -165,7 +167,8 @@ module Pwrake
           when /^exit_branch$/
             Log.debug "Branch: exit_branch from master"
             @task_q.each_value{|q| q.finish}
-            @wk_hdl_set.close_all
+            @shells.each{|shell| shell.close}
+            @runner.finish
             break
             #
           when /^kill:(.*)$/o
@@ -185,12 +188,19 @@ module Pwrake
     end
 
     def finish
+      if @finished
+        return
+      else
+        @finished = true
+      end
       Log.debug "Branch#finish: begin"
-      #@wk_hdl_set.close_all
+      @wk_hdl_set.close_all
       @wk_hdl_set.wait_close("Branch#finish","worker_end")
       Log.debug "Branch#finish: worker communicater finish"
       @master_hdl.put_line "branch_end"
+      Log.debug "Branch#finish: sent branch_end"
       @master_hdl.close
+      Log.debug "Branch#finish: @master_hdl.close"
     end
 
   end # Pwrake::Branch

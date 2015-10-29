@@ -42,6 +42,7 @@ module Pwrake
       end
       @handler.set_close_block do |hdl|
         hdl.put_line "exit_worker"
+        Log.debug "WorkerCommunicator(closing handler): sending exit_worker"
       end
       @iow = @handler.iow
       @iow.write worker_code
@@ -78,7 +79,7 @@ module Pwrake
       when /^heartbeat$/
         @runner.heartbeat(io)
       when /^worker_end$/
-        #close
+        Log.debug "Branch: receive worker_end"
         return false
       when /^log:(.*)$/
         Log.info "worker(#{host})>#{$1}"
