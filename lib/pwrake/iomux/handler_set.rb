@@ -22,6 +22,7 @@ module Pwrake
           m = "#{meth_name}: #{line} host=#{hdl.host}"
           if line == end_msg
             Log.debug m
+            break
           else
             Log.error m
           end
