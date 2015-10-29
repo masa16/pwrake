@@ -140,7 +140,9 @@ module Pwrake
 
     def _execute(cmd,quote=nil,&block)
       @cmd = cmd
-      #raise "@chan is closed" if @chan.closed?
+      if !@opened
+        raise "closed"
+      end
       status = nil
       start_time = Time.now
       begin

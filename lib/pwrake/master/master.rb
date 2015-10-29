@@ -72,17 +72,37 @@ module Pwrake
         end
       end
       hdl.host = sub_host
-      hdl.set_close_block do |h|
-        h.put_line "exit_branch"
-      end
       return hdl
+    end
+
+    def signal_trap(sig)
+      case @killed
+      when 0
+        # log writing failed. can't be called from trap context
+        if Rake.application.options.debug
+          $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid}"+
+            " thread=#{Thread.current} ##{@killed})"
+          $stderr.puts caller
+        else
+          $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid} ##{@killed})"
+        end
+        $stderr.puts "Exiting..."
+        @no_more_run = true
+        @failed = true
+        @hdl_set.kill(sig)
+      when 1
+        $stderr.puts "\nOnce more Ctrl-C (SIGINT) for exit."
+      else
+        Kernel.exit # must wait for nomral exit
+      end
+      @killed += 1
     end
 
     def setup_branches
       @killed = 0
       [:TERM,:INT].each do |sig|
         Signal.trap(sig) do
-          @hdl_set.terminate(sig)
+          signal_trap(sig)
         end
       end
 
@@ -153,7 +173,7 @@ module Pwrake
 
     def invoke(t, args)
       failure_termination = @option['FAILURE_TERMINATION']
-      failed = false
+      @failed = false
       t.pw_search_tasks(args)
       @branch_setup_thread.join
       send_task_to_idle_core
@@ -172,12 +192,12 @@ module Pwrake
             # check failure
             if tw.status == "fail"
               Log.error "taskfail: #{tw.name}"
-              if !failed
-                failed = true
+              if !@failed
+                @failed = true
                 case failure_termination
                 when 'kill'
                   $stderr.puts "... kills running tasks"
-                  @hdl_set.kill_all("INT")
+                  @hdl_set.kill("INT")
                   @no_more_run = true
                 when 'continue'
                   $stderr.puts "... continues runable tasks"
@@ -194,7 +214,7 @@ module Pwrake
             hid = @hostid_by_taskname.delete(task_name)
             @post_pool.enq(tw) # must be after @no_more_run = true
             break if @finished
-          when /^branch_end$/o
+          when /^exited$/o
             Log.debug "receive #{s.chomp} from branch"
             break
           else
@@ -282,8 +302,7 @@ module Pwrake
     def finish
       Log.debug "Master#finish begin"
       @branch_setup_thread.join
-      @hdl_set.close_all
-      @hdl_set.wait_close("Master#finish","branch_end")
+      @hdl_set.exit
       TaskWrapper.close_task_logger
       Log.debug "Master#finish end"
     end

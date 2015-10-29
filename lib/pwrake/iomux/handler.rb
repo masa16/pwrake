@@ -29,10 +29,6 @@ module Pwrake
     attr_reader :runner, :ior, :iow, :ioe
     attr_accessor :host
 
-    def set_close_block(&blk)
-      @close_block = blk
-    end
-
     def set_channel(chan)
       if !chan.kind_of?(Channel)
         raise TypeError, "Argument must be Channel but #{chan.class}"
@@ -89,18 +85,18 @@ module Pwrake
       end
     end
 
-    def close
-      if @closed
-        $stderr.puts "already closed handler"
+    def wait_message(end_msg)
+      if line = @ior.gets
+        line.chomp!
+        m = "Handler#wait_message: #{line} host=#{@host}"
+        if line == end_msg
+          Log.debug m
+        else
+          Log.error m
+        end
+      else
+        Log.error "Handler#wait_message: fail to read @ior"
       end
-      if @close_block && !@closed
-        @close_block.call(self)
-        @closed = true
-      end
-    end
-
-    def kill(sig)
-      put_line "kill:#{sig}"
     end
 
   end

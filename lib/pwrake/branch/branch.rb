@@ -12,10 +12,6 @@ module Pwrake
       @iow = w
       @runner = Runner.new
       @master_hdl = Handler.new(@runner,@ior,@iow)
-      @master_hdl.set_close_block do |hdl|
-        #hdl.iow.close
-        #hdl.ior.close
-      end
       @master_chan = Channel.new(@master_hdl)
       @wk_comm = {}
       @wk_hdl_set = HandlerSet.new
@@ -157,15 +153,14 @@ module Pwrake
       Fiber.new do
         while s = @master_chan.get_line
           # receive command from main pwrake
-          Log.debug "Branch: receive from master: #{s.inspect}"
+          Log.debug "Branch: receive #{s.inspect} from master"
           case s
             #
           when /^(\d+):(.+)$/o
             id, tname = $1,$2
             @task_q[id].enq(tname)
             #
-          when /^exit_branch$/
-            Log.debug "Branch: exit_branch from master"
+          when /^exit$/
             @task_q.each_value{|q| q.finish}
             @shells.each{|shell| shell.close}
             @runner.finish
@@ -184,23 +179,17 @@ module Pwrake
 
     def kill(sig="INT")
       Log.warn "Branch#kill #{sig}"
-      @wk_hdl_set.kill_all(sig)
+      @wk_hdl_set.kill(sig)
     end
 
     def finish
-      if @finished
-        return
-      else
-        @finished = true
-      end
+      return if @finished
+      @finished = true
       Log.debug "Branch#finish: begin"
-      @wk_hdl_set.close_all
-      @wk_hdl_set.wait_close("Branch#finish","worker_end")
+      @wk_hdl_set.exit
       Log.debug "Branch#finish: worker communicater finish"
-      @master_hdl.put_line "branch_end"
-      Log.debug "Branch#finish: sent branch_end"
-      @master_hdl.close
-      Log.debug "Branch#finish: @master_hdl.close"
+      @master_hdl.put_line "exited"
+      Log.debug "Branch#finish: sent 'exited' to master"
     end
 
   end # Pwrake::Branch

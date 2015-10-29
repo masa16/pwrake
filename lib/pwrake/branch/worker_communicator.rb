@@ -40,10 +40,6 @@ module Pwrake
         w1.close
         r2.close
       end
-      @handler.set_close_block do |hdl|
-        hdl.put_line "exit_worker"
-        Log.debug "WorkerCommunicator(closing handler): sending exit_worker"
-      end
       @iow = @handler.iow
       @iow.write worker_code
       Marshal.dump(@ncore,@iow)
@@ -78,8 +74,8 @@ module Pwrake
       case s
       when /^heartbeat$/
         @runner.heartbeat(io)
-      when /^worker_end$/
-        Log.debug "Branch: receive worker_end"
+      when /^exited$/
+        Log.debug "Branch: receive exited"
         return false
       when /^log:(.*)$/
         Log.info "worker(#{host})>#{$1}"

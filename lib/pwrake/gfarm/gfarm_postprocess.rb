@@ -3,15 +3,16 @@ module Pwrake
   class GfarmPostprocess
 
     def initialize(runner)
-      io = IO.popen('gfwhere-pipe','r+')
-      io.sync = true
-      @hdl = Handler.new(runner,io,io)
+      @io = IO.popen('gfwhere-pipe','r+')
+      @io.sync = true
+      @hdl = Handler.new(runner,@io,@io)
       @chan = Channel.new(@hdl)
     end
 
     def run(filename)
       begin
-        @chan.put_line(filename)
+        @hdl.iow.puts(filename)
+        @hdl.iow.flush
       rescue Errno::EPIPE
         Log.warn "GfwhereHandler#run: Errno::EPIPE for #{filename}"
         return []
@@ -38,7 +39,7 @@ module Pwrake
     end
 
     def close
-      @hdl.close
+      @io.close
     end
   end
 end

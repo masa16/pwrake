@@ -110,12 +110,12 @@ module Pwrake
 
     def common_line(line)
       case line
-      when "exit_worker"
+      when /^exit$/o
         return true
         #
       when /^kill:(.*)$/o
         kill_all($1)
-        return true
+        return false
         #
       when /^p$/o
         puts "Executor::LIST = #{Executor::LIST.inspect}"
@@ -129,7 +129,7 @@ module Pwrake
     end
 
     def kill_all(sig)
-      sig = sig.to_i if /^\d+$/=~sig
+      sig = sig.to_i if /^\d+$/o =~ sig
       @log.warn "worker_killed:signal=#{sig}"
       Executor::LIST.each{|id,exc| exc.kill(sig)}
     end
@@ -154,7 +154,7 @@ module Pwrake
         $stdout.puts e
         $stdout.puts e.backtrace.join("\n")
       end
-      @out.puts "worker_end"
+      @out.puts "exited"
     end
 
     # from Michael Grosser's parallel

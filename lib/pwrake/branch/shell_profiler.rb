@@ -105,13 +105,25 @@ module Pwrake
                "%.3f" % (end_time-start_time),
                host, status].join(@separator)
       end
-      if status==""
+      case status
+      when ""
         1
-      elsif @gnu_time
-        /^([^,]*),/ =~ status
-        Integer($1)
-      else
-        Integer(status)
+      when Integer
+        status
+      when String
+        if @gnu_time
+          if /^([^,]*),/ =~ status
+            Integer($1)
+          else
+            status
+          end
+        else
+          if /^\d+$/ =~ status
+            Integer(status)
+          else
+            status
+          end
+        end
       end
     end
 

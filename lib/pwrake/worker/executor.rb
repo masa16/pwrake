@@ -180,7 +180,7 @@ module Pwrake
       end
       @spawn_out.puts @terminator+":signal=#{sig}"
       @spawn_err.puts @terminator
-      @queue.enq(nil)
+      #@queue.enq(nil)
     end
 
   end
