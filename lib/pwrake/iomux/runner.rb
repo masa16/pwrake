@@ -41,7 +41,9 @@ module Pwrake
     end
 
     def run(timeout=nil)
+      r = false
       while !(io_set = @channel.keys).empty?
+        r = true
         sel, = IO.select(io_set,nil,nil,timeout)
         if sel.nil?
           raise TimeoutError,"Timeout (#{timeout} s) in IO.select"
@@ -55,6 +57,13 @@ module Pwrake
             raise TimeoutError,"Timeout (#{timeout}s) in Heartbeat from host=#{get_host(io)}"
           end
         end
+      end
+      r
+    end
+
+    def finish
+      @channel.each do |io,channels|
+        channels.each{|key,ch| ch.finish}
       end
     end
 

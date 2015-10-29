@@ -77,11 +77,14 @@ module Pwrake
       begin
         @iow.print line.to_str+"\n"
         @iow.flush
+        Log.debug "Handler#put_line #{line.inspect} @iow=#{@iow.inspect}"
       rescue Errno::EPIPE => e
         if Rake.application.options.debug
           $stderr.puts "Errno::EPIPE in #{self.class}.put_line '#{line.chomp}'"
           $stderr.puts e.backtrace.join("\n")
         end
+        Log.error "Errno::EPIPE in #{self.class}.put_line '#{line.chomp}'\n"+
+          e.backtrace.join("\n")
         #raise e
       end
     end

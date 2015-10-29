@@ -23,9 +23,16 @@ module Pwrake
 
     def run_fiber(*args)
       if @fiber.nil?
-        $stderr.puts "@fiber is nil, args=#{args.inspect}"
+        $stderr.puts "Channel#run_fiber: @fiber is nil, args=#{args.inspect} @id=#{@id}"
+        Log.debug "Channel#run_fiber: @fiber is nil, args=#{args.inspect} @id=#{@id}"
       else
         @fiber.resume(*args)
+      end
+    end
+
+    def finish
+      if !@fiber.nil?
+        @fiber.resume(nil)
       end
     end
 
