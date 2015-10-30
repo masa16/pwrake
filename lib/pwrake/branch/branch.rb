@@ -4,9 +4,9 @@ module Pwrake
 
     def initialize(opts,r,w)
       #Thread.abort_on_exception = true
-      @options = opts
+      @option = opts
       @task_q = {}  # worker_id => FiberQueue.new
-      @timeout = @options['HEARTBEAT_TIMEOUT']
+      @timeout = @option['HEARTBEAT_TIMEOUT']
       @shells = []
       @ior = r
       @iow = w
@@ -15,7 +15,7 @@ module Pwrake
       @master_chan = Channel.new(@master_hdl)
       @wk_comm = {}
       @wk_hdl_set = HandlerSet.new
-      @shell_start_interval = @options['SHELL_START_INTERVAL']
+      @shell_start_interval = @option['SHELL_START_INTERVAL']
     end
 
     # Rakefile is loaded after 'init' before 'run'
@@ -31,9 +31,9 @@ module Pwrake
     attr_reader :logger
 
     def init_logger
-      logfile = @options['LOGFILE']
+      logfile = @option['LOGFILE']
       if logfile
-        if dir = @options['LOG_DIR']
+        if dir = @option['LOG_DIR']
           ::FileUtils.mkdir_p(dir)
           logfile = File.join(dir,logfile)
         end
@@ -42,9 +42,9 @@ module Pwrake
         @logger = Logger.new($stderr)
       end
 
-      if @options['DEBUG']
+      if @option['DEBUG']
         @logger.level = Logger::DEBUG
-      elsif @options['TRACE']
+      elsif @option['TRACE']
         @logger.level = Logger::INFO
       else
         @logger.level = Logger::WARN
@@ -57,13 +57,15 @@ module Pwrake
         raise "received=#{s.chomp}, expected=host_list_begin"
       end
 
-      if fn = @options["PROFILE"]
-        if dir = @options['LOG_DIR']
+      if fn = @option["PROFILE"]
+        if dir = @option['LOG_DIR']
           ::FileUtils.mkdir_p(dir)
           fn = File.join(dir,fn)
         end
-        Shell.profiler.open(fn,@options['GNU_TIME'],@options['PLOT_PARALLELISM'])
+        Shell.profiler.open(fn,@option['GNU_TIME'],@option['PLOT_PARALLELISM'])
       end
+
+      worker_code = WorkerCommunicator.read_worker_progs(@option)
 
       while s = @ior.gets
         s.chomp!
@@ -71,7 +73,8 @@ module Pwrake
         if /^host:(\d+) (\S+) (\d+)?$/ =~ s
           id, host, ncore = $1,$2,$3
           ncore &&= ncore.to_i
-          comm = WorkerCommunicator.new(id,host,ncore,@runner,@options)
+          comm = WorkerCommunicator.new(id,host,ncore,@runner,@option)
+          comm.setup_connection(worker_code)
           @wk_comm[id] = comm
           @wk_hdl_set << comm.handler
           @task_q[id] = FiberQueue.new
@@ -103,7 +106,7 @@ module Pwrake
         comm.ncore.times do
           chan = Channel.new(comm.handler,shell_id)
           shell_id += 1
-          shell = Shell.new(chan,@task_q[comm.id],@options.worker_option)
+          shell = Shell.new(chan,@task_q[comm.id],@option.worker_option)
           @shells << shell
           # wait for remote shell open
           Fiber.new do

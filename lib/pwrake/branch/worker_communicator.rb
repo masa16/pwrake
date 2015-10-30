@@ -3,7 +3,16 @@ module Pwrake
   class WorkerCommunicator
 
     RE_ID='\d+'
-    attr_reader :id, :host, :ncore, :handler
+    attr_reader :id, :host, :ncore, :handler, :channel
+
+    def self.read_worker_progs(option)
+      d = File.dirname(__FILE__)+'/../worker/'
+      code = ""
+      option.worker_progs.each do |f|
+        code << IO.read(d+f+'.rb')
+      end
+      code
+    end
 
     def initialize(id,host,ncore,runner,option)
       @id = id
@@ -14,19 +23,9 @@ module Pwrake
       @option = option.worker_option
       @heartbeat_timeout = @option[:heartbeat_timeout]
       @host = host
-      setup_connection
     end
 
-    def channel
-      @default_channel
-    end
-
-    def setup_connection
-      d = File.dirname(__FILE__)+'/../worker/'
-      worker_code = ""
-      @worker_progs.each do |f|
-        worker_code << IO.read(d+f+'.rb')
-      end
+    def setup_connection(worker_code)
       rb_cmd = "ruby -e 'eval ARGF.read(#{worker_code.size})'"
       if ['localhost','localhost.localdomain','127.0.0.1'].include? @host
         cmd = "cd; #{rb_cmd}"
@@ -40,11 +39,12 @@ module Pwrake
         w1.close
         r2.close
       end
-      @iow = @handler.iow
-      @iow.write worker_code
-      Marshal.dump(@ncore,@iow)
-      Marshal.dump(@option,@iow)
-      @default_channel = Channel.new(@handler)
+      @handler.host = @host
+      iow = @handler.iow
+      iow.write(worker_code)
+      Marshal.dump(@ncore,iow)
+      Marshal.dump(@option,iow)
+      @channel = Channel.new(@handler)
     end
 
     def close
@@ -87,7 +87,7 @@ module Pwrake
 
     def start_default_fiber
       Fiber.new do
-        while common_line(@default_channel.get_line)
+        while common_line(@channel.get_line)
         end
         Log.debug "#{self.class}#start_default_fiber: end of fiber"
       end.resume
