@@ -84,7 +84,8 @@ module Pwrake
             " thread=#{Thread.current} ##{@killed})"
           $stderr.puts caller
         else
-          $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid} ##{@killed})"
+          $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid}"+
+            " ##{@killed})"
         end
         $stderr.puts "Exiting..."
         @no_more_run = true
@@ -99,69 +100,61 @@ module Pwrake
     end
 
     def setup_branches
-      @killed = 0
-      [:TERM,:INT].each do |sig|
-        Signal.trap(sig) do
-          signal_trap(sig)
-        end
-      end
-
       sum_ncore = 0
 
       @option.host_map.each do |sub_host, wk_hosts|
-        hdl = setup_branch_handler(sub_host)
-        @hdl_set << hdl
+        @hdl_set << hdl = setup_branch_handler(sub_host)
         chan = Channel.new(hdl)
-        chan.put_line "host_list_begin"
-
+        chan.puts "host_list_begin"
         wk_hosts.each do |host_info|
           name = host_info.name
           ncore = host_info.ncore
           host_id = host_info.id
           Log.debug "connecting #{name} ncore=#{ncore} id=#{host_id}"
-          chan.put_line "host:#{host_id} #{name} #{ncore}"
+          chan.puts "host:#{host_id} #{name} #{ncore}"
           @channels[host_id] = chan
           @hosts[host_id] = name
         end
-        chan.put_line "host_list_end"
+        chan.puts "host_list_end"
 
-        create_fiber([chan]) do |chan|
-          while s = chan.get_line
-            case s
-            when /ncore:done/
-              break
-            when /ncore:(\d+):(\d+)/
-              id, ncore = $1.to_i, $2.to_i
-              Log.debug "worker_id=#{id} ncore=#{ncore}"
-              #@workers[id].ncore = ncore
-              @idle_cores[id] = ncore
-              sum_ncore += ncore
-            else
-              msg = "#{hdl.host}:#{s.inspect}"
-              raise "invalid return: #{msg}"
-            end
+        while s = chan.gets
+          case s
+          when /ncore:done/
+            break
+          when /ncore:(\d+):(\d+)/
+            id, ncore = $1.to_i, $2.to_i
+            Log.debug "worker_id=#{id} ncore=#{ncore}"
+            #@workers[id].ncore = ncore
+            @idle_cores[id] = ncore
+            sum_ncore += ncore
+          else
+            msg = "#{hdl.host}:#{s.inspect}"
+            raise "invalid return: #{msg}"
           end
         end
-        @runner.run
       end
 
       Log.info "num_cores=#{sum_ncore}"
       @hosts.each do |id,host|
         Log.info "#{host} id=#{id} ncore=#{@idle_cores[id]}"
       end
-      q_class = Pwrake.const_get(@option.queue_class)
-      @task_queue = q_class.new(@idle_cores)
+      @task_queue = Pwrake.const_get(@option.queue_class).new(@idle_cores)
 
-      # wait for branch setup end
       @branch_setup_thread = Thread.new do
-        create_fiber(@channels.values) do |chan|
-          s = chan.get_line
+        @channels.each_value do |chan|
+          s = chan.gets
           if /^branch_setup:done$/ !~ s
             raise "branch_setup failed" # "#{x.handler.host}:#{s}"
           end
         end
-        @runner.run
+        @killed = 0
+        [:TERM,:INT].each do |sig|
+          Signal.trap(sig) do
+            signal_trap(sig)
+          end
+        end
       end
+
     end
 
     def create_fiber(channels,&blk)
