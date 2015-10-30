@@ -49,6 +49,18 @@ module Pwrake
       @handler.put_line "#{@pre}#{line}"
     end
 
+    def puts(line)
+      @handler.puts "#{@pre}#{line}"
+    end
+
+    def gets
+      if @id
+        raise RuntimeError,"gets is invalid when @id is non-nil"
+      else
+        @handler.gets
+      end
+    end
+
     def inspect
       "#<#{self.class} io=#{ior.inspect} id=#{id.inspect}>"
     end

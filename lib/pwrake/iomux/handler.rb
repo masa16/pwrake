@@ -85,6 +85,14 @@ module Pwrake
       end
     end
 
+    def puts(line)
+      @iow.puts(line)
+    end
+
+    def gets
+      @ior.gets
+    end
+
     def wait_message(end_msg)
       if line = @ior.gets
         line.chomp!
