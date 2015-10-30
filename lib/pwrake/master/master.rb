@@ -208,6 +208,7 @@ module Pwrake
             @post_pool.enq(tw) # must be after @no_more_run = true
             break if @finished
           when /^exited$/o
+            @exited = true
             Log.debug "receive #{s.chomp} from branch"
             break
           else
@@ -295,7 +296,7 @@ module Pwrake
     def finish
       Log.debug "Master#finish begin"
       @branch_setup_thread.join
-      @hdl_set.exit
+      @hdl_set.exit unless @exited
       TaskWrapper.close_task_logger
       Log.debug "Master#finish end"
     end
