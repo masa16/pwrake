@@ -21,10 +21,6 @@ module Pwrake
                  processor_count
                end
       @out.puts "ncore:#{@ncore}"
-      at_exit{
-        @log.info "at_exit"
-        close_all
-      }
       # does NOT exit when writing to broken pipe
       Signal.trap("PIPE", "SIG_IGN")
     end
@@ -48,6 +44,8 @@ module Pwrake
         start_heartbeat
         command_loop
       end
+    ensure
+      close_all
     end
 
     def setup_option
@@ -136,6 +134,7 @@ module Pwrake
 
     def close_all
       @log.info "close_all"
+      @heartbeat_thread.kill if @heartbeat_thread
       Dir.chdir
       id_list = Executor::LIST.keys
       ex_list = Executor::LIST.values
@@ -143,10 +142,9 @@ module Pwrake
       begin
         ex_list.each{|ex| ex.join}
       rescue => e
-        $stdout.puts e
-        $stdout.puts e.backtrace.join("\n")
+        @log.error e
+        @log.error e.backtrace.join("\n")
       end
-      @heartbeat_thread.kill if @heartbeat_thread
       @log.info "worker:end:#{id_list.inspect}"
       begin
         timeout(20){@log.close}
