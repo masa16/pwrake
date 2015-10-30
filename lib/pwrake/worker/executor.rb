@@ -27,10 +27,6 @@ module Pwrake
       @queue.enq(cmd)
     end
 
-    def killed?
-      @killed
-    end
-
     def start_exec_thread
       Thread.new do
         begin
@@ -49,9 +45,19 @@ module Pwrake
             while cmd = @queue.deq
               run(cmd)
             end
-            @sh_in.puts("exit") if !@killed
+            @sh_in.puts("exit")
+            @sh_in.flush
           ensure
-            pid,status = Process.waitpid2(@pid)
+            status = nil
+            begin
+              timeout(5){
+                pid,status = Process.waitpid2(@pid)
+              }
+            rescue
+              @log.info("#{@id}:kill INT sh @pid=#{@pid}")
+              Process.kill("INT",@pid)
+              pid,status = Process.waitpid2(@pid)
+            end
             @log.info("shell exit status: "+status.inspect)
           end
         rescue => exc
@@ -89,46 +95,22 @@ module Pwrake
     end
 
     def run_rc(cmd)
-      if /\\$/ =~ cmd  # command line continues
-        @sh_in.puts(cmd)
-        return
-      end
-      term = "\necho '#{@terminator}':$? \necho '#{@terminator}' 1>&2"
-      @sh_in.puts(cmd+term)
-      status = ""
-      io_set = [@sh_out,@sh_err]
-      loop do
-        io_sel, = IO.select(io_set,nil,nil)
-        for io in io_sel
-          s = io.gets.chomp
-          case io
-          when @sh_out
-            if s[0,TLEN] == @terminator
-              status = s[TLEN+1..-1]
-              io_set.delete(@sh_out)
-            else
-              @log.info "<#{@id}:o:"+s if @log
-            end
-          when @sh_err
-            if s[0,TLEN] == @terminator
-              io_set.delete(@sh_err)
-            else
-              @log.info "<#{@id}:e:"+s if @log
-            end
-          end
-        end
-        break if io_set.empty?
-      end
-      @log.info "<#{@id}:z:#{status}" if @log
+      run_command_main(cmd){|s| @log.info "<"+s if @log}
     end
 
     def run_command(cmd)
+      run_command_main(cmd){|s| @out.puts s}
+    end
+
+    def run_command_main(cmd)
       if /\\$/ =~ cmd  # command line continues
         @sh_in.puts(cmd)
+        @sh_in.flush
         return
       end
       term = "\necho '#{@terminator}':$? \necho '#{@terminator}' 1>&2"
       @sh_in.puts(cmd+term)
+      @sh_in.flush
       status = ""
       io_set = [@sh_out,@sh_err]
       loop do
@@ -141,19 +123,19 @@ module Pwrake
               status = s[TLEN+1..-1]
               io_set.delete(@sh_out)
             else
-              @out.puts "#{@id}:o:"+s
+              yield "#{@id}:o:"+s
             end
           when @sh_err
             if s[0,TLEN] == @terminator
               io_set.delete(@sh_err)
             else
-              @out.puts "#{@id}:e:"+s
+              yield "#{@id}:e:"+s
             end
           end
         end
         break if io_set.empty?
       end
-      @out.puts "#{@id}:z:#{status}"
+      yield "#{@id}:z:#{status}"
     end
 
     def close
@@ -162,24 +144,28 @@ module Pwrake
 
     def join
       LIST.delete(@id)
-      @exec_thread.join(10) if @exec_thread
+      @exec_thread.join(15) if @exec_thread
     end
 
     def kill(sig)
-      @killed = true
       @queue.clear
       if @pid
+        # kill process group
         s = `ps ho pid --ppid=#{@pid}`
-        s.each_line{|x|
-          pid=x.to_i
+        s.each_line do |x|
+          pid = x.to_i
           Process.kill(sig,pid)
           @log.warn "Executor(id=#{@id})#kill pid=#{pid} sig=#{sig}"
-        }
-        Process.kill(sig,@pid)
-        @log.warn "Executor(sh,id=#{@id})#kill pid=#{@pid} sig=#{sig}"
+        end
+        if s.empty?
+          @log.warn "Executor(id=#{@id})#kill nothing killed"
+        end
       end
-      @spawn_out.puts @terminator+":signal=#{sig}"
-      @spawn_err.puts @terminator
+      #signum = (sig.kind_of?(Integer)) ? sig : (Signal.list[sig.to_s] || 0)
+      #@spawn_out.print @terminator+":#{signum+128},\n"
+      @spawn_out.flush
+      #@spawn_err.print @terminator+"\n"
+      @spawn_err.flush
       #@queue.enq(nil)
     end
 
