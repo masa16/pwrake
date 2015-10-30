@@ -52,7 +52,7 @@ module Pwrake
 
     def setup_option
       @log.info @option.inspect
-      @heartbeat_interval = @option[:heartbeat_interval]
+      @heartbeat_interval = @option[:heartbeat]
       @shell_cmd = @option[:shell_command]
       @shell_rc = @option[:shell_rc] || []
       (@option[:pass_env]||{}).each do |k,v|

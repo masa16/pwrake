@@ -18,7 +18,7 @@ module Pwrake
         :ssh_option => self['SSH_OPTION'],
         :shell_command => self['SHELL_COMMAND'],
         :shell_rc  => self['SHELL_RC'],
-        :heartbeat_timeout => self['HEARTBEAT_TIMEOUT']
+        :heartbeat => self['HEARTBEAT']
       }
 
       if @filesystem.nil?

@@ -21,7 +21,9 @@ module Pwrake
       @runner = runner
       @worker_progs = option.worker_progs
       @option = option.worker_option
-      @heartbeat_timeout = @option[:heartbeat_timeout]
+      if hb = @option[:heartbeat]
+        @heartbeat_timeout = hb + 15
+      end
       @host = host
     end
 
@@ -58,7 +60,6 @@ module Pwrake
       @ncore = ncore if @ncore.nil?
     end
 
-
     def ncore_proc(s)
       if /^ncore:(\d+)$/ =~ s
         set_ncore($1.to_i)
@@ -73,7 +74,8 @@ module Pwrake
       Log.debug "WorkerCommunicator#common_line: #{s.chomp} id=#{@id} host=#{@host}"
       case s
       when /^heartbeat$/
-        @runner.heartbeat(io)
+        Log.debug "Branch: heartbeat"
+        @runner.heartbeat(@handler.ior)
       when /^exited$/
         Log.debug "Branch: receive exited"
         return false

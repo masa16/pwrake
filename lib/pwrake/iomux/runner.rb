@@ -4,7 +4,8 @@ module Pwrake
 
   class Runner
 
-    def initialize
+    def initialize(timeout=nil)
+      @timeout = timeout
       @handler = {}
       @channel = {}
       @hb_time = {}
@@ -40,21 +41,21 @@ module Pwrake
       @channel.delete(io) if @channel[io].empty?
     end
 
-    def run(timeout=nil)
+    def run
       r = false
       while !(io_set = @channel.keys).empty?
         r = true
-        sel, = IO.select(io_set,nil,nil,timeout)
+        sel, = IO.select(io_set,nil,nil,@timeout)
         if sel.nil?
-          raise TimeoutError,"Timeout (#{timeout} s) in IO.select"
+          raise TimeoutError,"Timeout (#{@timeout} s) in IO.select"
         end
         sel.each do |io|
           @handler[io].process_line
         end
-        if timeout && @hb_earliest
-          if Time.now - @hb_earliest > timeout
+        if @timeout && @hb_earliest
+          if Time.now - @hb_earliest > @timeout
             io = @hb_time.key(@hb_earliest)
-            raise TimeoutError,"Timeout (#{timeout}s) in Heartbeat from host=#{get_host(io)}"
+            raise TimeoutError,"Timeout (#{@timeout}s) in Heartbeat from host=#{get_host(io)}"
           end
         end
       end

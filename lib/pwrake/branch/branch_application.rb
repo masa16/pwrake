@@ -25,6 +25,8 @@ module Pwrake
             @branch.run
           rescue => e
             Log.fatal e
+            $stderr.puts e
+            $stderr.puts e.backtrace
             @branch.kill
           end
         ensure
@@ -41,6 +43,8 @@ module Pwrake
             @branch.run
           rescue => e
             Log.fatal e
+            $stderr.puts e
+            $stderr.puts e.backtrace
             @branch.kill
           end
         ensure

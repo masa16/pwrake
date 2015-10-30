@@ -6,11 +6,10 @@ module Pwrake
       #Thread.abort_on_exception = true
       @option = opts
       @task_q = {}  # worker_id => FiberQueue.new
-      @timeout = @option['HEARTBEAT_TIMEOUT']
       @shells = []
       @ior = r
       @iow = w
-      @runner = Runner.new
+      @runner = Runner.new(@option['HEARTBEAT'])
       @master_hdl = Handler.new(@runner,@ior,@iow)
       @master_chan = Channel.new(@master_hdl)
       @wk_comm = {}
