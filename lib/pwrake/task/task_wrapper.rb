@@ -1,5 +1,4 @@
 require 'forwardable'
-require 'csv'
 
 module Pwrake
 
