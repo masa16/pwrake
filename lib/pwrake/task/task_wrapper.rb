@@ -1,4 +1,5 @@
 require 'forwardable'
+require 'csv'
 
 module Pwrake
 
@@ -48,11 +49,11 @@ module Pwrake
           ::FileUtils.mkdir_p(log_dir)
           tasklog = File.join(log_dir,tasklog)
         end
-        @@task_logger = File.open(tasklog,'w')
-        @@task_logger.print %w[
+        @@task_logger = CSV.open(tasklog,'w')
+        @@task_logger.puts %w[
           task_id task_name start_time end_time elap_time preq preq_host
           exec_host shell_id has_action executed file_size file_mtime file_host
-        ].join(',')+"\n"
+        ]
       end
     end
 
@@ -101,39 +102,39 @@ module Pwrake
         RANK_STAT.add_sample(rank,elap)
       end
       #
-      row = [ @task_id, name, @time_start, @time_end, elap, prerequisites.join('|') ]
-      #
-      if loc
-        row << loc.join('|')
-      else
-        row << ''
-      end
-      #
-      row << @exec_host
-      row << @shell_id
-      #
-      row << ((actions.empty?) ? 0 : 1)
-      row << ((@executed) ? 1 : 0)
-      #
       if @file_stat
-        row.concat [@file_stat.size, @file_stat.mtime, self.location.join('|')]
+        fstat = [@file_stat.size, @file_stat.mtime, self.location.join('|')]
       else
-        row.concat ['','','']
+        fstat = [nil]*3
       end
-      #
-      s = row.map do |x|
-        if x.kind_of?(Time)
-          TaskWrapper.format_time(x)
-        elsif x.kind_of?(String) && x!=''
-          '"'+x+'"'
-        else
-          x.to_s
-        end
-      end.join(',')
       #
       # task_id task_name start_time end_time elap_time preq preq_host
       # exec_host shell_id has_action executed file_size file_mtime file_host
-      @@task_logger.print s+"\n"
+      #
+      row = [ @task_id, name, @time_start, @time_end, elap,
+             prerequisites, loc, @exec_host, @shell_id,
+             (actions.empty?) ? 0 : 1,
+             (@executed) ? 1 : 0,
+             *fstat
+            ]
+      row.map!{|x|
+        if x.kind_of?(Time)
+          TaskWrapper.format_time(x)
+        elsif x.kind_of?(Array)
+          if x.empty?
+            nil
+          else
+            x.join('|')
+          end
+        else
+          x
+        end
+      }
+      @@task_logger << row
+      #
+      clsname = @task.class.to_s.sub(/^(Rake|Pwrake)::/o,"")
+      Log.info '%s[%s] %sed: id=%d elap=%.6f exec_host=%s' %
+        [clsname,name,@status,@task_id,elap,@exec_host]
     end
 
     def is_file_task?
