@@ -13,14 +13,10 @@ module Pwrake
 
     def initialize
       @lock = Mutex.new
-      @separator = ","
-      @re_escape = /\s#{Regexp.escape(@separator)}/
       @gnu_time = false
       @id = 0
       @io = nil
     end
-
-    attr_accessor :separator, :gnu_time
 
     def open(file,gnu_time=false,plot=false)
       @file = file
@@ -28,7 +24,7 @@ module Pwrake
       @plot = plot
       @lock.synchronize do
         @io.close if @io != nil
-        @io = File.open(file,"w")
+        @io = CSV.open(file,"w")
       end
       _puts table_header
       t = Time.now
@@ -59,7 +55,7 @@ module Pwrake
       if @gnu_time
         a += HEADER_FOR_GNU_TIME
       end
-      a.join(@separator)
+      a
     end
 
 =begin
@@ -87,23 +83,18 @@ module Pwrake
       t.strftime("%F %T.%L")
     end
 
-    def profile(task_id, task_name, cmd, start_time, end_time, host="", status=nil)
-      status = "" if status.nil?
+    def profile(task_id, task_name, cmd, start_time, end_time, host=nil, status=nil)
       id = @lock.synchronize do
         id = @id
         @id += 1
         id
       end
       if @io
-        task_id ||= ""
-        task_name ||= ""
-        tname = '"'+task_name.gsub('"','""')+'"'
-        host = '"'+host+'"' if @re_escape =~ host
-        _puts [id, task_id, task_name, '"'+cmd.gsub('"','""')+'"',
+        _puts [ id, task_id, task_name, cmd,
                format_time(start_time),
                format_time(end_time),
                "%.3f" % (end_time-start_time),
-               host, status].join(@separator)
+               host, status ]
       end
       case status
       when ""
