@@ -100,13 +100,13 @@ module Pwrake
     private
 
     def _puts(s)
-      Log.debug "Shell#_puts(host=#{@host},id=#{@id}): #{s.inspect}"
+      #Log.debug "Shell#_puts(host=#{@host},id=#{@id}): #{s.inspect}"
       @chan.put_line(s)
     end
 
     def _gets
       s = @chan.get_line
-      Log.debug "Shell#_gets(host=#{@host},id=#{@id}): #{s.inspect}"
+      #Log.debug "Shell#_gets(host=#{@host},id=#{@id}): #{s.inspect}"
       if s.nil?
         begin
           raise
@@ -202,7 +202,7 @@ module Pwrake
         Log.debug "shell start id=#{@id} host=#{@host}"
         begin
           while task_str = @task_q.deq
-            Log.debug "task_str=#{task_str}"
+            #Log.debug "task_str=#{task_str}"
             if /^(\d+):(.*)$/ =~ task_str
               task_id, task_name = $1.to_i, $2
             else

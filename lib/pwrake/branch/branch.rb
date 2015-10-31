@@ -20,8 +20,9 @@ module Pwrake
     # Rakefile is loaded after 'init' before 'run'
 
     def run
-      setup_shells
-      setup_fibers
+      setup_worker
+      setup_shell
+      setup_fiber
       setup_master_channel
       @runner.run
       Log.debug "Brandh#run end"
@@ -50,10 +51,10 @@ module Pwrake
       end
     end
 
-    def setup_shells
+    def setup_worker
       s = @ior.gets
       if s.chomp != "host_list_begin"
-        raise "received=#{s.chomp}, expected=host_list_begin"
+        raise "Branch#setup_worker: received=#{s.chomp} expected=host_list_begin"
       end
 
       if fn = @option["PROFILE"]
@@ -78,14 +79,14 @@ module Pwrake
           @wk_hdl_set << comm.handler
           @task_q[id] = FiberQueue.new
         else
-          raise "received=#{s.chomp}, expected=host:id hostname ncore"
+          raise "Branch#setup_worker: received=#{s.chomp} expected=host:id hostname ncore"
         end
       end
       @wk_comm.each_value do |comm|
         Fiber.new do
           while comm.ncore_proc(comm.channel.get_line)
           end
-          Log.debug "Branch#setup_shells: end of fiber for ncore"
+          Log.debug "Branch#setup_worker: fiber end of ncore_proc"
         end.resume
       end
       @runner.run
@@ -96,8 +97,9 @@ module Pwrake
         @master_hdl.put_line "ncore:#{comm.id}:#{comm.ncore}"
       end
       @master_hdl.put_line "ncore:done"
+    end
 
-      # shells
+    def setup_shell
       @shells = []
       errors = []
       shell_id = 0
@@ -125,8 +127,8 @@ module Pwrake
       end
     end
 
-    def setup_fibers
-      # start fiber
+    def setup_fiber
+      # start fibers
       @shells.each do |shell|
         shell.create_fiber(@master_hdl).resume
       end
@@ -155,7 +157,7 @@ module Pwrake
       Fiber.new do
         while s = @master_chan.get_line
           # receive command from main pwrake
-          Log.debug "Branch: receive #{s.inspect} from master"
+          Log.debug "Branch:recv #{s.inspect} from master"
           case s
             #
           when /^(\d+):(.+)$/o

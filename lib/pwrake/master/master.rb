@@ -173,7 +173,7 @@ module Pwrake
       #
       create_fiber(@channels.values) do |chan|
         while s = chan.get_line
-          Log.debug "Master#invoke: s=#{s.inspect}"
+          Log.debug "Master:recv #{s.inspect} from branch[#{chan.handler.host}]"
           case s
           when /^task(\w+):(\d*):(.*)$/o
             status, shell_id, task_name = $1, $2.to_i, $3

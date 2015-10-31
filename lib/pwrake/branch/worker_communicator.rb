@@ -74,10 +74,8 @@ module Pwrake
       Log.debug "WorkerCommunicator#common_line: #{s.chomp} id=#{@id} host=#{@host}"
       case s
       when /^heartbeat$/
-        Log.debug "Branch: heartbeat"
         @runner.heartbeat(@handler.ior)
       when /^exited$/
-        Log.debug "Branch: receive exited"
         return false
       when /^log:(.*)$/
         Log.info "worker(#{host})>#{$1}"
@@ -91,7 +89,7 @@ module Pwrake
       Fiber.new do
         while common_line(@channel.get_line)
         end
-        Log.debug "#{self.class}#start_default_fiber: end of fiber"
+        Log.debug "WorkerCommunicator: end of default fiber"
       end.resume
     end
 
