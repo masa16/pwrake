@@ -8,7 +8,8 @@ module Pwrake
       @idle_cores = IdleCores.new
       @option = Option.new
       @hdl_set = HandlerSet.new
-      @channels = {}
+      @channel_by_hostid = {}
+      @channels = []
       @hosts = {}
       init_logger
     end
@@ -102,7 +103,7 @@ module Pwrake
 
       @option.host_map.each do |sub_host, wk_hosts|
         @hdl_set << hdl = setup_branch_handler(sub_host)
-        chan = Channel.new(hdl)
+        @channels << chan = Channel.new(hdl)
         chan.puts "host_list_begin"
         wk_hosts.each do |host_info|
           name = host_info.name
@@ -110,7 +111,7 @@ module Pwrake
           host_id = host_info.id
           Log.debug "connecting #{name} ncore=#{ncore} id=#{host_id}"
           chan.puts "host:#{host_id} #{name} #{ncore}"
-          @channels[host_id] = chan
+          @channel_by_hostid[host_id] = chan
           @hosts[host_id] = name
         end
         chan.puts "host_list_end"
@@ -139,7 +140,7 @@ module Pwrake
       @task_queue = Pwrake.const_get(@option.queue_class).new(@idle_cores)
 
       @branch_setup_thread = Thread.new do
-        @channels.each_value do |chan|
+        @channels.each do |chan|
           s = chan.gets
           if /^branch_setup:done$/ !~ s
             raise "branch_setup failed" # "#{x.handler.host}:#{s}"
@@ -168,7 +169,7 @@ module Pwrake
       @branch_setup_thread.join
       send_task_to_idle_core
       #
-      create_fiber(@channels.values) do |chan|
+      create_fiber(@channels) do |chan|
         while s = chan.get_line
           Log.debug "Master:recv #{s.inspect} from branch[#{chan.handler.host}]"
           case s
@@ -228,7 +229,7 @@ module Pwrake
         tw.preprocess
         #if tw.has_action?
           s = "#{hid}:#{tw.task_id}:#{tw.name}"
-          @channels[hid].put_line(s)
+          @channel_by_hostid[hid].put_line(s)
           tw.exec_host = @hosts[hid]
         #else
         #  taskend_proc("noaction",-1,tw.name)
@@ -258,7 +259,7 @@ module Pwrake
             if (@no_more_run || @task_queue.empty?) && @hostid_by_taskname.empty? && pool.empty?
               Log.debug "pool##{j} closing @channels=#{@channels.inspect}"
               @finished = true
-              @channels.each_value{|ch| ch.finish} # exit
+              @channels.each{|ch| ch.finish} # exit
               break
             elsif !@no_more_run
               send_task_to_idle_core

@@ -149,8 +149,8 @@ module Pwrake
         comm.handler.put_line "setup_end"
       end
 
-      Log.debug "branch setup end"
       @master_hdl.put_line "branch_setup:done"
+      Log.debug "Branch#setup_fiber: setup end"
     end
 
     def setup_master_channel
