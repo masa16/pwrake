@@ -31,10 +31,8 @@ module Pwrake
 
       if @option['DEBUG']
         @logger.level = Logger::DEBUG
-      elsif @option['TRACE']
-        @logger.level = Logger::INFO
       else
-        @logger.level = Logger::WARN
+        @logger.level = Logger::INFO
       end
     end
 
@@ -94,7 +92,7 @@ module Pwrake
       when 1
         $stderr.puts "\nOnce more Ctrl-C (SIGINT) for exit."
       else
-        Kernel.exit # must wait for nomral exit
+        Kernel.exit(false) # must wait for nomral exit
       end
       @killed += 1
     end
@@ -165,7 +163,6 @@ module Pwrake
     end
 
     def invoke(t, args)
-      failure_termination = @option['FAILURE_TERMINATION']
       @failed = false
       t.pw_search_tasks(args)
       @branch_setup_thread.join
@@ -184,19 +181,19 @@ module Pwrake
             @task_queue.task_end(tw,hid) # @idle_cores.increase(..
             # check failure
             if tw.status == "fail"
-              Log.error "taskfail: #{tw.name}"
+              $stderr.puts %[#{tw.task_class}:"#{tw.name}" failed.]
               if !@failed
                 @failed = true
-                case failure_termination
+                case @option['FAILURE_TERMINATION']
                 when 'kill'
-                  $stderr.puts "... kills running tasks"
                   @hdl_set.kill("INT")
                   @no_more_run = true
+                  $stderr.puts "... Kill running tasks."
                 when 'continue'
-                  $stderr.puts "... continues runable tasks"
+                  $stderr.puts "... Continue runable tasks."
                 else # 'wait'
-                  $stderr.puts "... waits for running tasks"
                   @no_more_run = true
+                  $stderr.puts "... Wait for running tasks."
                 end
               end
               if tw.is_file_task? && File.exist?(tw.name)
