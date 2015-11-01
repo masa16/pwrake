@@ -8,7 +8,7 @@ module Pwrake
     end
 
     def run_branch(r,w)
-      standard_exception_handling do
+      #standard_exception_handling do
         init("pwrake_branch")
         opts = Marshal.load(r)
         if !opts.kind_of?(Hash)
@@ -21,36 +21,32 @@ module Pwrake
         w.puts "pwrake_branch start"
         w.flush
         begin
-          begin
-            @branch.run
-          rescue => e
-            Log.fatal e
-            $stderr.puts e
-            $stderr.puts e.backtrace
-            @branch.kill
-          end
+          @branch.run
+        rescue => e
+          Log.fatal e
+          $stderr.puts e
+          $stderr.puts e.backtrace
+          @branch.kill
         ensure
           @branch.finish
         end
-      end
+      #end
     end
 
     def run_branch_in_thread(r,w,opts)
-      standard_exception_handling do
+      #standard_exception_handling do
         @branch = Branch.new(opts,r,w)
         begin
-          begin
-            @branch.run
-          rescue => e
-            Log.fatal e
-            $stderr.puts e
-            $stderr.puts e.backtrace
-            @branch.kill
-          end
+          @branch.run
+        rescue => e
+          Log.fatal e
+          $stderr.puts e
+          $stderr.puts e.backtrace
+          @branch.kill
         ensure
           @branch.finish
         end
-      end
+      #end
     end
 
   end
