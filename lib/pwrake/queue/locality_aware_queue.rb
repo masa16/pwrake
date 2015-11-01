@@ -34,7 +34,7 @@ module Pwrake
       else
         stored = false
         hints.each do |h|
-          id = WorkerChannel::HOST2ID[h]
+          id = WorkerCommunicator::HOST2ID[h]
           if q = @q[id]
             t.assigned.push(id)
             q.push(t)

@@ -2,6 +2,7 @@ module Pwrake
 
   class WorkerCommunicator
 
+    HOST2ID = {}
     RE_ID='\d+'
     attr_reader :id, :host, :ncore, :handler, :channel
 
@@ -16,6 +17,8 @@ module Pwrake
 
     def initialize(id,host,ncore,runner,option)
       @id = id
+      @host = host
+      HOST2ID[@host] = @id
       @ncore = @n_total_core = ncore
       #
       @runner = runner
@@ -24,7 +27,6 @@ module Pwrake
       if hb = @option[:heartbeat]
         @heartbeat_timeout = hb + 15
       end
-      @host = host
     end
 
     def setup_connection(worker_code)
