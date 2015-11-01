@@ -215,8 +215,9 @@ module Pwrake
               task.execute if task.needed?
               result = "taskend:#{@id}:#{task.name}"
             rescue Exception=>e
-              result = "taskfail:#{@id}:#{task.name}"
+              Rake.application.display_error_message(e)
               Log.error e
+              result = "taskfail:#{@id}:#{task.name}"
             end
             hdl.put_line result
           end
