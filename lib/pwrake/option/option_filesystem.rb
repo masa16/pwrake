@@ -44,7 +44,7 @@ module Pwrake
           :base_dir => mntpnt,
           :work_dir => GfarmPath.pwd.to_s,
           :gfarm2fs_option => self['GFARM2FS_OPTION'],
-          :gfarm2fs_debug => self['DEBUG'],
+          :gfarm2fs_debug => self['GFARM2FS_DEBUG'],
           :gfarm2fs_debug_wait => self['GFARM2FS_DEBUG_WAIT'],
           :single_mp => self['GFARM_SINGLE_MP']
         })
