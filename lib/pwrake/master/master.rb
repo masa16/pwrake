@@ -182,7 +182,7 @@ module Pwrake
             @task_queue.task_end(tw,hid) # @idle_cores.increase(..
             # check failure
             if tw.status == "fail"
-              $stderr.puts %[#{tw.task_class}:"#{tw.name}" failed.]
+              $stderr.puts %[task "#{tw.name}" failed.]
               if !@failed
                 @failed = true
                 case @option['FAILURE_TERMINATION']
