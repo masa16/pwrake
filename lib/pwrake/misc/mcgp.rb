@@ -75,13 +75,13 @@ module Pwrake
         tgid = (target) ? (Rake.application[target].wrapper.group_id||0) : nil
 
         if File.file?(name)
-          if false && tgid == group_id
+          if tgid == group_id
             locs = get_location(tw)
             #if locs.empty?
             #  Pwrake.application.postprocess(task)
             #  locs = get_location(tw)
             #end
-            tw.get_file_stat
+            #tw.get_file_stat
             fsz = tw.file_size
             if fsz > 100000
               #puts "g=#{group_id}, task=#{name}, target=#{target}, fsz=#{fsz}, locs="+locs.join("|")

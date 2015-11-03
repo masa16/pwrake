@@ -167,6 +167,11 @@ module Pwrake
       @failed = false
       t.pw_search_tasks(args)
       if @option['GRAPH_PARTITION']
+        @task_queue.deq_noaction_task do |tw,hid|
+          tw.preprocess
+          tw.status = "end"
+          @post_pool.enq(tw)
+        end
         require 'pwrake/misc/mcgp'
         MCGP.graph_partition(@option.host_map)
       end
@@ -236,9 +241,9 @@ module Pwrake
           @channel_by_hostid[hid].put_line(s)
           tw.exec_host = @hosts[hid]
         else
-          hid = @hostid_by_taskname.delete(tw.name)
           tw.status = "end"
           @task_queue.task_end(tw,hid) # @idle_cores.increase(..
+          hid = @hostid_by_taskname.delete(tw.name)
           @post_pool.enq(tw)
         end
       end

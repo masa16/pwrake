@@ -61,6 +61,14 @@ module Pwrake
       end
     end
 
+    def deq_noaction_task(&block)
+      Log.debug "deq_task:"+(empty? ? " empty" : "\n#{inspect_q}")
+      while tw = @q_no_action.shift
+        Log.debug "deq_noaction: #{tw.name}"
+        yield(tw,nil)
+      end
+    end
+
     def deq_task(&block) # locality version
       Log.debug "deq_task:"+(empty? ? " empty" : "\n#{inspect_q}")
       queued = 0
