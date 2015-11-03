@@ -5,25 +5,25 @@ module Pwrake
 
   module MCGP
 
-    def graph_partition(target=nil)
+    def graph_partition(host_map, target=nil)
       t1 = Time.now
-      wgts = Pwrake.application.host_list.group_weight_sum
+      wgts = host_map.group_weight_sum
       if wgts.size > 1
         list = wgts.size.times.to_a
-        g = GraphTracer.new([list],[wgts]){|t| t.group}
+        g = GraphTracerGroup.new([list],[wgts])
         trace(g,target)
-        g.part_graph_group
+        g.part_graph
         #g.write_dot('dag1.dot')
         #return
       end
 
-      #$debug2=true
+      #$debug=true
 
-      list = Pwrake.application.host_list.group_hosts
-      wgts = Pwrake.application.host_list.group_core_weight
-      g = GraphTracer.new(list,wgts){|t| t.location}
+      list = host_map.group_hosts
+      wgts = host_map.group_core_weight
+      g = GraphTracerNode.new(list,wgts)
       trace(g,target)
-      g.part_graph_node
+      g.part_graph
       t2 = Time.now
       Pwrake::Log.info "Time for TOTAL Graph Partitioning: #{t2-t1} sec"
       #g.write_dot('dag2.dot')
@@ -47,14 +47,13 @@ module Pwrake
 
   class GraphTracer
 
-    def initialize(loc_list, weight_list, &block)
+    def initialize(loc_list, weight_list)
       if loc_list.size != weight_list.size
         raise ArgumentError, "array size of args mismatch"
       end
       @loc_list = loc_list
       @weight_list = weight_list
       @n_part = @loc_list.size
-      @location_finder = block
       @traced = {}
       @vertex_depth = {}
       # @grviz = Grviz.new
@@ -63,26 +62,27 @@ module Pwrake
       end
     end
 
-    def trace( name = "default", target = nil )
+    def trace(name="default", target=nil)
 
       task = Rake.application[name]
-      group_id = task.group_id || 0
+      tw = task.wrapper
+      group_id = tw.group_id || 0
       group = @group_list[group_id]
-      loc_list = @loc_list[group_id]
+      #loc_list = @loc_list[group_id]
       depth = 0
 
       if task.class == Rake::FileTask
-        tgid = target ? (Rake.application[target].group_id||0) : nil
+        tgid = (target) ? (Rake.application[target].wrapper.group_id||0) : nil
 
         if File.file?(name)
-          if tgid == group_id
-            locs = @location_finder.call(task)
-            if locs.empty?
-              Pwrake.application.postprocess(task)
-              locs = @location_finder.call(task)
-            end
-            task.get_file_stat
-            fsz = task.file_size
+          if false && tgid == group_id
+            locs = get_location(tw)
+            #if locs.empty?
+            #  Pwrake.application.postprocess(task)
+            #  locs = get_location(tw)
+            #end
+            tw.get_file_stat
+            fsz = tw.file_size
             if fsz > 100000
               #puts "g=#{group_id}, task=#{name}, target=#{target}, fsz=#{fsz}, locs="+locs.join("|")
               group.push_loc_edge( locs, name, target, fsz/10000 )
@@ -119,22 +119,38 @@ module Pwrake
       return @vertex_depth[name]
     end
 
-    def part_graph_group
+    def write_dot(file)
+      @grviz.write(file)
+    end
+  end
+
+
+  class GraphTracerGroup < GraphTracer
+
+    def get_location(tw)
+      tw.group
+    end
+
+    def part_graph
       @group_list.each do |g|
         g.part_graph
         g.set_group
       end
     end
+  end
 
-    def part_graph_node
+
+  class GraphTracerNode < GraphTracer
+
+    def get_location(tw)
+      tw.location
+    end
+
+    def part_graph
       @group_list.each do |g|
         g.part_graph
         g.set_node
       end
-    end
-
-    def write_dot(file)
-      @grviz.write(file)
     end
   end
 
@@ -296,7 +312,9 @@ module Pwrake
       if false
         puts "@vertex_id2name.size=#{@vertex_id2name.size}"
         if $debug2
-          @vertex_id2name.each_with_index{|x,i| puts "#{i} #{x} #{@edges[i].inspect}"}
+          @vertex_id2name.each_with_index{|x,i|
+            puts "#{i} #{x} #{@edges[i].inspect}"
+          }
         end
         puts "@edges.size=#{@edges.size}"
         puts "ncon=#{c}"
@@ -328,22 +346,25 @@ module Pwrake
         s += "]"
         Log.info s
         options = RbMetis.default_options
-        RbMetis::OPTION_NITER
         options[RbMetis::OPTION_NCUTS] = 30
         options[RbMetis::OPTION_NSEPS] = 30
         options[RbMetis::OPTION_NITER] = 10
-        @part = RbMetis.part_graph_recursive(@xadj, @adjcny, @n_part, ncon:c, vwgt:@vwgt, adjwgt:@adjwgt, tpwgts:tpw, ubvec:ubv, options:options)
+        @part = RbMetis.part_graph_recursive(
+                  @xadj, @adjcny, @n_part,
+                  ncon:c, vwgt:@vwgt, adjwgt:@adjwgt,
+                  tpwgts:tpw, ubvec:ubv, options:options)
       else
         puts "tpw=#{tpw.inspect}"
-        @part = Metis.mc_part_graph_recursive2(c, @xadj,@adjcny, @vwgt,nil, @tpwgts)
+        @part = Metis.mc_part_graph_recursive2(
+                  c,@xadj,@adjcny,@vwgt,nil,@tpwgts)
       end
       t2 = Time.now
       Pwrake::Log.info "Time for Graph Partitioning: #{t2-t1} sec"
       count_partition
-      #puts "Time for Graph Partitioning: #{t2-t1} sec"
-      #if $debug
-      #p @part
-      #end
+      if $debug
+        puts "Time for Graph Partitioning: #{t2-t1} sec"
+        p @part
+      end
     end
 
     def count_partition
@@ -411,15 +432,15 @@ module Pwrake
       @vertex_id2name.each_with_index do |name,idx|
         if idx >= @n_part
           i_part = @part[idx]
-          task = Rake.application[name]
-          task.group_id = loc_list[i_part]
+          tw = Rake.application[name].wrapper
+          tw.group_id = loc_list[i_part]
           #puts "task=#{task.inspect}, i_part=#{i_part}, host=#{host}"
         end
       end
       @loc_files.each do |gid,files|
         files.each do |f|
-          task = Rake.application[f]
-          task.group_id = gid
+          tw = Rake.application[f].wrapper
+          tw.group_id = gid
           # puts "gid=#{gid}, task=#{f}"
         end
       end
@@ -431,9 +452,9 @@ module Pwrake
       @vertex_id2name.each_with_index do |name,idx|
         if idx >= @n_part
           i_part = @part[idx]
-          task = Rake.application[name]
+          tw = Rake.application[name].wrapper
           host = loc_list[i_part]
-          task.suggest_location = [host]
+          tw.suggest_location = [host]
           #puts "task=#{task.inspect}, i_part=#{i_part}, host=#{host}"
         end
       end

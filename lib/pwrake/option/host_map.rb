@@ -7,8 +7,8 @@ module Pwrake
     def initialize(name,ncore,weight,group=nil)
       @name = name
       @ncore = ncore
-      @weight = weight
-      @group = group
+      @weight = weight || 1.0
+      @group = group || 0
       @id = @@id
       @@id = @@id.succ
     end
@@ -63,6 +63,32 @@ module Pwrake
       end
       count
     end
+
+    def group_hosts
+      a = []
+      self.each do |sub,list|
+        list.each{|h| (a[h.group] ||= []) << h.name}
+      end
+      a
+    end
+
+    def group_core_weight
+      a = []
+      self.each do |sub,list|
+        list.each{|h| (a[h.group] ||= []) << h.weight}
+      end
+      a
+    end
+
+    def group_weight_sum
+      a = []
+      self.each do |sub,list|
+        list.each{|h| puts "a[h.group]=#{a[h.group]} h.weight=#{h.weight}"
+a[h.group] = (a[h.group]||0) + h.weight}
+      end
+      a
+    end
+
 
     private
 

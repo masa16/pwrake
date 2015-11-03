@@ -111,11 +111,10 @@ module Pwrake
       # exec_host shell_id has_action executed file_size file_mtime file_host
       #
       row = [ @task_id, name, @time_start, @time_end, elap,
-             prerequisites, loc, @exec_host, @shell_id,
-             (actions.empty?) ? 0 : 1,
-             (@executed) ? 1 : 0,
-             *fstat
-            ]
+              prerequisites, loc, @exec_host, @shell_id,
+              (actions.empty?) ? 0 : 1,
+              (@executed) ? 1 : 0,
+              *fstat ]
       row.map!{|x|
         if x.kind_of?(Time)
           TaskWrapper.format_time(x)
