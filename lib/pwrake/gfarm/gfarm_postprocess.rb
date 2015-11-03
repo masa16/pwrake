@@ -14,7 +14,7 @@ module Pwrake
         @hdl.iow.puts(filename)
         @hdl.iow.flush
       rescue Errno::EPIPE
-        Log.warn "GfwhereHandler#run: Errno::EPIPE for #{filename}"
+        Log.warn "GfarmPostprocess#run: Errno::EPIPE for #{filename}"
         return []
       end
       s = @chan.get_line
@@ -31,11 +31,15 @@ module Pwrake
         when /^gfarm:\/\//
           next
         when /^Error:/
-          return []
+          a = []
+          break
         else
-          return s.split(/\s+/)
+          a = s.split(/\s+/)
+          break
         end
       end
+      Log.debug "Gfarm file=#{filename} nodes=#{a.join("|")}"
+      a
     end
 
     def close
