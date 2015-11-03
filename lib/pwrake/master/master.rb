@@ -166,6 +166,10 @@ module Pwrake
     def invoke(t, args)
       @failed = false
       t.pw_search_tasks(args)
+      if @option['GRAPH_PARTITION']
+        require 'pwrake/misc/mcgp'
+        MCGP.graph_partition(@option.host_map)
+      end
       @branch_setup_thread.join
       send_task_to_idle_core
       #
@@ -227,13 +231,16 @@ module Pwrake
       @task_queue.deq_task do |tw,hid|
         @hostid_by_taskname[tw.name] = hid
         tw.preprocess
-        #if tw.has_action?
+        if tw.has_action?
           s = "#{hid}:#{tw.task_id}:#{tw.name}"
           @channel_by_hostid[hid].put_line(s)
           tw.exec_host = @hosts[hid]
-        #else
-        #  taskend_proc("noaction",-1,tw.name)
-        #end
+        else
+          hid = @hostid_by_taskname.delete(tw.name)
+          tw.status = "end"
+          @task_queue.task_end(tw,hid) # @idle_cores.increase(..
+          @post_pool.enq(tw)
+        end
       end
       #Log.debug "#{self.class}#send_task_to_idle_core end time=#{Time.now-tm}"
     end
@@ -256,7 +263,8 @@ module Pwrake
             #Log.debug "@task_queue.empty?=#{@task_queue.empty?}"
             #Log.debug "@hostid_by_taskname=#{@hostid_by_taskname.inspect}"
             #Log.debug "pool.empty?=#{pool.empty?}"
-            if (@no_more_run || @task_queue.empty?) && @hostid_by_taskname.empty? && pool.empty?
+            if (@no_more_run || @task_queue.empty?) &&
+                @hostid_by_taskname.empty? && pool.empty?
               Log.debug "pool##{j} closing @channels=#{@channels.inspect}"
               @finished = true
               @channels.each{|ch| ch.finish} # exit
