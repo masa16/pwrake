@@ -54,7 +54,7 @@ module Pwrake
     def setup_worker
       s = @ior.gets
       if s.chomp != "host_list_begin"
-        raise "Branch#setup_worker: received=#{s.chomp} expected=host_list_begin"
+        raise "Branch#setup_worker: recv=#{s.chomp} expected=host_list_begin"
       end
 
       if fn = @option["PROFILE"]
@@ -79,9 +79,10 @@ module Pwrake
           @wk_hdl_set << comm.handler
           @task_q[id] = FiberQueue.new
         else
-          raise "Branch#setup_worker: received=#{s.chomp} expected=host:id hostname ncore"
+          raise "Branch#setup_worker: recv=#{s.chomp} expected=host:id hostname ncore"
         end
       end
+
       @wk_comm.each_value do |comm|
         Fiber.new do
           while comm.ncore_proc(comm.channel.get_line)
@@ -177,7 +178,7 @@ module Pwrake
             Log.debug "Branch: invalid line from master: #{s}"
           end
         end
-        Log.debug "Branch#setup_master_channel: end of fiber for master handling"
+        Log.debug "Branch#setup_master_channel: end of fiber for master channel"
       end.resume
     end
 
@@ -191,7 +192,7 @@ module Pwrake
       @finished = true
       Log.debug "Branch#finish: begin"
       @wk_hdl_set.exit
-      Log.debug "Branch#finish: worker communicater finish"
+      Log.debug "Branch#finish: worker exited"
       @master_hdl.put_line "exited"
       Log.debug "Branch#finish: sent 'exited' to master"
     end
