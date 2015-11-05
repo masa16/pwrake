@@ -161,12 +161,8 @@ module Pwrake
           @log.warn "Executor(id=#{@id})#kill nothing killed"
         end
       end
-      #signum = (sig.kind_of?(Integer)) ? sig : (Signal.list[sig.to_s] || 0)
-      #@spawn_out.print @terminator+":#{signum+128},\n"
       @spawn_out.flush
-      #@spawn_err.print @terminator+"\n"
       @spawn_err.flush
-      #@queue.enq(nil)
     end
 
   end
