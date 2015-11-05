@@ -166,15 +166,23 @@ module Pwrake
     def invoke(t, args)
       @failed = false
       t.pw_search_tasks(args)
+
       if @option['GRAPH_PARTITION']
+        setup_postprocess0
         @task_queue.deq_noaction_task do |tw,hid|
           tw.preprocess
           tw.status = "end"
           @post_pool.enq(tw)
         end
+        @runner.run
+        @post_pool.finish
+        Log.debug "@post_pool.finish"
+
         require 'pwrake/misc/mcgp'
         MCGP.graph_partition(@option.host_map)
       end
+
+      setup_postprocess1
       @branch_setup_thread.join
       send_task_to_idle_core
       #
@@ -260,26 +268,37 @@ module Pwrake
         Fiber.new do
           j = i
           while tw = pool.deq()
-            Log.debug "pool##{j} deq=#{tw.name}"
+            Log.debug "postproc##{j} deq=#{tw.name}"
             loc = postproc.run(tw.name)
             tw.postprocess(loc)
             pool.count_down
-            #Log.debug "@no_more_run=#{@no_more_run.inspect}"
-            #Log.debug "@task_queue.empty?=#{@task_queue.empty?}"
-            #Log.debug "@hostid_by_taskname=#{@hostid_by_taskname.inspect}"
-            #Log.debug "pool.empty?=#{pool.empty?}"
-            if (@no_more_run || @task_queue.empty?) &&
-                @hostid_by_taskname.empty? && pool.empty?
-              Log.debug "pool##{j} closing @channels=#{@channels.inspect}"
-              @finished = true
-              @channels.each{|ch| ch.finish} # exit
-              break
-            elsif !@no_more_run
-              send_task_to_idle_core
-            end
+            break if yield(pool,j)
           end
           postproc.close
-          Log.debug "pool##{j} end"
+          Log.debug "postproc##{j} end"
+        end
+      end
+    end
+
+    def setup_postprocess0
+      setup_postprocess{false}
+    end
+
+    def setup_postprocess1
+      setup_postprocess do |pool,j|
+        #Log.debug "@no_more_run=#{@no_more_run.inspect}"
+        #Log.debug "@task_queue.empty?=#{@task_queue.empty?}"
+        #Log.debug "@hostid_by_taskname=#{@hostid_by_taskname.inspect}"
+        #Log.debug "pool.empty?=#{pool.empty?}"
+        if (@no_more_run || @task_queue.empty?) &&
+            @hostid_by_taskname.empty? && pool.empty?
+          Log.debug "postproc##{j} closing @channels=#{@channels.inspect}"
+          @finished = true
+          @channels.each{|ch| ch.finish} # exit
+          true
+        elsif !@no_more_run
+          send_task_to_idle_core
+          false
         end
       end
     end
