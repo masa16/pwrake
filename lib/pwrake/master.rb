@@ -2,7 +2,9 @@ require "fileutils"
 require "pathname"
 require "yaml"
 require "logger"
-require 'csv'
+require "csv"
+
+require "pwrake/version"
 
 require "pwrake/iomux/runner"
 require "pwrake/iomux/handler"
