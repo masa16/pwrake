@@ -39,7 +39,11 @@ module Pwrake
         end
         @logger = Logger.new(logfile)
       else
-        @logger = Logger.new($stderr)
+        if @option['DEBUG']
+          @logger = Logger.new($stderr)
+        else
+          @logger = Logger.new(File::NULL)
+        end
       end
 
       if @option['DEBUG']

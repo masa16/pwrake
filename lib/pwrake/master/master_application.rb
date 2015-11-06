@@ -35,10 +35,11 @@ module Pwrake
           Log.debug "main: #{Time.now-t} sec"
           t = Time.now
         ensure
-          @master.finish
+          @failed = @master.finish
+          Log.debug "finish: #{Time.now-t} sec"
+          Log.info "pwrake elapsed time: #{Time.now-START_TIME} sec"
         end
-        Log.debug "finish: #{Time.now-t} sec"
-        Log.info "pwrake elapsed time: #{Time.now-START_TIME} sec"
+        Kernel.exit(false) if @failed
       end
     end
 

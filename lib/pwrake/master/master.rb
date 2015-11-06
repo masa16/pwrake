@@ -27,7 +27,11 @@ module Pwrake
         end
         @logger = Logger.new(logfile)
       else
-        @logger = Logger.new($stdout)
+        if @option['DEBUG']
+          @logger = Logger.new($stderr)
+        else
+          @logger = Logger.new(File::NULL)
+        end
       end
 
       if @option['DEBUG']
@@ -329,6 +333,7 @@ module Pwrake
       @hdl_set.exit unless @exited
       TaskWrapper.close_task_logger
       Log.debug "Master#finish end"
+      @failed
     end
 
   end

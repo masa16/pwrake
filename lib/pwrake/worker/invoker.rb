@@ -13,19 +13,21 @@ module Pwrake
       @log.open(@dir_class)
       @out.add_logger(@log)
       ncore_max = processor_count()
-      case ncore
-      when 1..ncore_max
-        @ncore = ncore
-      when 1-ncore_max..0
-        @ncore = ncore_max + ncore
-      when nil
-        @ncore = ncore_max
-      else
-        if ncore.kind_of?(Integer)
-          m = "Out of range: ncore=#{ncore.inspect}"
+      if ncore.kind_of?(Integer)
+        if ncore > 0
+          @ncore = ncore
         else
-          m = "Invalid argument: ncore=#{ncore.inspect}"
+          @ncore = ncore_max + ncore
         end
+        if @ncore <= 0
+          m = "Out of range: ncore=#{ncore.inspect}"
+          @out.puts "ncore:"+m
+          raise ArgumentError,m
+        end
+      elsif ncore.nil?
+        @ncore = ncore_max + ncore
+      else
+        m = "Invalid argument: ncore=#{ncore.inspect}"
         @out.puts "ncore:"+m
         raise ArgumentError,m
       end
