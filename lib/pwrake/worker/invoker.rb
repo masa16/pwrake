@@ -4,7 +4,7 @@ module Pwrake
 
   class Invoker
 
-    def initialize(dir_class, n_core, option)
+    def initialize(dir_class, ncore, option)
       @dir_class = dir_class
       @option = option
       @out = Writer.instance # firstly replace $stderr
@@ -12,14 +12,23 @@ module Pwrake
       @log.init(@option)
       @log.open(@dir_class)
       @out.add_logger(@log)
-      @ncore = case n_core
-               when /^\d+$/
-                 n_core.to_i
-               when Integer
-                 n_core
-               else
-                 processor_count
-               end
+      ncore_max = processor_count()
+      case ncore
+      when 1..ncore_max
+        @ncore = ncore
+      when 1-ncore_max..0
+        @ncore = ncore_max + ncore
+      when nil
+        @ncore = ncore_max
+      else
+        if ncore.kind_of?(Integer)
+          m = "Out of range: ncore=#{ncore.inspect}"
+        else
+          m = "Invalid argument: ncore=#{ncore.inspect}"
+        end
+        @out.puts "ncore:"+m
+        raise ArgumentError,m
+      end
       @out.puts "ncore:#{@ncore}"
       # does NOT exit when writing to broken pipe
       Signal.trap("PIPE", "SIG_IGN")

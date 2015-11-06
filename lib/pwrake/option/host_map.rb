@@ -48,7 +48,7 @@ module Pwrake
       when Integer
         parse_hosts(["localhost #{arg}"])
       when NilClass
-        parse_hosts(["localhost"])
+        parse_hosts(["localhost 1"])
       else
         raise ArgumentError, "arg=#{arg.inspect}"
         #@num_threads = 1 if !@num_threads
@@ -83,8 +83,7 @@ module Pwrake
     def group_weight_sum
       a = []
       self.each do |sub,list|
-        list.each{|h| puts "a[h.group]=#{a[h.group]} h.weight=#{h.weight}"
-a[h.group] = (a[h.group]||0) + h.weight}
+        list.each{|h| a[h.group] = (a[h.group]||0) + h.weight}
       end
       a
     end

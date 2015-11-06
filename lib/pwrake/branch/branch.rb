@@ -70,7 +70,7 @@ module Pwrake
       while s = @ior.gets
         s.chomp!
         break if s == "host_list_end"
-        if /^host:(\d+) (\S+) (\d+)?$/ =~ s
+        if /^host:(\d+) (\S+) ([+-]?\d+)?$/ =~ s
           id, host, ncore = $1,$2,$3
           ncore &&= ncore.to_i
           comm = WorkerCommunicator.new(id,host,ncore,@runner,@option)

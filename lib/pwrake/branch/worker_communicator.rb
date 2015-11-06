@@ -59,21 +59,26 @@ module Pwrake
     end
 
     def set_ncore(ncore)
-      @ncore = ncore if @ncore.nil?
+      @ncore = ncore
     end
 
     def ncore_proc(s)
-      if /^ncore:(\d+)$/ =~ s
-        set_ncore($1.to_i)
-        Log.debug "#{s.chomp} @#{@host}"
-        return false
+      if /^ncore:(.*)$/ =~ s
+        a = $1
+        Log.debug "#{a} @#{@host}"
+        if /^(\d+)$/ =~ a
+          set_ncore($1.to_i)
+          return false
+        else
+          raise ArgumentError,"WorkerCommunicator#ncore_proc: s=#{s.inspect}"
+        end
       else
         return common_line(s)
       end
     end
 
     def common_line(s)
-      Log.debug "WorkerCommunicator#common_line: #{s.chomp} id=#{@id} host=#{@host}"
+      Log.debug "WorkerCommunicator#common_line(#{s.inspect}) id=#{@id} host=#{@host}"
       case s
       when /^heartbeat$/
         @runner.heartbeat(@handler.ior)

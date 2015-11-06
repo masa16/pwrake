@@ -72,15 +72,13 @@ module Pwrake
         "[Pw] Number of threads at localhost (default: # of processors)",
         lambda { |value|
           if value
-            value = value.to_i
-            if value > 0
-              options.num_threads = value
+            if /^[+-]?\d+$/ =~ value
+              options.num_threads = value.to_i
             else
-              options.num_threads = x = processor_count + value
-              raise "negative/zero number of threads (#{x})" if x <= 0
+              raise ArgumentError,"Invalid argument for -j: #{value}"
             end
           else
-            options.num_threads = processor_count
+            options.num_threads = 0
           end
         }
        ],
