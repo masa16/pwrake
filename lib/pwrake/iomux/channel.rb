@@ -12,7 +12,6 @@ module Pwrake
         raise TypeError, "Argument must be Handler but #{handler.class}"
       end
       @handler = handler
-      @handler.set_channel(self)
     end
 
     attr_reader :id, :handler, :fiber
@@ -23,8 +22,10 @@ module Pwrake
 
     def run_fiber(*args)
       if @fiber.nil?
-        $stderr.puts "Channel#run_fiber: @fiber is nil, args=#{args.inspect} @id=#{@id}"
-        Log.debug "Channel#run_fiber: @fiber is nil, args=#{args.inspect} @id=#{@id}"
+        m = "Channel#run_fiber: @fiber is nil,"+
+          " args=#{args.inspect} @id=#{@id}"
+        $stderr.puts m
+        Log.debug m
       else
         @fiber.resume(*args)
       end
@@ -37,11 +38,11 @@ module Pwrake
     end
 
     def get_line
-      @handler.runner.add_channel(self)
+      @handler.add_channel(self)
       @fiber = Fiber.current
       line = Fiber.yield
       @fiber = nil
-      @handler.runner.delete_channel(self)
+      @handler.delete_channel(self)
       return line
     end
 

@@ -23,47 +23,60 @@ module Pwrake
       if @ior.nil? && @iow.nil?
         raise "fail to initialize IO"
       end
-      @runner.set_handler(self)
     end
 
     attr_reader :runner, :ior, :iow, :ioe
     attr_accessor :host
 
-    def set_channel(chan)
+    def add_channel(chan)
       if !chan.kind_of?(Channel)
         raise TypeError, "Argument must be Channel but #{chan.class}"
       end
-      if ch = chan.id
-        @channel[ch] = chan
-      else
-        @default_channel = chan
+      @channel[chan.id] = chan
+      @runner.add_handler(self)
+    end
+
+    def delete_channel(chan)
+      if !chan.kind_of?(Channel)
+        raise TypeError, "Argument must be Channel but #{chan.class}"
+      end
+      @channel.delete(chan.id)
+      if @channel.empty?
+        @runner.delete_handler(self)
       end
     end
 
     def process_line
       if s = (@ior.eof?) ? nil : @ior.gets
-        if !@channel.empty?
+        default_channel = @channel[nil]
+        if @channel.size > ((default_channel) ? 1 : 0)
           if /^(\d+):(.*)$/ =~ s
             ch,line = $1,$2
-            ch = ch.to_i
-            if chan = @channel[ch]
+            if chan = @channel[ch.to_i]
               return chan.run_fiber(line)
             else
-              raise "No channel[#{ch}]"
+              raise "No channel##{ch}"
             end
           end
         end
-        if @default_channel.nil?
+        if default_channel
+          return default_channel.run_fiber(s.chomp)
+        else
           raise "No default_channel"
         end
-        return @default_channel.run_fiber(s.chomp)
       else
         # End of IO
-        @channel.each do |ch,chan|
+        @channel.each_value do |chan|
           if chan.fiber
             chan.run_fiber(nil)
           end
         end
+      end
+    end
+
+    def finish
+      @channel.each_value do |chan|
+        chan.finish
       end
     end
 
