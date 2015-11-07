@@ -212,7 +212,7 @@ module Pwrake
             @task_name = task_name
             task = Rake.application[task_name]
             begin
-              task.execute if task.needed?
+              task.execute(task.arguments) if task.needed?
               result = "taskend:#{@id}:#{task.name}"
             rescue Exception=>e
               Rake.application.display_error_message(e)

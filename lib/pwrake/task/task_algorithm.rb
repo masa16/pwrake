@@ -7,9 +7,10 @@ module Pwrake
 
     attr_reader :wrapper
     attr_reader :subsequents
+    attr_reader :arguments
 
     def pw_search_tasks(args)
-      Log.debug "#{self.class}#pw_search_tasks start"
+      Log.debug "#{self.class}#pw_search_tasks start, args=#{args.inspect}"
       tm = Time.now
       task_args = TaskArguments.new(arg_names, args)
       #timer = Timer.new("search_task")
@@ -37,6 +38,7 @@ module Pwrake
 
         if ! @already_searched
           @already_searched = true
+          @arguments = task_args
           @wrapper = TaskWrapper.new(self,task_args)
           if @prerequisites.empty?
             @unfinished_prereq = {}
@@ -60,8 +62,8 @@ module Pwrake
       @unfinished_prereq = {}
       @prerequisites.each{|t| @unfinished_prereq[t]=true}
       prerequisite_tasks.each { |prereq|
-        #prereq_args = task_args.new_scope(prereq.arg_names) # in vain
-        if prereq.search_with_call_chain(self, task_args, invocation_chain)
+        prereq_args = task_args.new_scope(prereq.arg_names)
+        if prereq.search_with_call_chain(self, prereq_args, invocation_chain)
           @unfinished_prereq.delete(prereq.name)
         end
       }
