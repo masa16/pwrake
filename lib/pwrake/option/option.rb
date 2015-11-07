@@ -7,12 +7,12 @@ module Pwrake
     def initialize
       load_pwrake_conf
       init_options
+      init_pass_env
       if self['SHOW_CONF']
         require "yaml"
         YAML.dump(self,$stdout)
         exit
       end
-      init_pass_env
     end
 
     def init
