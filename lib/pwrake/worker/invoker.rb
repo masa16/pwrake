@@ -25,7 +25,7 @@ module Pwrake
           raise ArgumentError,m
         end
       elsif ncore.nil?
-        @ncore = ncore_max + ncore
+        @ncore = ncore_max
       else
         m = "Invalid argument: ncore=#{ncore.inspect}"
         @out.puts "ncore:"+m
