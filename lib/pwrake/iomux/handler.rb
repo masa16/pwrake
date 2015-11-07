@@ -66,7 +66,7 @@ module Pwrake
         end
       else
         # End of IO
-        @channel.each_value do |chan|
+        @channel.values.each do |chan|
           if chan.fiber
             chan.run_fiber(nil)
           end
@@ -75,7 +75,7 @@ module Pwrake
     end
 
     def finish
-      @channel.each_value do |chan|
+      @channel.values.each do |chan|
         chan.finish
       end
     end

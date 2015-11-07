@@ -122,17 +122,19 @@ module Pwrake
 
         while s = chan.gets
           case s
-          when /ncore:done/
+          when /^ncore:done$/
             break
-          when /ncore:(\d+):(\d+)/
+          when /^ncore:(\d+):(\d+)$/
             id, ncore = $1.to_i, $2.to_i
             Log.debug "worker_id=#{id} ncore=#{ncore}"
             #@workers[id].ncore = ncore
             @idle_cores[id] = ncore
             sum_ncore += ncore
+          when /^exited$/
+            raise RuntimeError,"Unexpected branch exit"
           else
             msg = "#{hdl.host}:#{s.inspect}"
-            raise "invalid return: #{msg}"
+            raise RuntimeError,"invalid return: #{msg}"
           end
         end
       end
@@ -147,7 +149,7 @@ module Pwrake
         @channels.each do |chan|
           s = chan.gets
           if /^branch_setup:done$/ !~ s
-            raise "branch_setup failed" # "#{x.handler.host}:#{s}"
+            raise RuntimeError,"branch_setup failed"
           end
         end
         @killed = 0

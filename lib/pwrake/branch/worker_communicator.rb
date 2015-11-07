@@ -87,7 +87,7 @@ module Pwrake
       when /^log:(.*)$/
         Log.info "worker(#{host})>#{$1}"
       else
-        Log.warn "worker(#{host}) out>#{s.chomp}"
+        Log.warn "worker(#{host}) out> #{s.inspect}"
       end
       true
     end
