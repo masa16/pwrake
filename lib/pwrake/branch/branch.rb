@@ -87,14 +87,29 @@ module Pwrake
         end
       end
 
-      @wk_comm.each_value do |comm|
+      errors = []
+
+      @wk_comm.values.each do |comm|
         Fiber.new do
-          while comm.ncore_proc(comm.channel.get_line)
+          while true
+            if s = comm.channel.get_line
+              break unless comm.ncore_proc(s)
+            else
+              errors << comm
+              break
+            end
           end
           Log.debug "Branch#setup_worker: fiber end of ncore_proc"
         end.resume
       end
+
       @runner.run
+
+      if !errors.empty?
+        errors.each{|comm| @wk_hdl_set.delete(comm.handler)}
+        hosts = errors.map{|comm| comm.host}.join(",")
+        raise RuntimeError,"Failed to connect to workers: #{hosts}"
+      end
 
       # ncore
       @wk_comm.each_value do |comm|
