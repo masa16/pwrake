@@ -1,0 +1,15 @@
+require "rake/clean"
+
+hoge = %w[hoge1 hoge2]
+CLEAN.include hoge
+CLEAN.include "*._fail_"
+
+task :default => hoge
+
+file "hoge1" do
+  sh "echo hoge1>hoge1"
+end
+
+file "hoge2" do
+  sh "echo hoge2>hoge2; ls hogehoge"
+end

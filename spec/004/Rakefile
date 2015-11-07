@@ -1,0 +1,7 @@
+A = 4.times.map do |i|
+  task "A#{i}" do |t|
+    sh "sleep 1"
+  end.name
+end
+
+task :default => A

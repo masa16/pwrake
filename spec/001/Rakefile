@@ -1,0 +1,5 @@
+task :default => "A"
+
+task "A" do
+  sh "echo A"
+end

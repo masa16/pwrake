@@ -1,0 +1,18 @@
+require "rake/clean"
+
+B = 4.times.map do |i|
+  task "B#{i}.dat" do |t|
+    sh "echo `hostname`:`pwd`"
+  end.name
+end
+
+A = 4.times.map do |i|
+  task "A#{i}.dat" => "B#{i}.dat" do |t|
+    sh "echo `hostname`:`pwd`"
+  end.name
+end
+
+task :default => A
+
+CLEAN.include A,B
+CLEAN.include 'log_*'

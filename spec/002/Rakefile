@@ -1,0 +1,19 @@
+require "rake/clean"
+
+B = 4.times.map do |i|
+  file "B#{i}.dat" do |t|
+    sh "echo `hostname`:`pwd`"
+    sh "echo '#{t.name}' > #{t.name}"
+  end.name
+end
+
+A = 4.times.map do |i|
+  file "A#{i}.dat" => "B#{i}.dat" do |t|
+    sh "echo `hostname`:`pwd`"
+    sh "echo '#{t.name}' > #{t.name}"
+  end.name
+end
+
+task :default => A
+
+CLEAN.include A,B

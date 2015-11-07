@@ -1,0 +1,4 @@
+task :default do
+  #puts "this message should not be printed"
+  sh "hostname; echo ENV1=$ENV1"
+end

@@ -1,0 +1,11 @@
+require "../helper"
+$cores = Helper.read_hosts("../hosts")
+
+$tasks = $cores.each_with_index.map do |h,i|
+  task "#{h}_#{i}" do |t|
+    sh "hostname"
+    sleep 0.5
+  end.name
+end
+
+task :default => $tasks

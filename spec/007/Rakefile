@@ -1,0 +1,22 @@
+
+t = task "A" do |t|
+  puts "task A #{Thread.current.inspect}"
+  c = 10.times.map do |i|
+    task "C#{i}" do |t|
+      print "task #{t.name} #{Thread.current.inspect}\n"
+      sh "echo #{t.name}; sleep 1"
+    end.name
+  end
+
+  (task "B" => c).invoke
+  print "invoke end\n"
+end
+
+task :default => ["A"] do |t|
+  print "task #{t.name} #{Thread.current.inspect}\n"
+end
+
+
+p Thread.current
+
+p RUBY_RELEASE_DATE
