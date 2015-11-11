@@ -89,7 +89,7 @@ module Pwrake
           if turn_empty?(turn)
             return queued
           elsif tw = deq_impl(hid,turn)
-            Log.debug "deq: #{tw.name}"
+            Log.debug "deq: #{tw.name} n_used_cores=#{tw.n_used_cores}"
             if @idle_cores[hid] < tw.n_used_cores
               enq(tw) # check me
             else

@@ -8,6 +8,7 @@ module Pwrake
     attr_reader :wrapper
     attr_reader :subsequents
     attr_reader :arguments
+    attr_reader :n_used_cores
 
     def pw_search_tasks(args)
       Log.debug "#{self.class}#pw_search_tasks start, args=#{args.inspect}"
@@ -97,6 +98,15 @@ module Pwrake
       @unfinished_prereq.empty?
     end
 
-  end
+    def pw_set_ncore(n)
+      n ||= 1
+      if n.kind_of?(Integer) && n > 0
+        @n_used_cores = n
+      else
+        raise ArgumentError, "Invalid for n_cores: #{n.inspect}"
+      end
+      self
+    end
 
-end # module Pwrake
+  end
+end

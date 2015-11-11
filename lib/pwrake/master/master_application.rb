@@ -150,5 +150,5 @@ module Pwrake
       opts
     end
 
-  end # class MasterApplication < ::Rake::Application
-end # mocule Pwrake
+  end
+end

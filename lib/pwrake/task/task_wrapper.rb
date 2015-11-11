@@ -24,17 +24,17 @@ module Pwrake
       @priority
       @lock_rank = Monitor.new
       @executed = false
-      @n_used_cores = 1
       @assigned = []
       @exec_host = nil
     end
 
-    def_delegators :@task, :name, :actions, :prerequisites, :subsequents
+    def_delegators :@task, :name, :actions, :prerequisites, :subsequents,
+      :n_used_cores
 
     attr_reader :task, :task_id, :group, :group_id, :file_stat
     attr_reader :location
     attr_reader :assigned
-    attr_accessor :executed, :n_used_cores
+    attr_accessor :executed
     attr_accessor :exec_host
     attr_accessor :shell_id, :status
 
