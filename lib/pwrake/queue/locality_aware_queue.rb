@@ -7,7 +7,7 @@ module Pwrake
       # group_map = {gid1=>[hid1,hid2,...], ...}
       @size_q = 0
       @q = {}
-      core_map.each{|hid,ncore| @q[hid] = @array_class.new(ncore)}
+      core_map.each{|hid,ncore| @q[hid] = @array_class.new(ncore,@max_cores)}
       @q_group = {}
       group_map = {1=>core_map.keys} if group_map.nil?
       group_map.each do |gid,ary|
@@ -19,7 +19,7 @@ module Pwrake
         a = [q1,q2]
         ary.each{|hid| @q_group[hid] = a}
       end
-      @q_remote = @array_class.new(0)
+      @q_remote = @array_class.new(0,@max_cores)
       @disable_steal = Rake.application.pwrake_options['DISABLE_STEAL']
       @last_enq_time = Time.now
       @n_turn = @disable_steal ? 1 : 2

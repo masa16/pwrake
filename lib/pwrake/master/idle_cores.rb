@@ -20,5 +20,11 @@ module Pwrake
       end
     end
 
+    def max
+      x = 0
+      each{|k,v| x = v if v > x}
+      x
+    end
+
   end
 end

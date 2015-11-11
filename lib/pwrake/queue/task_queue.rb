@@ -10,6 +10,7 @@ module Pwrake
       @q_no_action = NoActionQueue.new
 
       @idle_cores = core_map.dup
+      @max_cores = core_map.max
 
       pri = Rake.application.pwrake_options['QUEUE_PRIORITY'] || "LIHR"
       case pri
@@ -33,8 +34,8 @@ module Pwrake
     end
 
     def init_queue(core_map, group_map=nil)
-      @q_input = @array_class.new(core_map.size)
-      @q_no_input = FifoQueueArray.new
+      @q_input = @array_class.new(0,@max_cores)
+      @q_no_input = FifoQueueArray.new(nil,@max_cores)
       @n_turn = 1
     end
 
@@ -89,14 +90,15 @@ module Pwrake
           if turn_empty?(turn)
             return queued
           elsif tw = deq_impl(hid,turn)
-            Log.debug "deq: #{tw.name} n_used_cores=#{tw.n_used_cores}"
-            if @idle_cores[hid] < tw.n_used_cores
-              m = "task.n_used_cores=#{tw.n_used_cores} must be "+
+            n_task_cores = tw.n_used_cores(@max_cores)
+            Log.debug "deq: #{tw.name} n_task_cores=#{n_task_cores}"
+            if @idle_cores[hid] < n_task_cores
+              m = "task.n_used_cores=#{n_task_cores} must be "+
                 "<= @idle_cores[hid]=#{@idle_cores[hid]}"
               Log.fatal m
               raise RuntimeError,m
             else
-              @idle_cores.decrease(hid, tw.n_used_cores)
+              @idle_cores.decrease(hid, n_task_cores)
               yield(tw,hid)
               count += 1
               queued += 1
@@ -132,7 +134,7 @@ module Pwrake
     end
 
     def task_end(tw, hid)
-      @idle_cores.increase(hid, tw.n_used_cores)
+      @idle_cores.increase(hid, tw.n_used_cores(@max_cores))
     end
 
     def _qstr(h,q)

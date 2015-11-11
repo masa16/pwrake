@@ -59,15 +59,26 @@ module Pwrake
     end
   end # PriorityQueueArray
 
-
-  class LifoQueueArray < Array
-    def initialize(n=nil)
+  class QueueArray < Array
+    def initialize(n_cores,max_cores)
+      @n_cores = n_cores
+      @max_cores = max_cores
       super()
+    end
+
+    def ncore_condition(tw,n_idle_cores)
+      tw.n_used_cores(@max_cores) <= n_idle_cores
+    end
+  end
+
+  class LifoQueueArray < QueueArray
+    def initialize(n_cores,max_cores)
+      super(n_cores,max_cores)
     end
 
     def shift(n_idle_cores)
       (size-1).downto(0) do |i|
-        if at(i).n_used_cores <= n_idle_cores
+        if ncore_condition(at(i),n_idle_cores)
           return delete_at(i)
         end
       end
@@ -75,14 +86,14 @@ module Pwrake
     end
   end
 
-  class FifoQueueArray < Array
-    def initialize(n=nil)
-      super()
+  class FifoQueueArray < QueueArray
+    def initialize(n_cores,max_cores)
+      super(n_cores,max_cores)
     end
 
     def shift(n_idle_cores)
       size.times do |i|
-        if at(i).n_used_cores <= n_idle_cores
+        if ncore_condition(at(i),n_idle_cores)
           return delete_at(i)
         end
       end
@@ -132,8 +143,8 @@ module Pwrake
   # HRF mixin module
   module HrfQueue
 
-    def hrf_init(n=nil)
-      @nproc = n || 0
+    def hrf_init(n_cores=nil)
+      @nproc = n_cores || 0
       @count = []
     end
 
@@ -159,7 +170,7 @@ module Pwrake
     def pop_last_rank(r,nc)
       (size-1).downto(0) do |i|
         tw = at(i)
-        if tw.rank == r && tw.n_used_cores <= nc
+        if tw.rank == r && ncore_condition(tw,nc)
           return delete_at(i)
         end
       end
@@ -187,9 +198,9 @@ module Pwrake
     extend Forwardable
     def_delegators :@a, :empty?, :size, :first, :last, :at, :delete_at
 
-    def initialize(n)
-      @a = LifoQueueArray.new
-      hrf_init(n)
+    def initialize(n_cores,max_cores)
+      @a = LifoQueueArray.new(n_cores,max_cores)
+      hrf_init(n_cores)
     end
 
     def push(t)
@@ -243,7 +254,7 @@ module Pwrake
   # Rank-Even Last In First Out
   class RankQueueArray
 
-    def initialize(n)
+    def initialize(n,max_cores)
       @q = []
       @size = 0
       @n = (n>0) ? n : 1
