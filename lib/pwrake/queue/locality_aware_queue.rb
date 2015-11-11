@@ -60,22 +60,23 @@ module Pwrake
     end
 
     def deq_impl(host, turn)
+      nc = @idle_cores[host]
       case turn
       when 0
         if t = @q_no_action.shift
           Log.debug "deq_no_action task=#{t&&t.name} host=#{host}"
           return t
-        elsif t = deq_locate(host)
+        elsif t = deq_locate(host,nc)
           Log.debug "deq_locate task=#{t&&t.name} host=#{host}"
           return t
-        elsif t = @q_remote.shift
+        elsif t = @q_remote.shift(nc)
           Log.debug "deq_remote task=#{t&&t.name}"
           return t
         else
           nil
         end
       when 1
-        if t = deq_steal(host)
+        if t = deq_steal(host,nc)
           Log.debug "deq_steal task=#{t&&t.name} host=#{host}"
           return t
         else
@@ -84,10 +85,10 @@ module Pwrake
       end
     end
 
-    def deq_locate(host)
+    def deq_locate(host,nc)
       q = @q[host]
       if q && !q.empty?
-        t = q.shift
+        t = q.shift(nc)
         if t
           t.assigned.each do |h|
             @q[h].delete(t)
@@ -100,7 +101,7 @@ module Pwrake
       end
     end
 
-    def deq_steal(host)
+    def deq_steal(host,nc)
       # select a task based on many and close
       max_host = nil
       max_num  = 0
@@ -116,7 +117,7 @@ module Pwrake
         end
         if max_num > 0
           Log.debug "deq_steal max_host=#{max_host} max_num=#{max_num}"
-          t = deq_locate(max_host)
+          t = deq_locate(max_host,nc)
           return t if t
         end
       end

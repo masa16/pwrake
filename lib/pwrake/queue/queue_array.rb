@@ -61,19 +61,32 @@ module Pwrake
 
 
   class LifoQueueArray < Array
-    def initialize(n)
+    def initialize(n=nil)
       super()
     end
 
-    def shift
-      pop
+    def shift(n_idle_cores)
+      (size-1).downto(0) do |i|
+        if at(i).n_used_cores <= n_idle_cores
+          return delete_at(i)
+        end
+      end
+      nil
     end
   end
 
-
   class FifoQueueArray < Array
-    def initialize(n)
+    def initialize(n=nil)
       super()
+    end
+
+    def shift(n_idle_cores)
+      size.times do |i|
+        if at(i).n_used_cores <= n_idle_cores
+          return delete_at(i)
+        end
+      end
+      nil
     end
   end
 
@@ -130,12 +143,12 @@ module Pwrake
       @count[r] = (c) ? c+1 : 1
     end
 
-    def hrf_get
+    def hrf_get(nc)
       (@count.size-1).downto(0) do |r|
         c = @count[r]
         if c && c>0
-          t = (c <= @nproc) ? pop_last_rank(r) : pop_super
-          hrf_delete(t)
+          t = (c <= @nproc) ? pop_last_rank(r,nc) : pop_super(nc)
+          hrf_delete(t) if t
           return t
         end
       end
@@ -143,9 +156,10 @@ module Pwrake
       nil
     end
 
-    def pop_last_rank(r)
+    def pop_last_rank(r,nc)
       (size-1).downto(0) do |i|
-        if at(i).rank == r
+        tw = at(i)
+        if tw.rank == r && tw.n_used_cores <= nc
           return delete_at(i)
         end
       end
@@ -171,11 +185,10 @@ module Pwrake
   class LifoHrfQueueArray
     include HrfQueue
     extend Forwardable
-    def_delegators :@a, :empty?, :size, :first, :last
-    def_delegators :@a, :at, :delete_at
+    def_delegators :@a, :empty?, :size, :first, :last, :at, :delete_at
 
     def initialize(n)
-      @a = []
+      @a = LifoQueueArray.new
       hrf_init(n)
     end
 
@@ -184,9 +197,9 @@ module Pwrake
       hrf_push(t)
     end
 
-    def shift
+    def shift(n_idle_cores)
       return nil if empty?
-      hrf_get
+      hrf_get(n_idle_cores)
     end
 
     def delete(t)
@@ -196,8 +209,8 @@ module Pwrake
       x
     end
 
-    def pop_super
-      @a.pop
+    def pop_super(n_idle_cores)
+      @a.shift(n_idle_cores)
     end
   end
 

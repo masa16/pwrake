@@ -34,7 +34,7 @@ module Pwrake
 
     def init_queue(core_map, group_map=nil)
       @q_input = @array_class.new(core_map.size)
-      @q_no_input = Array.new
+      @q_no_input = FifoQueueArray.new
       @n_turn = 1
     end
 
@@ -91,7 +91,10 @@ module Pwrake
           elsif tw = deq_impl(hid,turn)
             Log.debug "deq: #{tw.name} n_used_cores=#{tw.n_used_cores}"
             if @idle_cores[hid] < tw.n_used_cores
-              enq(tw) # check me
+              m = "task.n_used_cores=#{tw.n_used_cores} must be "+
+                "<= @idle_cores[hid]=#{@idle_cores[hid]}"
+              Log.fatal m
+              raise RuntimeError,m
             else
               @idle_cores.decrease(hid, tw.n_used_cores)
               yield(tw,hid)
@@ -110,9 +113,10 @@ module Pwrake
     end
 
     def deq_impl(hint=nil, turn=nil)
+      nc = @idle_cores[hint]
       @q_no_action.shift ||
-        @q_input.shift ||
-        @q_no_input.shift
+        @q_input.shift(nc) ||
+        @q_no_input.shift(nc)
     end
 
     def clear
