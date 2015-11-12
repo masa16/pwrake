@@ -11,6 +11,7 @@ module Pwrake
     def initialize(task,task_args=nil)
       @task = task
       @task_args = task_args
+      @property = task.property
       @task_id = @@current_id
       @@current_id += 1
       @location = []
@@ -28,8 +29,8 @@ module Pwrake
       @exec_host = nil
     end
 
-    def_delegators :@task, :name, :actions, :prerequisites, :subsequents,
-      :n_used_cores
+    def_delegators :@task, :name, :actions, :prerequisites, :subsequents
+    def_delegators :@property, :acceptable_for
 
     attr_reader :task, :task_id, :group, :group_id, :file_stat
     attr_reader :location
@@ -286,9 +287,8 @@ module Pwrake
       @priority || 0
     end
 
-
-    def acceptable_for(host_info)
-      host_info.idle_cores >= n_used_cores
+    def n_used_cores(host_info=nil)
+      @n_used_cores ||= @property.n_used_cores(host_info)
     end
 
   end

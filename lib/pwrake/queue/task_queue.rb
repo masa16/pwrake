@@ -90,7 +90,7 @@ module Pwrake
           if turn_empty?(turn)
             return queued
           elsif tw = deq_impl(host_info,turn)
-            n_task_cores = tw.n_used_cores
+            n_task_cores = tw.n_used_cores(host_info)
             Log.debug "deq: #{tw.name} n_task_cores=#{n_task_cores}"
             if host_info.idle_cores < n_task_cores
               m = "task.n_used_cores=#{n_task_cores} must be "+
@@ -134,7 +134,8 @@ module Pwrake
     end
 
     def task_end(tw, hid)
-      @host_info_list[hid].increase(tw.n_used_cores)
+      host_info = @host_info_list[hid]
+      host_info.increase(tw.n_used_cores(host_info))
     end
 
     def _qstr(h,q)
