@@ -12,7 +12,7 @@ module Pwrake
       group_map.each do |gid,ary|
         q1 = {}     # same group
         q2 = @q.dup # other groups
-        ary.each{|hid| q1[hid] = @q[hid]; q2.delete(hid)}
+        ary.each{|hid| q1[hid] = q2.delete(hid)}
         a = [q1,q2]
         ary.each{|hid| @q_group[hid] = a}
       end
