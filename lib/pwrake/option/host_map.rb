@@ -2,43 +2,39 @@ module Pwrake
 
   class HostInfo
 
-    @@id = 0
-
-    def initialize(name,ncore,weight,group=nil)
+    def initialize(name,id,ncore,weight,group=nil)
       @name = name
       @ncore = ncore
       @weight = weight || 1.0
       @group = group || 0
-      @id = @@id
-      @@id = @@id.succ
-    end
-
-    def merge(info)
-      if @name != info.name || @group != info.group
-        raise RuntimeError, "Cannot merge different host or group"
-      end
-      if info.ncore
-        if @ncore
-          @ncore += info.ncore
-        else
-          @ncore = info.ncore
-        end
-      end
-      if info.weight
-        if @weight
-          @weight += info.weight
-        else
-          @weight = info.weight
-        end
-      end
+      @id = id
     end
 
     attr_reader :name, :ncore, :weight, :group, :id
+    attr_accessor :idle_cores
+
+    def set_ncore(n)
+      @ncore = @idle_cores = n
+    end
+
+    def increase(n)
+      @idle_cores += n
+    end
+
+    def decrease(n)
+      @idle_cores -= n
+      if @idle_cores < 0
+        raise RuntimeError,"# of cores must be non-negative"
+      end
+    end
   end
 
   class HostMap < Hash
 
     def initialize(arg=nil)
+      @host_map = {}
+      @by_id = []
+      @by_name = {}
       require "socket"
       case arg
       when /\.yaml$/
@@ -55,13 +51,10 @@ module Pwrake
         #@core_list = ['localhost'] * @num_threads
       end
     end
+    attr_reader :by_id, :by_name
 
     def host_count
-      count = Hash.new{0}
-      self.each do |sub,list|
-        list.each{|h| count[h] += 1}
-      end
-      count
+      @by_id.size
     end
 
     def group_hosts
@@ -87,7 +80,6 @@ module Pwrake
       end
       a
     end
-
 
     private
 
@@ -115,23 +107,15 @@ module Pwrake
       end
     end
 
-    def parse_list(list)
-      h = {}
-      a = list.map{|s| parse_line(s)}.flatten
-      # merge same host
-      a.each do |d|
-        host = d.name
-        if x = h[host]
-          x.merge(d)
-        else
-          h[host] = d.dup
-        end
+    def parse_list(line_list)
+      info_list = []
+      line_list.each do |line|
+        parse_line(info_list,line)
       end
-      h.values
+      info_list
     end
 
-    def parse_line(line)
-      list = []
+    def parse_line(info_list,line)
       line = $1 if /^([^#]*)#/ =~ line
       host, ncore, weight, group = line.split
       if host
@@ -146,13 +130,21 @@ module Pwrake
           rescue
             Log.warn "FQDN not resoved : #{host}"
           end
-          ncore &&= ncore.to_i
+          ncore  &&= ncore.to_i
           weitht &&= weight.to_i
           #weight = (weight || 1).to_f
-          list << HostInfo.new(host,ncore,weight)
+          group  &&= group.to_i
+          if host_info = @by_name[host]
+            raise RuntimeError,"duplicated hostname: #{host}"
+          else
+            id = @by_id.size
+            host_info = HostInfo.new(host,id,ncore,weight,group)
+            @by_name[host] = host_info
+            info_list << host_info
+            @by_id << host_info
+          end
         end
       end
-      list
     end
 
   end

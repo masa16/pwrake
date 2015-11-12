@@ -59,26 +59,15 @@ module Pwrake
     end
   end # PriorityQueueArray
 
-  class QueueArray < Array
-    def initialize(n_cores,max_cores)
-      @n_cores = n_cores
-      @max_cores = max_cores
+
+  class LifoQueueArray < Array
+    def initialize(n_cores=nil)
       super()
     end
 
-    def ncore_condition(tw,n_idle_cores)
-      tw.n_used_cores(@max_cores) <= n_idle_cores
-    end
-  end
-
-  class LifoQueueArray < QueueArray
-    def initialize(n_cores,max_cores)
-      super(n_cores,max_cores)
-    end
-
-    def shift(n_idle_cores)
+    def shift(host_info)
       (size-1).downto(0) do |i|
-        if ncore_condition(at(i),n_idle_cores)
+        if at(i).acceptable_for(host_info)
           return delete_at(i)
         end
       end
@@ -86,14 +75,14 @@ module Pwrake
     end
   end
 
-  class FifoQueueArray < QueueArray
-    def initialize(n_cores,max_cores)
-      super(n_cores,max_cores)
+  class FifoQueueArray < Array
+    def initialize(n_cores=nil)
+      super()
     end
 
-    def shift(n_idle_cores)
+    def shift(host_info)
       size.times do |i|
-        if ncore_condition(at(i),n_idle_cores)
+        if at(i).acceptable_for(host_info)
           return delete_at(i)
         end
       end
@@ -154,11 +143,11 @@ module Pwrake
       @count[r] = (c) ? c+1 : 1
     end
 
-    def hrf_get(nc)
+    def hrf_get(host_info)
       (@count.size-1).downto(0) do |r|
         c = @count[r]
         if c && c>0
-          t = (c <= @nproc) ? pop_last_rank(r,nc) : pop_super(nc)
+          t = (c <= @nproc) ? pop_last_rank(r,host_info) : pop_super(host_info)
           hrf_delete(t) if t
           return t
         end
@@ -167,10 +156,10 @@ module Pwrake
       nil
     end
 
-    def pop_last_rank(r,nc)
+    def pop_last_rank(r,host_info)
       (size-1).downto(0) do |i|
         tw = at(i)
-        if tw.rank == r && ncore_condition(tw,nc)
+        if tw.rank == r && tw.acceptable_for(host_info)
           return delete_at(i)
         end
       end
@@ -198,8 +187,8 @@ module Pwrake
     extend Forwardable
     def_delegators :@a, :empty?, :size, :first, :last, :at, :delete_at
 
-    def initialize(n_cores,max_cores)
-      @a = LifoQueueArray.new(n_cores,max_cores)
+    def initialize(n_cores)
+      @a = LifoQueueArray.new
       hrf_init(n_cores)
     end
 
@@ -208,9 +197,9 @@ module Pwrake
       hrf_push(t)
     end
 
-    def shift(n_idle_cores)
+    def shift(host_info)
       return nil if empty?
-      hrf_get(n_idle_cores)
+      hrf_get(host_info)
     end
 
     def delete(t)
@@ -220,8 +209,8 @@ module Pwrake
       x
     end
 
-    def pop_super(n_idle_cores)
-      @a.shift(n_idle_cores)
+    def pop_super(host_info)
+      @a.shift(host_info)
     end
   end
 
@@ -254,7 +243,7 @@ module Pwrake
   # Rank-Even Last In First Out
   class RankQueueArray
 
-    def initialize(n,max_cores)
+    def initialize(n)
       @q = []
       @size = 0
       @n = (n>0) ? n : 1

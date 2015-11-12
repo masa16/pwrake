@@ -286,5 +286,10 @@ module Pwrake
       @priority || 0
     end
 
+
+    def acceptable_for(host_info)
+      host_info.idle_cores >= n_used_cores
+    end
+
   end
 end

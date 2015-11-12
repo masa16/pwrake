@@ -5,7 +5,6 @@ module Pwrake
     def initialize
       @runner = Runner.new
       @hostid_by_taskname = {}
-      @idle_cores = IdleCores.new
       @option = Option.new
       @hdl_set = HandlerSet.new
       @channel_by_hostid = {}
@@ -127,8 +126,7 @@ module Pwrake
           when /^ncore:(\d+):(\d+)$/
             id, ncore = $1.to_i, $2.to_i
             Log.debug "worker_id=#{id} ncore=#{ncore}"
-            #@workers[id].ncore = ncore
-            @idle_cores[id] = ncore
+            @option.host_map.by_id[id].set_ncore(ncore)
             sum_ncore += ncore
           when /^exited$/
             raise RuntimeError,"Unexpected branch exit"
@@ -141,9 +139,11 @@ module Pwrake
 
       Log.info "num_cores=#{sum_ncore}"
       @hosts.each do |id,host|
-        Log.info "#{host} id=#{id} ncore=#{@idle_cores[id]}"
+        Log.info "#{host} id=#{id} ncore=#{
+          @option.host_map.by_id[id].idle_cores}"
       end
-      @task_queue = Pwrake.const_get(@option.queue_class).new(@idle_cores)
+      queue_class = Pwrake.const_get(@option.queue_class)
+      @task_queue = queue_class.new(@option.host_map.by_id)
 
       @branch_setup_thread = Thread.new do
         @channels.each do |chan|

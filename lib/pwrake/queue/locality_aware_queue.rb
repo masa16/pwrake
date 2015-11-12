@@ -2,24 +2,21 @@ module Pwrake
 
   class LocalityAwareQueue < TaskQueue
 
-    def init_queue(core_map,group_map=nil)
-      # core_map = {hid1=>ncore1, ...}
+    def init_queue(group_map=nil)
       # group_map = {gid1=>[hid1,hid2,...], ...}
       @size_q = 0
       @q = {}
-      core_map.each{|hid,ncore| @q[hid] = @array_class.new(ncore,@max_cores)}
+      @host_info_list.each{|h| @q[h.id] = @array_class.new(h.ncore)}
       @q_group = {}
-      group_map = {1=>core_map.keys} if group_map.nil?
+      group_map ||= {1=>@host_info_list.map{|h| h.id}}
       group_map.each do |gid,ary|
-        other = core_map.dup
-        q1 = {} # same group
-        ary.each{|hid| q1[hid] = @q[hid]; other.delete(hid)}
-        q2 = {} # other groups
-        other.each{|hid,nc| q2[hid] = @q[hid]}
+        q1 = {}     # same group
+        q2 = @q.dup # other groups
+        ary.each{|hid| q1[hid] = @q[hid]; q2.delete(hid)}
         a = [q1,q2]
         ary.each{|hid| @q_group[hid] = a}
       end
-      @q_remote = @array_class.new(0,@max_cores)
+      @q_remote = @array_class.new(0)
       @disable_steal = Rake.application.pwrake_options['DISABLE_STEAL']
       @last_enq_time = Time.now
       @n_turn = @disable_steal ? 1 : 2
@@ -59,24 +56,24 @@ module Pwrake
       end
     end
 
-    def deq_impl(host, turn)
-      nc = @idle_cores[host]
+    def deq_impl(host_info, turn)
+      host = host_info.name
       case turn
       when 0
         if t = @q_no_action.shift
           Log.debug "deq_no_action task=#{t&&t.name} host=#{host}"
           return t
-        elsif t = deq_locate(host,nc)
+        elsif t = deq_locate(host_info)
           Log.debug "deq_locate task=#{t&&t.name} host=#{host}"
           return t
-        elsif t = @q_remote.shift(nc)
+        elsif t = @q_remote.shift(host_info)
           Log.debug "deq_remote task=#{t&&t.name}"
           return t
         else
           nil
         end
       when 1
-        if t = deq_steal(host,nc)
+        if t = deq_steal(host_info)
           Log.debug "deq_steal task=#{t&&t.name} host=#{host}"
           return t
         else
@@ -85,10 +82,10 @@ module Pwrake
       end
     end
 
-    def deq_locate(host,nc)
-      q = @q[host]
+    def deq_locate(host_info)
+      q = @q[host_info.id]
       if q && !q.empty?
-        t = q.shift(nc)
+        t = q.shift(host_info)
         if t
           t.assigned.each do |h|
             @q[h].delete(t)
@@ -101,11 +98,11 @@ module Pwrake
       end
     end
 
-    def deq_steal(host,nc)
+    def deq_steal(host_info)
       # select a task based on many and close
       max_host = nil
       max_num  = 0
-      @q_group[host].each do |qg|
+      @q_group[host_info.id].each do |qg|
         qg.each do |h,a|
           if !a.empty?
             d = a.size
@@ -117,7 +114,7 @@ module Pwrake
         end
         if max_num > 0
           Log.debug "deq_steal max_host=#{max_host} max_num=#{max_num}"
-          t = deq_locate(max_host,nc)
+          t = deq_locate(max_host,host_info)
           return t if t
         end
       end
