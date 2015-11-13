@@ -220,7 +220,7 @@ module Pwrake
                   $stderr.puts "... Wait for running tasks."
                 end
               end
-              if tw.is_file_task? && File.exist?(tw.name)
+              if tw.has_output_file? && File.exist?(tw.name)
                 handle_failed_target(tw.name)
               end
             end
@@ -275,7 +275,7 @@ module Pwrake
           j = i
           while tw = pool.deq()
             Log.debug "postproc##{j} deq=#{tw.name}"
-            loc = postproc.run(tw.name)
+            loc = postproc.run(tw)
             tw.postprocess(loc)
             pool.count_down
             break if yield(pool,j)

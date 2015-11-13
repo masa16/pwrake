@@ -9,7 +9,11 @@ module Pwrake
       @chan = Channel.new(@hdl)
     end
 
-    def run(filename)
+    def run(task_wrap)
+      if !task_wrap.is_file_task?
+        return []
+      end
+      filename = task_wrap.name
       begin
         @hdl.iow.puts(filename)
         @hdl.iow.flush

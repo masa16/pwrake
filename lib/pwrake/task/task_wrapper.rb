@@ -71,7 +71,7 @@ module Pwrake
     def postprocess(location)
       @executed = true if !@task.actions.empty?
       tm_taskend = Time.now
-      if @task.kind_of?(Rake::FileTask)
+      if is_file_task?
         t = Time.now
         if File.exist?(name)
           @file_stat = File::Stat.new(name)
@@ -98,7 +98,7 @@ module Pwrake
       return if !@@task_logger
       #
       elap = @time_end - @time_start
-      if is_file_task?
+      if has_output_file?
         RANK_STAT.add_sample(rank,elap)
       end
       #
@@ -142,11 +142,15 @@ module Pwrake
     end
 
     def is_file_task?
-      @task.kind_of?(Rake::FileTask) && !actions.empty?
+      @task.kind_of?(Rake::FileTask)
+    end
+
+    def has_output_file?
+      is_file_task? && !actions.empty?
     end
 
     def has_input_file?
-      @task.kind_of?(Rake::FileTask) && !prerequisites.empty?
+      is_file_task? && !prerequisites.empty?
     end
 
     def has_action?
@@ -206,7 +210,7 @@ module Pwrake
                 max_rank = r
               end
             end
-            if is_file_task?
+            if has_output_file?
               step = 1
             else
               step = 0
