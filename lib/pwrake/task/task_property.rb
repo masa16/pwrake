@@ -36,6 +36,9 @@ module Pwrake
     end
 
     def acceptable_for(host_info)
+      if @disable_steal && host_info.steal_flag
+        return false
+      end
       ncore = (@exclusive) ? 0 : (@ncore || 1)
       if ncore > 0
         return false if ncore > host_info.idle_cores

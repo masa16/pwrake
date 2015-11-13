@@ -10,7 +10,7 @@ module Pwrake
       @id = id
     end
 
-    attr_reader :name, :ncore, :weight, :group, :id
+    attr_reader :name, :ncore, :weight, :group, :id, :steal_flag
     attr_accessor :idle_cores
 
     def set_ncore(n)
@@ -26,6 +26,13 @@ module Pwrake
       if @idle_cores < 0
         raise RuntimeError,"# of cores must be non-negative"
       end
+    end
+
+    def steal_phase
+      @steal_flag = true
+      t = yield(self)
+      @steal_flag = false
+      t
     end
   end
 
