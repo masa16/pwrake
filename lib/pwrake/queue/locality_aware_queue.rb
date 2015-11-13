@@ -63,7 +63,7 @@ module Pwrake
         if t = @q_no_action.shift
           Log.debug "deq_no_action task=#{t&&t.name} host=#{host}"
           return t
-        elsif t = deq_locate(host_info)
+        elsif t = deq_locate(host_info,host_info)
           Log.debug "deq_locate task=#{t&&t.name} host=#{host}"
           return t
         elsif t = @q_remote.shift(host_info)
@@ -82,10 +82,10 @@ module Pwrake
       end
     end
 
-    def deq_locate(host_info)
-      q = @q[host_info.id]
+    def deq_locate(q_host,run_host)
+      q = @q[q_host.id]
       if q && !q.empty?
-        t = q.shift(host_info)
+        t = q.shift(run_host)
         if t
           t.assigned.each do |h|
             @q[h].delete(t)
@@ -104,7 +104,7 @@ module Pwrake
       max_num  = 0
       @q_group[host_info.id].each do |qg|
         qg.each do |h,a|
-          if !a.empty?
+          if !a.empty? # && h!=host_info.id
             d = a.size
             if d > max_num
               max_host = h
@@ -113,9 +113,10 @@ module Pwrake
           end
         end
         if max_num > 0
-          max_hinfo = @host_map.by_id[max_host]
-          Log.debug "deq_steal max_host=#{max_host} max_num=#{max_num}"
-          t = max_hinfo.steal_phase{|h| deq_locate(h)}
+          max_info = @host_map.by_id[max_host]
+          Log.debug "deq_steal max_host=#{max_info.name} max_num=#{max_num}"
+          t = host_info.steal_phase{|h| deq_locate(max_info,h)}
+          #Log.debug "deq_steal task=#{t.inspect}"
           return t if t
         end
       end

@@ -37,6 +37,7 @@ module Pwrake
 
     def acceptable_for(host_info)
       if @disable_steal && host_info.steal_flag
+        #Log.debug("@disable_steal && host_info.steal_flag")
         return false
       end
       ncore = (@exclusive) ? 0 : (@ncore || 1)
