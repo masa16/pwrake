@@ -143,7 +143,7 @@ module Pwrake
           @option.host_map.by_id[id].idle_cores}"
       end
       queue_class = Pwrake.const_get(@option.queue_class)
-      @task_queue = queue_class.new(@option.host_map.by_id)
+      @task_queue = queue_class.new(@option.host_map)
 
       @branch_setup_thread = Thread.new do
         @channels.each do |chan|

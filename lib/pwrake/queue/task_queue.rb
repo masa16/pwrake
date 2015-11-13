@@ -2,14 +2,14 @@ module Pwrake
 
   class TaskQueue
 
-    def initialize(host_info_list, group_map=nil)
+    def initialize(host_map, group_map=nil)
       @q = []
       @empty = []
 
       @enable_steal = true
       @q_no_action = NoActionQueue.new
 
-      @host_info_list = host_info_list
+      @host_map = host_map
 
       pri = Rake.application.pwrake_options['QUEUE_PRIORITY'] || "LIHR"
       case pri
@@ -85,7 +85,7 @@ module Pwrake
       queued = 0
       while true
         count = 0
-        @host_info_list.each do |host_info|
+        @host_map.by_id.each do |host_info|
           if host_info.idle_cores > 0
           if turn_empty?(turn)
             return queued
@@ -134,7 +134,7 @@ module Pwrake
     end
 
     def task_end(tw, hid)
-      host_info = @host_info_list[hid]
+      host_info = @host_map.by_id[hid]
       host_info.increase(tw.n_used_cores(host_info))
     end
 
@@ -148,7 +148,7 @@ module Pwrake
       when 2
         s << "[#{q.first.name}, #{q.last.name}]\n"
       else
-        s << "[#{q.first.name},.. #{q.last.name}]\n"
+        s << "[#{q.first.name},..,#{q.last.name}]\n"
       end
       s
     end
