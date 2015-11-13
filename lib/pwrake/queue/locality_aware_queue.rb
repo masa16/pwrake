@@ -31,9 +31,9 @@ module Pwrake
       else
         stored = false
         hints.each do |h|
-          id = @host_map.by_name[h].id
-          if q = @q[id]
-            t.assigned.push(id)
+          host_info = @host_map.by_name[h]
+          if host_info && q = @q[host_info.id]
+            t.assigned.push(host_info.id)
             q.push(t)
             stored = true
           end
@@ -90,8 +90,8 @@ module Pwrake
           t.assigned.each do |h|
             @q[h].delete(t)
           end
+          @size_q -= 1
         end
-        @size_q -= 1
         return t
       else
         nil
