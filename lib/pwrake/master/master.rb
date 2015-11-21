@@ -225,7 +225,6 @@ module Pwrake
               end
             end
             # postprocess
-            hid = @hostid_by_taskname.delete(task_name)
             @post_pool.enq(tw) # must be after @no_more_run = true
             break if @finished
           when /^exited$/o
@@ -246,8 +245,10 @@ module Pwrake
 
     def send_task_to_idle_core
       #Log.debug "#{self.class}#send_task_to_idle_core start"
+      count = 0
       # @idle_cores.decrease(..
       @task_queue.deq_task do |tw,hid|
+        count += 1
         @hostid_by_taskname[tw.name] = hid
         tw.preprocess
         if tw.has_action?
@@ -257,9 +258,13 @@ module Pwrake
         else
           tw.status = "end"
           @task_queue.task_end(tw,hid) # @idle_cores.increase(..
-          hid = @hostid_by_taskname.delete(tw.name)
           @post_pool.enq(tw)
         end
+      end
+      if count == 0 && !@task_queue.empty? && @hostid_by_taskname.empty?
+        m="No task was invoked while unexecuted tasks remain"
+        Log.error m
+        raise RuntimeError,m
       end
       #Log.debug "#{self.class}#send_task_to_idle_core end time=#{Time.now-tm}"
     end
@@ -278,6 +283,7 @@ module Pwrake
             loc = postproc.run(tw)
             tw.postprocess(loc)
             pool.count_down
+            @hostid_by_taskname.delete(tw.name)
             break if yield(pool,j)
           end
           postproc.close
@@ -297,7 +303,7 @@ module Pwrake
         #Log.debug "@hostid_by_taskname=#{@hostid_by_taskname.inspect}"
         #Log.debug "pool.empty?=#{pool.empty?}"
         if (@no_more_run || @task_queue.empty?) &&
-            @hostid_by_taskname.empty? && pool.empty?
+            @hostid_by_taskname.empty?
           Log.debug "postproc##{j} closing @channels=#{@channels.inspect}"
           @finished = true
           @channels.each{|ch| ch.finish} # exit
