@@ -15,10 +15,10 @@ module Pwrake
         end
       end
       if /\ballow[=:]\s*(\S+)/i =~ description
-        @allow = /#{$1}/
+        @allow = $1
       end
       if /\bdeny[=:]\s*(\S+)/i =~ description
-        @deny = /#{$1}/
+        @deny = $1
       end
       if /\border[=:]\s*(\S+)/i =~ description
         case $1
@@ -51,16 +51,16 @@ module Pwrake
       if @allow
         if @deny
           if @order_allow_deny
-            return false if @allow!~name || @deny=~name
+            return false if !File.fnmatch(@allow,name) || File.fnmatch(@deny,name)
           else
-            return false if @deny=~name && @allow!~name
+            return false if File.fnmatch(@deny,name) && !File.fnmatch(@allow,name)
           end
         else
-          return false if @allow!~name
+          return false if !File.fnmatch(@allow,name)
         end
       else
         if @deny
-          return false if @deny=~name
+          return false if File.fnmatch(@deny,name)
         end
       end
       return true
