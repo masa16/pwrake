@@ -47,20 +47,20 @@ module Pwrake
         n = host_info.ncore + ncore
         return false if n < 1 || n > host_info.idle_cores
       end
-      name = host_info.name
+      hn = host_info.name
       if @allow
         if @deny
           if @order_allow_deny
-            return false if !File.fnmatch(@allow,name) || File.fnmatch(@deny,name)
+            return false if !File.fnmatch(@allow,hn) || File.fnmatch(@deny,hn)
           else
-            return false if File.fnmatch(@deny,name) && !File.fnmatch(@allow,name)
+            return false if File.fnmatch(@deny,hn) && !File.fnmatch(@allow,hn)
           end
         else
-          return false if !File.fnmatch(@allow,name)
+          return false if !File.fnmatch(@allow,hn)
         end
       else
         if @deny
-          return false if File.fnmatch(@deny,name)
+          return false if File.fnmatch(@deny,hn)
         end
       end
       return true
