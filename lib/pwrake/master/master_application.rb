@@ -83,12 +83,12 @@ module Pwrake
           end
         }
        ],
-       ['-L', '--logfile [FILE]', "[Pw] Write log to FILE",
+       ['-L', '--log', '--log-dir [DIRECTORY]', "[Pw] Write log to DIRECTORY",
         lambda { |value|
           if value.kind_of? String
-            options.logfile = value
+            options.log_dir = value
           else
-            options.logfile = ""
+            options.log_dir = ""
           end
         }
        ],
@@ -131,12 +131,8 @@ module Pwrake
         "[Pw] Show Pwrake configuration options",
         lambda {|value| options.show_conf = true }
        ],
-       ['--report [LOGDIR]',"[Pw] Report workflow statistics from LOGDIR to HTML and exit.",
-         lambda { |value|
-           require 'pwrake/report'
-           Report.new(value||'.',[]).report_html
-           exit
-         }
+       ['--report LOGDIR',"[Pw] Report workflow statistics from LOGDIR to HTML and exit.",
+        lambda {|value| options.report_dir = value }
        ],
        ['--clear-gfarm2fs',"[Pw] Clear gfarm2fs mountpoints left after failure.",
          lambda { |value|

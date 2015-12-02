@@ -12,6 +12,10 @@ module Pwrake
         require "yaml"
         YAML.dump(self,$stdout)
         exit
+      elsif self['REPORT_DIR']
+        require 'pwrake/report'
+        Report.new(self,[]).report_html
+        exit
       end
     end
 
@@ -24,7 +28,7 @@ module Pwrake
       setup_hosts
       setup_filesystem # require 'option_filesystem.rb'
       #
-      if self['GC_PROFILE']
+      if self['LOG_DIR'] && self['GC_LOG_FILE']
         GC::Profiler.enable
       end
     end
@@ -112,6 +116,7 @@ module Pwrake
         'DEBUG',
         'PLOT_PARALLELISM',
         'SHOW_CONF',
+        ['REPORT_DIR','REPORT'],
         'FAILED_TARGET', # rename(default), delete, leave
         'FAILURE_TERMINATION', # wait, kill, continue
         'QUEUE_PRIORITY', # RANK(default), FIFO, LIFO, DFS
@@ -121,52 +126,54 @@ module Pwrake
         'PLOT_PARTITION',
 
         ['HOSTFILE','HOSTS'],
-        ['LOG_DIR',
+        ['LOG_DIR','LOG',
           proc{|v|
-            if v.nil?
-              format_time_pid("log_%Y%m%d-%H%M%S_%$")
-            else
+            if v
+              if v == "" || !v.kind_of?(String)
+                v = "Pwrake%Y%m%d-%H%M%S"
+              end
+              d = v = format_time_pid(v)
+              i = 1
+              while File.exist?(d)
+                d = "#{v}.#{i}"
+                i += 1
+              end
+              d
+            end
+          }],
+        ['LOG_FILE',
+          proc{|v|
+            if v.kind_of?(String) && v != ""
               v
+            else
+              "pwrake.log"
             end
           }],
-        'OUTPUT_WORKER_LOG',
-        ['LOGFILE','LOG',
+        ['TASK_CSV_FILE',
           proc{|v|
-            if v
-              # turn trace option on
-              # Rake.application.options.trace = true
-              if v == "" || !v.kind_of?(String)
-                v = "%Y%m%d-%H%M%S_%$.log"
-              end
-              format_time_pid(v)
+            if v.kind_of?(String) && v != ""
+              v
+            else
+              "task.csv"
             end
           }],
-        ['TASKLOG',
+        ['COMMAND_CSV_FILE',
           proc{|v|
-            if v
-              if v == "" || !v.kind_of?(String)
-                v = "%Y%m%d-%H%M%S_%$_task.csv"
-              end
-              format_time_pid(v)
+            if v.kind_of?(String) && v != ""
+              v
+            else
+              "command.csv"
             end
           }],
-        ['PROFILE','CMDLOG',
-          proc{|v|
-            if v
-              if v == "" || !v.kind_of?(String)
-                v = "%Y%m%d-%H%M%S_%$_cmd.csv"
-              end
-              format_time_pid(v)
-            end
-          }],
-        ['GC_PROFILE',
+        ['GC_LOG_FILE',
          proc{|v|
-            if v
-              if v == "" || !v.kind_of?(String)
-                v = "%Y%m%d-%H%M%S_%$_gc"
-              end
-              format_time_pid(v)
-            end
+           if v
+             if v.kind_of?(String) && v != ""
+               v
+             else
+               "gc.log"
+             end
+           end
          }],
         ['NUM_THREADS', proc{|v| v && v.to_i}],
         ['SHELL_START_INTERVAL', proc{|v| (v || 0.012).to_f}],

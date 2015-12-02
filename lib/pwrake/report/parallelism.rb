@@ -125,7 +125,7 @@ plot '#{fpara}' w l axis x1y1 title 'parallelism'
 
       density = exec_density(a)
 
-      fimg = base+'.png'
+      fimg = base+'/parallelism.png'
 
       n = a.size
       i = 0
@@ -290,7 +290,7 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
         end
       end
 
-      fimg = base+'_para_cmd.png'
+      fimg = base+'/para_cmd.png'
 
       if system("which gnuplot >/dev/null 2>&1")
       IO.popen("gnuplot","r+") do |f|
@@ -339,7 +339,7 @@ set ylabel 'parallelism'
     end
 
     def plot_parallelism_by_host(csvtable,base)
-      fpng = base+"_para_host.png"
+      fpng = base+"/para_host.png"
       data = read_time_by_host_from_csv(csvtable)
       return fpng if data.size == 0
 

@@ -30,7 +30,7 @@ module Pwrake
 
     def init(option)
       @option = option
-      @output_log = @option[:output_log]
+      @log_dir = @option[:log_dir]
     end
 
     def opened?
@@ -38,7 +38,7 @@ module Pwrake
     end
 
     def open(dir_class)
-      if @output_log
+      if @log_dir
         @dir = dir_class.new
         @dir.open
         @path = @dir.log_path
@@ -53,7 +53,7 @@ module Pwrake
     end
 
     def close
-      if @output_log
+      if @log_dir
         @dir.close_messages.each{|m| @logger.info(m)}
         @logger = @logger_stderr
         @opened = false

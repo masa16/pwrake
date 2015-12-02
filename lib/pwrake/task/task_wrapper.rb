@@ -44,12 +44,9 @@ module Pwrake
     end
 
     def self.init_task_logger(option)
-      if tasklog = option['TASKLOG']
-        if log_dir = option['LOG_DIR']
-          ::FileUtils.mkdir_p(log_dir)
-          tasklog = File.join(log_dir,tasklog)
-        end
-        @@task_logger = CSV.open(tasklog,'w')
+      if dir = option['LOG_DIR']
+        fn = File.join(dir,option['TASK_CSV_FILE'])
+        @@task_logger = CSV.open(fn,'w')
         @@task_logger.puts %w[
           task_id task_name start_time end_time elap_time preq preq_host
           exec_host shell_id has_action executed file_size file_mtime file_host

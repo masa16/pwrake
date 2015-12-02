@@ -18,12 +18,9 @@ module Pwrake
     attr_reader :logger
 
     def init_logger
-      logfile = @option['LOGFILE']
-      if logfile
-        if dir = @option['LOG_DIR']
-          ::FileUtils.mkdir_p(dir)
-          logfile = File.join(dir,logfile)
-        end
+      if logdir = @option['LOG_DIR']
+        ::FileUtils.mkdir_p(logdir)
+        logfile = File.join(logdir,@option['LOG_FILE'])
         @logger = Logger.new(logfile)
       else
         if @option['DEBUG']

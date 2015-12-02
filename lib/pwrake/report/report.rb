@@ -30,8 +30,8 @@ EOL
     @@id = 0
     @@id_fmt = nil
 
-    def initialize(dir,pattern)
-      @dir = dir
+    def initialize(option,pattern)
+      @dir = option['REPORT_DIR']
       if !File.directory?(@dir)
         raise ArgumentError,"Could not find log directory: #{@dir}"
       end
@@ -39,29 +39,16 @@ EOL
 
       @@id = @@id.succ
       @id = @@id
+      @base = @dir
 
-      log_file = find_single_file("20*.log")
-
-      @base = base = File.join(@dir,File.basename(log_file,".log"))
-
-      @csv_file  = find_single_file("*_cmd.csv")
-      @task_file = find_single_file("*_task.csv")
+      @cmd_file = File.join(@dir,option['COMMAND_CSV_FILE'])
+      @task_file = File.join(@dir,option['TASK_CSV_FILE'])
       @html_file = File.join(@dir,'report.html')
 
-      open(log_file,"r").each do |s|
-        if /num_cores=(\d+)/ =~ s
-          @ncore = $1.to_i
-          break
-        end
-      end
-      if @ncore.nil?
-        raise StandardError, "Not found: num_cores"
-      end
-
       begin
-        @sh_table = CSV.read(@csv_file,:headers=>true,:skip_lines=>/\A#/)
+        @sh_table = CSV.read(@cmd_file,:headers=>true,:skip_lines=>/\A#/)
       rescue
-        $stderr.puts "error in reading "+@csv_file
+        $stderr.puts "error in reading "+@cmd_file
         $stderr.puts $!, $@
         exit
       end
@@ -82,10 +69,11 @@ EOL
       make_cmd_stat
 
       @stat = TaskStat.new(@task_file,@sh_table)
+      @ncore = @stat.ncore
     end
 
     attr_reader :base, :ncore, :elap
-    attr_reader :csv_file, :html_file
+    attr_reader :cmd_file, :html_file
     attr_reader :cmd_elap, :cmd_stat
     attr_reader :sh_table, :task_table
     attr_reader :id
@@ -295,7 +283,7 @@ EOL
           command_list << cmd
         end
       end
-      hist_image = @base+"_hist.png"
+      hist_image = @base+"/hist.png"
       if system("which gnuplot >/dev/null 2>&1")
       IO.popen("gnuplot","r+") do |f|
         f.puts "

@@ -10,12 +10,19 @@ module Pwrake
         $stderr.puts $!, $@
         exit
       end
+      shell_id = {}
+      @task_table.each do |row|
+        if id=row['shell_id']
+          shell_id[id.to_i] = true
+        end
+      end
+      @ncore = shell_id.size
       @count = Hash.new(0)
       task_locality
       stat_sh_table(sh_table)
     end
 
-    attr_reader :exec_hosts
+    attr_reader :exec_hosts, :ncore
 
     def count(exec_host, loc, key, val)
       @count[[exec_host,loc,key]] += val

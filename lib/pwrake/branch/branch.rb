@@ -31,12 +31,8 @@ module Pwrake
     attr_reader :logger
 
     def init_logger
-      logfile = @option['LOGFILE']
-      if logfile
-        if dir = @option['LOG_DIR']
-          ::FileUtils.mkdir_p(dir)
-          logfile = File.join(dir,logfile)
-        end
+      if dir = @option['LOG_DIR']
+        logfile = File.join(dir,@option['LOG_FILE'])
         @logger = Logger.new(logfile)
       else
         if @option['DEBUG']
@@ -61,11 +57,8 @@ module Pwrake
         raise "Branch#setup_worker: recv=#{s.chomp} expected=host_list_begin"
       end
 
-      if fn = @option["PROFILE"]
-        if dir = @option['LOG_DIR']
-          ::FileUtils.mkdir_p(dir)
-          fn = File.join(dir,fn)
-        end
+      if dir = @option['LOG_DIR']
+        fn = File.join(dir,@option["COMMAND_CSV_FILE"])
         Shell.profiler.open(fn,@option['GNU_TIME'],@option['PLOT_PARALLELISM'])
       end
 
