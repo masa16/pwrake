@@ -15,4 +15,4 @@ end
 task :default => A
 
 CLEAN.include A,B
-CLEAN.include 'log_*'
+CLEAN.include 'Pwrake*'
