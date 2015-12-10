@@ -117,6 +117,26 @@ Or, gem install:
         GFARM2FS_DEBUG      default=false
         GFARM2FS_DEBUG_WAIT default=1
 
+## Task Properties
+
+* Task properties are specified in `desc` strings above task definition in Rakefile.
+
+Example of Rakefile:
+
+    desc "ncore=4 allow=ourhost*"
+    rule ".o" => ".c" do
+      sh "..."
+    end
+
+Properties:
+
+    ncore=integer - The number of cores used by this task.
+    exclusive=no|yes - This task is exclusively executed in a single node.
+    allow=hostname - Allowed host for this task. (wild card allowed)
+    deny=hostname - Denied host for this task. (wild card allowed)
+    order=allow,deny|deny,allow - The order of evaluation.
+    steal=yes|no - Task steal is allowed.
+
 ## Note for Gfarm
 
 * `gfwhere-pipe` script (included in Pwrake) is used for file-affinity scheduling.
