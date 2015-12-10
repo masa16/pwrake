@@ -191,6 +191,31 @@ GFARM2FS_DEBUG_WAIT default=1
 </ul>
 
 <h2>
+<a id="task-properties" class="anchor" href="#task-properties" aria-hidden="true"><span class="octicon octicon-link"></span></a>Task Properties</h2>
+
+<ul>
+<li>Task properties are specified in <code>desc</code> strings above task definition in Rakefile.</li>
+</ul>
+
+<p>Example of Rakefile:</p>
+
+<pre><code>desc "ncore=4 allow=ourhost*"
+rule ".o" =&gt; ".c" do
+  sh "..."
+end
+</code></pre>
+
+<p>Properties:</p>
+
+<pre><code>ncore=integer - The number of cores used by this task.
+exclusive=no|yes - This task is exclusively executed in a single node.
+allow=hostname - Allowed host for this task. (wild card allowed)
+deny=hostname - Denied host for this task. (wild card allowed)
+order=allow,deny|deny,allow - The order of evaluation.
+steal=yes|no - Task steal is allowed.
+</code></pre>
+
+<h2>
 <a id="note-for-gfarm" class="anchor" href="#note-for-gfarm" aria-hidden="true"><span class="octicon octicon-link"></span></a>Note for Gfarm</h2>
 
 <ul>
