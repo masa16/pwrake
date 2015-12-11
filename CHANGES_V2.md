@@ -41,8 +41,8 @@ New:
     GFARM2FS_DEBUG
     GFARM2FS_DEBUG_WAIT
 
-## Task action runs in parallel using Fiber, instead of Thread.
-* Every Rake task runs under Fiber context.
+## The use of Fiber instead of Thread
+* Every Rake Task runs in parallel under Fiber context, instead of Thread.
 * Fiber context does not switch in task action blocks.
 Instead, it switches in "sh" methods, or outside of task action blocks.
 
