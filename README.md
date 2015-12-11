@@ -85,7 +85,7 @@ Or, gem install:
 
 * Option list:
 
-        HOSTFILE, HOSTS   default(localhost)|hostname
+        HOSTFILE, HOSTS   nil(default, localhost)|filename
         LOG_DIR, LOG      nil(default, No log output)|true(dirname="Pwrake%Y%m%d-%H%M%S")|dirname
         LOG_FILE          default="pwrake.log"
         TASK_CSV_FILE     default="task.csv"
@@ -97,7 +97,7 @@ Or, gem install:
         SHELL_COMMAND     default=$SHELL
         SHELL_RC          Run-Command when shell starts
         PASS_ENV          (Array) Environment variables passed to SSH
-        HEARTBEAT         Hearbeat interval in seconds (defulat=240)
+        HEARTBEAT         defulat=240 - Hearbeat interval in seconds 
         FAILED_TARGET     rename(default)|delete|leave - Treatment of failed target files
         FAILURE_TERMINATION wait(default)|kill|continue - Behavior of other tasks when a task is failed
         QUEUE_PRIORITY          LIHR(default)|FIFO|LIFO|RANK
@@ -128,14 +128,14 @@ Example of Rakefile:
       sh "..."
     end
 
-Properties:
+Properties (The leftmost item is default):
 
-    ncore=integer - The number of cores used by this task.
-    exclusive=no|yes - This task is exclusively executed in a single node.
-    allow=hostname - Allowed host for this task. (wild card allowed)
-    deny=hostname - Denied host for this task. (wild card allowed)
-    order=allow,deny|deny,allow - The order of evaluation.
-    steal=yes|no - Task steal is allowed.
+    ncore=integer     - The number of cores used by this task.
+    exclusive=no|yes  - Exclusively execute this task in a single node.
+    allow=hostname    - Allow this host to execute this task. (accepts wild card)
+    deny=hostname     - Deny this host to execute this task. (accepts wild card)
+    order=deny,allow|allow,deny - The order of evaluation.
+    steal=yes|no      - Allow task stealing for this task.
 
 ## Note for Gfarm
 
@@ -153,6 +153,10 @@ Properties:
         gem install rbmetis -- \
          --with-metis-include=/usr/local/include \
          --with-metis-lib=/usr/local/lib
+
+## Current version
+
+* Pwrake version 2.0.0
 
 ## Tested Platform
 
