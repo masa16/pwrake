@@ -1,4 +1,4 @@
-# Changes from ver 0.9.9.2 to ver 2.0.0
+# Changes from 0.9.9.2 to 2.0.0
 
 ## Command line options
 
@@ -46,6 +46,7 @@ New:
 * Fiber context does not switch in task action blocks.
 Instead, it switches in "sh" methods, or outside of task action blocks.
 
+### Example of Fiber behavior
 Rakefile:
 ```ruby
 T = (1..4).map do |i|
