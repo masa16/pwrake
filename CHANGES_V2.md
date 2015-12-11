@@ -70,7 +70,7 @@ Rakefile:
 ```ruby
 T = (1..4).map do |i|
   task "task#{i}" do
-    sh "sleep 1"        # sleep commands run in parallel
+    sh "sleep 1"        # sleep processes run in parallel
   end.name
 end
 
