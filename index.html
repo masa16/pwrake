@@ -4,7 +4,7 @@
   <head>
     <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="description" content="Pwrake : Development of Pwrake: Parallel Workflow system using Rake">
+    <meta name="description" content="Pwrake : Pwrake: Parallel workflow extension for Rake ">
 
     <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
@@ -19,7 +19,7 @@
           <a id="forkme_banner" href="https://github.com/masa16/pwrake">View on GitHub</a>
 
           <h1 id="project_title">Pwrake</h1>
-          <h2 id="project_tagline">Development of Pwrake: Parallel Workflow system using Rake</h2>
+          <h2 id="project_tagline">Pwrake: Parallel workflow extension for Rake </h2>
 
             <section id="downloads">
               <a class="zip_download_link" href="https://github.com/masa16/pwrake/zipball/master">Download this project as a .zip file</a>
@@ -153,7 +153,7 @@ PASS_ENV :
 <li>
 <p>Option list:</p>
 
-<pre><code>HOSTFILE, HOSTS   default(localhost)|hostname
+<pre><code>HOSTFILE, HOSTS   nil(default, localhost)|filename
 LOG_DIR, LOG      nil(default, No log output)|true(dirname="Pwrake%Y%m%d-%H%M%S")|dirname
 LOG_FILE          default="pwrake.log"
 TASK_CSV_FILE     default="task.csv"
@@ -165,7 +165,7 @@ SSH_OPTION        SSH option
 SHELL_COMMAND     default=$SHELL
 SHELL_RC          Run-Command when shell starts
 PASS_ENV          (Array) Environment variables passed to SSH
-HEARTBEAT         Hearbeat interval in seconds (defulat=240)
+HEARTBEAT         defulat=240 - Hearbeat interval in seconds 
 FAILED_TARGET     rename(default)|delete|leave - Treatment of failed target files
 FAILURE_TERMINATION wait(default)|kill|continue - Behavior of other tasks when a task is failed
 QUEUE_PRIORITY          LIHR(default)|FIFO|LIFO|RANK
@@ -205,14 +205,14 @@ rule ".o" =&gt; ".c" do
 end
 </code></pre>
 
-<p>Properties:</p>
+<p>Properties (The leftmost item is default):</p>
 
-<pre><code>ncore=integer - The number of cores used by this task.
-exclusive=no|yes - This task is exclusively executed in a single node.
-allow=hostname - Allowed host for this task. (wild card allowed)
-deny=hostname - Denied host for this task. (wild card allowed)
-order=allow,deny|deny,allow - The order of evaluation.
-steal=yes|no - Task steal is allowed.
+<pre><code>ncore=integer     - The number of cores used by this task.
+exclusive=no|yes  - Exclusively execute this task in a single node.
+allow=hostname    - Allow this host to execute this task. (accepts wild card)
+deny=hostname     - Deny this host to execute this task. (accepts wild card)
+order=deny,allow|allow,deny - The order of evaluation.
+steal=yes|no      - Allow task stealing for this task.
 </code></pre>
 
 <h2>
@@ -241,6 +241,13 @@ This script requires Ruby/FFI (<a href="https://github.com/ffi/ffi">https://gith
  --with-metis-lib=/usr/local/lib
 </code></pre>
 </li>
+</ul>
+
+<h2>
+<a id="current-version" class="anchor" href="#current-version" aria-hidden="true"><span class="octicon octicon-link"></span></a>Current version</h2>
+
+<ul>
+<li>Pwrake version 2.0.0</li>
 </ul>
 
 <h2>
