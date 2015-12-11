@@ -40,3 +40,50 @@ New:
     GFARM2FS_OPTION
     GFARM2FS_DEBUG
     GFARM2FS_DEBUG_WAIT
+
+## Task action runs in parallel using Fiber, instead of Thread.
+* Every Rake task runs under Fiber context.
+* Fiber context does not switch in task action blocks.
+Instead, it switches in "sh" methods, or outside of task action blocks.
+
+Rakefile:
+```ruby
+T = (1..4).map do |i|
+  task "task#{i}" do
+    sleep 1             # Ruby's sleep method: no context switch
+  end.name
+end
+
+task :default => T
+```
+
+Result:
+
+    $ time pwrake -j 4
+    
+    real	0m4.294s
+    user	0m0.151s
+    sys     0m0.028s
+
+Rakefile:
+```ruby
+T = (1..4).map do |i|
+  task "task#{i}" do
+    sh "sleep 1"        # sleep commands run in parallel
+  end.name
+end
+
+task :default => T
+```
+
+Result:
+
+    $ time pwrake -j 4
+    sleep 1
+    sleep 1
+    sleep 1
+    sleep 1
+    
+    real	0m1.299s
+    user	0m0.155s
+    sys     0m0.030s
