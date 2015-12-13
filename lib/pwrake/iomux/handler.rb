@@ -62,7 +62,7 @@ module Pwrake
         if default_channel
           return default_channel.run_fiber(s.chomp)
         else
-          raise "No default_channel"
+          raise "No default_channel, received: #{s.chomp}"
         end
       else
         # End of IO

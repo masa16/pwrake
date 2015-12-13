@@ -125,7 +125,7 @@ module Pwrake
           # wait for remote shell open
           Fiber.new do
             if !shell.open
-              errors << [comm.host,s]
+              errors << comm.host
             end
             Log.debug "Branch#setup_shells: end of fiber to open shell"
           end.resume
