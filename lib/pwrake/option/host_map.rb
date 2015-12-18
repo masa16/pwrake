@@ -122,12 +122,14 @@ module Pwrake
       info_list
     end
 
+    REGEX_RANGE = /\[\[([\w\d]+)-([\w\d]+)\]\]/o
+
     def parse_line(info_list,line)
       line = $1 if /^([^#]*)#/ =~ line
       host, ncore, weight, group = line.split
       if host
-        if /\[\[([\w\d]+)-([\w\d]+)\]\]/o =~ host
-          hosts = ($1..$2).map{|i| host.sub(re,i)}
+        if REGEX_RANGE =~ host
+          hosts = ($1..$2).map{|i| host.sub(REGEX_RANGE,i)}
         else
           hosts = [host]
         end
