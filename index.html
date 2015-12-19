@@ -41,17 +41,39 @@
 </ul>
 
 <p>(<a href="https://github.com/masa16/pwrake/wiki/Pwrake.ja">README in Japanese</a>),
-(<a href="https://github.com/masa16/pwrake">GitHub Repository</a>)</p>
+(<a href="https://github.com/masa16/pwrake">GitHub Repository</a>),
+(<a href="https://rubygems.org/gems/pwrake">RubyGems</a>)</p>
 
 <h2>
 <a id="features" class="anchor" href="#features" aria-hidden="true"><span class="octicon octicon-link"></span></a>Features</h2>
 
 <ul>
-<li>Parallelize all tasks; no need to modify Rakefile, no need to use <code>multitask</code>.</li>
-<li>Tasks are executed in the given number of worker threads.</li>
-<li>Remote exuecution using SSH.</li>
-<li>Pwrake is an extension to Rake, not patch to Rake: Rake and Pwrake coexist.</li>
-<li>High parallel I/O performance using Gfarm file system.</li>
+<li>Pwrake executes a workflow written in Rakefile in parallel.
+
+<ul>
+<li>The specification of Rakefile is same as Rake.</li>
+<li>The tasks which do not have mutual dependencies are automatically executed in parallel.</li>
+<li>The <code>multitask</code> which is a parallel task definition of Rake is no more necessary.</li>
+</ul>
+</li>
+<li>Parallel and distributed execution is possible using a computer cluster which consists of multiple compute nodes.
+
+<ul>
+<li>Cluster settings: SSH login, and the directory sharing using a shared filesystem, e.g., NFS, Gfarm.</li>
+<li>Pwrake automatically connects to remote hosts using SSH. You do not need to start a daemon.</li>
+<li>Remote host names and the number of cores to use are provided in a hostfile.</li>
+</ul>
+</li>
+<li>
+<a href="http://sourceforge.net/projects/gfarm/">Gfarm file system</a> utilizes storage of compute nodes. It provides the high-performance parallel I/O.
+
+<ul>
+<li>Parallel I/O access to local stroage of compute nodes enables scalable increase in the I/O performance.</li>
+<li>Gfarm schedules a compute node to store an output file, to local storage.</li>
+<li>Pwrake schedules a compute node to execute a task, to a node where input files are stored.</li>
+<li>Other supports for Gfarm: Automatic mount of the Gfarm file system, etc.</li>
+</ul>
+</li>
 </ul>
 
 <h2>
@@ -199,11 +221,17 @@ GFARM2FS_DEBUG_WAIT default=1
 
 <p>Example of Rakefile:</p>
 
-<pre><code>desc "ncore=4 allow=ourhost*"
-rule ".o" =&gt; ".c" do
-  sh "..."
-end
-</code></pre>
+<div class="highlight highlight-source-ruby"><pre>desc <span class="pl-s"><span class="pl-pds">"</span>ncore=4 allow=ourhost*<span class="pl-pds">"</span></span> <span class="pl-c"># desc has no effect on rule, but it is used for task property in Pwrake.</span>
+rule <span class="pl-s"><span class="pl-pds">"</span>.o<span class="pl-pds">"</span></span> =&gt; <span class="pl-s"><span class="pl-pds">"</span>.c<span class="pl-pds">"</span></span> <span class="pl-k">do</span>
+  sh <span class="pl-s"><span class="pl-pds">"</span>...<span class="pl-pds">"</span></span>
+<span class="pl-k">end</span>
+
+(<span class="pl-c1">1</span>..n).each <span class="pl-k">do </span>|<span class="pl-smi">i</span>|
+  desc <span class="pl-s"><span class="pl-pds">"</span>ncore=2 steal=no<span class="pl-pds">"</span></span> <span class="pl-c"># desc should be inside of loop because it is effective only for the next task.</span>
+  file <span class="pl-s"><span class="pl-pds">"</span>task<span class="pl-pse">#{</span><span class="pl-s1">i</span><span class="pl-pse"><span class="pl-s1">}</span></span><span class="pl-pds">"</span></span> <span class="pl-k">do</span>
+    sh <span class="pl-s"><span class="pl-pds">"</span>...<span class="pl-pds">"</span></span>
+  <span class="pl-k">end</span>
+<span class="pl-k">end</span></pre></div>
 
 <p>Properties (The leftmost item is default):</p>
 
