@@ -132,10 +132,19 @@ Or, gem install:
 
 Example of Rakefile:
 
-    desc "ncore=4 allow=ourhost*"
-    rule ".o" => ".c" do
-      sh "..."
-    end
+``` ruby
+desc "ncore=4 allow=ourhost*" # desc has no effect on rule, but it is used for task property in Pwrake.
+rule ".o" => ".c" do
+  sh "..."
+end
+
+(1..n).each do |i|
+  desc "ncore=2 steal=no" # desc should be inside of loop because it is effective only for the next task.
+  file "task#{i}" do
+    sh "..."
+  end
+end
+```
 
 Properties (The leftmost item is default):
 
