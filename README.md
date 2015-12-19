@@ -133,7 +133,7 @@ Or, gem install:
 Example of Rakefile:
 
 ``` ruby
-desc "ncore=4 allow=ourhost*" # desc has no effect on rule, but it is used for task property in Pwrake.
+desc "ncore=4 allow=ourhost*" # desc has no effect on rule in original Rake, but it is used for task property in Pwrake.
 rule ".o" => ".c" do
   sh "..."
 end
