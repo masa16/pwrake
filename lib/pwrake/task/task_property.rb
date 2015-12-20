@@ -3,11 +3,14 @@ module Pwrake
   class TaskProperty
 
     attr_reader :ncore, :exclusive, :allow, :deny, :order_allow_deny,
-      :disable_steal
+      :retry, :disable_steal
 
     def parse_description(description)
       if /\bn_?cores?[=:]\s*([+-]?\d+)/i =~ description
         @ncore = $1.to_i
+      end
+      if /\bretry[=:]\s*(\d+)/i =~ description
+        @retry = $1.to_i
       end
       if /\bexclusive[=:]\s*(\S+)/i =~ description
         if /^(y|t)/i =~ $1

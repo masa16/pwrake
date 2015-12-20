@@ -27,6 +27,7 @@ module Pwrake
       @executed = false
       @assigned = []
       @exec_host = nil
+      @nretry = @property.retry || Rake.application.pwrake_options["RETRY"] || 0
     end
 
     def_delegators :@task, :name, :actions, :prerequisites, :subsequents
@@ -63,6 +64,19 @@ module Pwrake
         @shell.current_task = self
       end
       @time_start = Time.now
+    end
+
+    def retry
+      if @nretry > 0
+        s="retry task: #{name}"
+        Log.debug(s)
+        $stderr.puts(s)
+        @nretry -= 1
+        Rake.application.task_queue.enq(self)
+        true
+      else
+        false
+      end
     end
 
     def postprocess(location)

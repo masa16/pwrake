@@ -106,7 +106,8 @@ Or, gem install:
         SHELL_COMMAND     default=$SHELL
         SHELL_RC          Run-Command when shell starts
         PASS_ENV          (Array) Environment variables passed to SSH
-        HEARTBEAT         defulat=240 - Hearbeat interval in seconds 
+        HEARTBEAT         defulat=240 - Hearbeat interval in seconds
+        RETRY             default=0 - The number of default task retry
         FAILED_TARGET     rename(default)|delete|leave - Treatment of failed target files
         FAILURE_TERMINATION wait(default)|kill|continue - Behavior of other tasks when a task is failed
         QUEUE_PRIORITY          LIHR(default)|FIFO|LIFO|RANK
@@ -154,6 +155,7 @@ Properties (The leftmost item is default):
     deny=hostname     - Deny this host to execute this task. (accepts wild card)
     order=deny,allow|allow,deny - The order of evaluation.
     steal=yes|no      - Allow task stealing for this task.
+    retry=integer     - The number of retry for this task.
 
 ## Note for Gfarm
 
