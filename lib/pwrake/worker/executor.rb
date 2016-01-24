@@ -50,7 +50,7 @@ module Pwrake
           ensure
             status = nil
             begin
-              timeout(5){
+              Timeout.timeout(5){
                 pid,status = Process.waitpid2(@pid)
               }
             rescue => exc
