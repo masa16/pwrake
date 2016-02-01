@@ -3,7 +3,7 @@
 Parallel Workflow extension for Rake, runs on multicores, clusters, clouds.
 * Author: Masahiro Tanaka
 
-([README in Japanese](https://github.com/masa16/pwrake/wiki/Pwrake.ja)),
+([README in Japanese](https://github.com/masa16/pwrake/wiki/Pwrakeとは)),
 ([GitHub Repository](https://github.com/masa16/pwrake)),
 ([RubyGems](https://rubygems.org/gems/pwrake))
 
