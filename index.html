@@ -4,7 +4,7 @@
   <head>
     <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="description" content="Pwrake : Pwrake: Parallel workflow extension for Rake ">
+    <meta name="description" content="Pwrake : Pwrake: Parallel Workflow extension for Rake, runs on multicores, clusters, clouds. ">
 
     <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
@@ -19,7 +19,7 @@
           <a id="forkme_banner" href="https://github.com/masa16/pwrake">View on GitHub</a>
 
           <h1 id="project_title">Pwrake</h1>
-          <h2 id="project_tagline">Pwrake: Parallel workflow extension for Rake </h2>
+          <h2 id="project_tagline">Pwrake: Parallel Workflow extension for Rake, runs on multicores, clusters, clouds. </h2>
 
             <section id="downloads">
               <a class="zip_download_link" href="https://github.com/masa16/pwrake/zipball/master">Download this project as a .zip file</a>
@@ -32,20 +32,20 @@
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
         <h1>
-<a id="pwrake" class="anchor" href="#pwrake" aria-hidden="true"><span class="octicon octicon-link"></span></a>Pwrake</h1>
+<a id="pwrake" class="anchor" href="#pwrake" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Pwrake</h1>
 
-<p>Parallel workflow extension for Rake</p>
+<p>Parallel Workflow extension for Rake, runs on multicores, clusters, clouds.</p>
 
 <ul>
 <li>Author: Masahiro Tanaka</li>
 </ul>
 
-<p>(<a href="https://github.com/masa16/pwrake/wiki/Pwrake.ja">README in Japanese</a>),
+<p>(<a href="https://github.com/masa16/pwrake/wiki/Pwrake%E3%81%A8%E3%81%AF">README in Japanese</a>),
 (<a href="https://github.com/masa16/pwrake">GitHub Repository</a>),
 (<a href="https://rubygems.org/gems/pwrake">RubyGems</a>)</p>
 
 <h2>
-<a id="features" class="anchor" href="#features" aria-hidden="true"><span class="octicon octicon-link"></span></a>Features</h2>
+<a id="features" class="anchor" href="#features" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Features</h2>
 
 <ul>
 <li>Pwrake executes a workflow written in Rakefile in parallel.
@@ -77,7 +77,7 @@
 </ul>
 
 <h2>
-<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h2>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Installation</h2>
 
 <p>Download source tgz/zip and expand, cd to subdirectory and install:</p>
 
@@ -90,22 +90,22 @@
 </code></pre>
 
 <h2>
-<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Usage</h2>
+<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Usage</h2>
 
 <h3>
-<a id="parallel-execution-using-4-cores-at-localhost" class="anchor" href="#parallel-execution-using-4-cores-at-localhost" aria-hidden="true"><span class="octicon octicon-link"></span></a>Parallel execution using 4 cores at localhost:</h3>
+<a id="parallel-execution-using-4-cores-at-localhost" class="anchor" href="#parallel-execution-using-4-cores-at-localhost" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Parallel execution using 4 cores at localhost:</h3>
 
 <pre><code>$ pwrake -j 4
 </code></pre>
 
 <h3>
-<a id="parallel-execution-using-all-cores-at-localhost" class="anchor" href="#parallel-execution-using-all-cores-at-localhost" aria-hidden="true"><span class="octicon octicon-link"></span></a>Parallel execution using all cores at localhost:</h3>
+<a id="parallel-execution-using-all-cores-at-localhost" class="anchor" href="#parallel-execution-using-all-cores-at-localhost" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Parallel execution using all cores at localhost:</h3>
 
 <pre><code>$ pwrake -j
 </code></pre>
 
 <h3>
-<a id="parallel-execution-using-total-22-cores-at-remote-2-hosts" class="anchor" href="#parallel-execution-using-total-22-cores-at-remote-2-hosts" aria-hidden="true"><span class="octicon octicon-link"></span></a>Parallel execution using total 2*2 cores at remote 2 hosts:</h3>
+<a id="parallel-execution-using-total-22-cores-at-remote-2-hosts" class="anchor" href="#parallel-execution-using-total-22-cores-at-remote-2-hosts" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Parallel execution using total 2*2 cores at remote 2 hosts:</h3>
 
 <ol>
 <li>Share your directory among remote hosts via distributed file system such as NFS, Gfarm.</li>
@@ -133,10 +133,10 @@ host2 2
 </ol>
 
 <h2>
-<a id="options" class="anchor" href="#options" aria-hidden="true"><span class="octicon octicon-link"></span></a>Options</h2>
+<a id="options" class="anchor" href="#options" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Options</h2>
 
 <h3>
-<a id="pwrake-command-line-options-in-addition-to-rake-option" class="anchor" href="#pwrake-command-line-options-in-addition-to-rake-option" aria-hidden="true"><span class="octicon octicon-link"></span></a>Pwrake command line options (in addition to Rake option)</h3>
+<a id="pwrake-command-line-options-in-addition-to-rake-option" class="anchor" href="#pwrake-command-line-options-in-addition-to-rake-option" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Pwrake command line options (in addition to Rake option)</h3>
 
 <pre><code>-F, --hostfile FILE              [Pw] Read hostnames from FILE
 -j, --jobs [N]                   [Pw] Number of threads at localhost (default: # of processors)
@@ -155,7 +155,7 @@ host2 2
 </code></pre>
 
 <h3>
-<a id="pwrake_confyaml" class="anchor" href="#pwrake_confyaml" aria-hidden="true"><span class="octicon octicon-link"></span></a>pwrake_conf.yaml</h3>
+<a id="pwrake_confyaml" class="anchor" href="#pwrake_confyaml" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>pwrake_conf.yaml</h3>
 
 <ul>
 <li>If <code>pwrake_conf.yaml</code> exists at current directory, Pwrake reads options from it.</li>
@@ -213,7 +213,7 @@ GFARM2FS_DEBUG_WAIT default=1
 </ul>
 
 <h2>
-<a id="task-properties" class="anchor" href="#task-properties" aria-hidden="true"><span class="octicon octicon-link"></span></a>Task Properties</h2>
+<a id="task-properties" class="anchor" href="#task-properties" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Task Properties</h2>
 
 <ul>
 <li>Task properties are specified in <code>desc</code> strings above task definition in Rakefile.</li>
@@ -221,7 +221,7 @@ GFARM2FS_DEBUG_WAIT default=1
 
 <p>Example of Rakefile:</p>
 
-<div class="highlight highlight-source-ruby"><pre>desc <span class="pl-s"><span class="pl-pds">"</span>ncore=4 allow=ourhost*<span class="pl-pds">"</span></span> <span class="pl-c"># desc has no effect on rule, but it is used for task property in Pwrake.</span>
+<div class="highlight highlight-source-ruby"><pre>desc <span class="pl-s"><span class="pl-pds">"</span>ncore=4 allow=ourhost*<span class="pl-pds">"</span></span> <span class="pl-c"># desc has no effect on rule in original Rake, but it is used for task property in Pwrake.</span>
 rule <span class="pl-s"><span class="pl-pds">"</span>.o<span class="pl-pds">"</span></span> =&gt; <span class="pl-s"><span class="pl-pds">"</span>.c<span class="pl-pds">"</span></span> <span class="pl-k">do</span>
   sh <span class="pl-s"><span class="pl-pds">"</span>...<span class="pl-pds">"</span></span>
 <span class="pl-k">end</span>
@@ -244,7 +244,7 @@ steal=yes|no      - Allow task stealing for this task.
 </code></pre>
 
 <h2>
-<a id="note-for-gfarm" class="anchor" href="#note-for-gfarm" aria-hidden="true"><span class="octicon octicon-link"></span></a>Note for Gfarm</h2>
+<a id="note-for-gfarm" class="anchor" href="#note-for-gfarm" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Note for Gfarm</h2>
 
 <ul>
 <li>
@@ -257,7 +257,7 @@ This script requires Ruby/FFI (<a href="https://github.com/ffi/ffi">https://gith
 </ul>
 
 <h2>
-<a id="for-graph-partitioning" class="anchor" href="#for-graph-partitioning" aria-hidden="true"><span class="octicon octicon-link"></span></a>For Graph Partitioning</h2>
+<a id="for-graph-partitioning" class="anchor" href="#for-graph-partitioning" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>For Graph Partitioning</h2>
 
 <ul>
 <li><p>Compile and Install METIS 5.1.0 (<a href="http://www.cs.umn.edu/%7Emetis/">http://www.cs.umn.edu/~metis/</a>). This requires CMake.</p></li>
@@ -272,14 +272,14 @@ This script requires Ruby/FFI (<a href="https://github.com/ffi/ffi">https://gith
 </ul>
 
 <h2>
-<a id="current-version" class="anchor" href="#current-version" aria-hidden="true"><span class="octicon octicon-link"></span></a>Current version</h2>
+<a id="current-version" class="anchor" href="#current-version" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Current version</h2>
 
 <ul>
 <li>Pwrake version 2.0.0</li>
 </ul>
 
 <h2>
-<a id="tested-platform" class="anchor" href="#tested-platform" aria-hidden="true"><span class="octicon octicon-link"></span></a>Tested Platform</h2>
+<a id="tested-platform" class="anchor" href="#tested-platform" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Tested Platform</h2>
 
 <ul>
 <li>Ruby 2.2.2</li>
@@ -288,7 +288,7 @@ This script requires Ruby/FFI (<a href="https://github.com/ffi/ffi">https://gith
 </ul>
 
 <h2>
-<a id="acknowledgment" class="anchor" href="#acknowledgment" aria-hidden="true"><span class="octicon octicon-link"></span></a>Acknowledgment</h2>
+<a id="acknowledgment" class="anchor" href="#acknowledgment" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Acknowledgment</h2>
 
 <p>This work is supported by</p>
 
