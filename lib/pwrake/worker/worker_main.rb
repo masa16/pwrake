@@ -1,5 +1,6 @@
 require "thread"
 require "fileutils"
+require "timeout"
 
 ncore = Marshal.load($stdin)
 opts = Marshal.load($stdin)
