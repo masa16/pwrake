@@ -8,8 +8,8 @@ Gem::Specification.new do |gem|
   gem.version       = Pwrake::VERSION
   gem.authors       = ["Masahiro TANAKA"]
   gem.email         = ["masa16.tanaka@gmail.com"]
-  gem.description   = %q{Parallel workflow extension for Rake}
-  gem.summary       = %q{Adding Parallel and Distributed feature to Rake}
+  gem.summary       = %q{Parallel workflow extension for Rake}
+  gem.description   = %q{Parallel workflow extension for Rake, runs on multicores, clusters, clouds}
   gem.homepage      = "http://masa16.github.com/pwrake"
   gem.license       = 'MIT'
 
