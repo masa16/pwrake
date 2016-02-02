@@ -1,5 +1,3 @@
-require "timeout"
-
 module Pwrake
 
   class Invoker
@@ -158,7 +156,7 @@ module Pwrake
       end
       @log.info "worker:end:#{id_list.inspect}"
       begin
-        timeout(20){@log.close}
+        Timeout.timeout(20){@log.close}
       rescue => e
         $stdout.puts e
         $stdout.puts e.backtrace.join("\n")

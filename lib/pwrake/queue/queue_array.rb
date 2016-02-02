@@ -69,8 +69,6 @@ module Pwrake
       (size-1).downto(0) do |i|
         if at(i).acceptable_for(host_info)
           return delete_at(i)
-        #else
-        #  Log.debug "task[#{at(i).name}] is rejected"
         end
       end
       nil

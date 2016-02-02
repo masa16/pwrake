@@ -203,22 +203,24 @@ module Pwrake
             # check failure
             if tw.status == "fail"
               $stderr.puts %[task "#{tw.name}" failed.]
-              if !@failed
-                @failed = true
-                case @option['FAILURE_TERMINATION']
-                when 'kill'
-                  @hdl_set.kill("INT")
-                  @no_more_run = true
-                  $stderr.puts "... Kill running tasks."
-                when 'continue'
-                  $stderr.puts "... Continue runable tasks."
-                else # 'wait'
-                  @no_more_run = true
-                  $stderr.puts "... Wait for running tasks."
+              if !tw.retry
+                if !@failed
+                  @failed = true
+                  case @option['FAILURE_TERMINATION']
+                  when 'kill'
+                    @hdl_set.kill("INT")
+                    @no_more_run = true
+                    $stderr.puts "... Kill running tasks."
+                  when 'continue'
+                    $stderr.puts "... Continue runable tasks."
+                  else # 'wait'
+                    @no_more_run = true
+                    $stderr.puts "... Wait for running tasks."
+                  end
                 end
-              end
-              if tw.has_output_file? && File.exist?(tw.name)
-                handle_failed_target(tw.name)
+                if tw.has_output_file? && File.exist?(tw.name)
+                  handle_failed_target(tw.name)
+                end
               end
             end
             # postprocess

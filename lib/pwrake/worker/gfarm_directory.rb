@@ -76,7 +76,7 @@ module Pwrake
           spawn_cmd "fusermount -u #{@gfarm_mountpoint}"
         rescue
         end
-        system "sync"
+        #system "sync"
         begin
           FileUtils.rmdir @gfarm_mountpoint
           @log.info "rmdir #{@gfarm_mountpoint} @#{@@hostname}"
