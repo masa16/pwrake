@@ -65,13 +65,6 @@ module Gfarm
   end
 
 
-  def connection(*args)
-    Connection.set_args(args)
-    Connection.instance
-  end
-  module_function :connection
-
-
   class Connection
     include Singleton
 
@@ -124,10 +117,14 @@ module Gfarm
       FFI.gfs_replica_info_free(ptr)
     end
 
+    def self.set_opts(opts)
+      @@opts = opts
+    end
+
     def initialize(gfarm, path)
       @gfarm = gfarm
       @realpath = @gfarm.realpath_by_gfarm2fs(path)
-      flag = 0
+      flag = @@opts.flags
       ptr = ::FFI::MemoryPointer.new(:pointer, 1)
       e = FFI.gfs_replica_info_by_name(@realpath, flag, ptr)
       if e != GFARM_ERR_NO_ERROR
@@ -147,13 +144,40 @@ module Gfarm
     end
   end
 
+  class Options
+    INCLUDING_DEAD_HOST       = 1
+    INCLUDING_INCOMPLETE_COPY = 2
+    INCLUDING_DEAD_COPY       = 4
+
+    def initialize(argv)
+      @args = []
+      @flags = 0
+      argv.each do |x|
+        case x
+        when "-i"
+          @including_incomplete_copy = true
+          @flags |= INCLUDING_INCOMPLETE_COPY
+        else
+          @args << x
+        end
+      end
+    end
+
+    attr_reader :args
+    attr_reader :flags
+    attr_reader :including_incomplete_copy
+  end
+
 end
 
 [:PIPE,:TERM,:INT].each do |sig|
   Signal.trap(sig, "EXIT")
 end
 
-gfarm = Gfarm.connection
+opts = Gfarm::Options.new(ARGV)
+Gfarm::ReplicaInfo.set_opts(opts)
+Gfarm::Connection.set_args(opts.args)
+gfarm = Gfarm::Connection.instance
 
 while path=$stdin.gets
   path.chomp!
