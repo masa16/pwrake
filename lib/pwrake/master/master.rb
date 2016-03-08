@@ -237,7 +237,7 @@ module Pwrake
         end
         Log.debug "Master#invoke: fiber end"
       end
-      @runner.run
+      @runner.run if !ending?
       @post_pool.finish
       Log.debug "Master#invoke: end of task=#{t.name}"
     end
@@ -301,8 +301,7 @@ module Pwrake
         #Log.debug "@task_queue.empty?=#{@task_queue.empty?}"
         #Log.debug "@hostid_by_taskname=#{@hostid_by_taskname.inspect}"
         #Log.debug "pool.empty?=#{pool.empty?}"
-        if (@no_more_run || @task_queue.empty?) &&
-            @hostid_by_taskname.empty?
+        if ending?
           Log.debug "postproc##{j} closing @channels=#{@channels.inspect}"
           @finished = true
           @channels.each{|ch| ch.finish} # exit
@@ -312,6 +311,10 @@ module Pwrake
           false
         end
       end
+    end
+
+    def ending?
+      (@no_more_run || @task_queue.empty?) && @hostid_by_taskname.empty?
     end
 
     def handle_failed_target(name)
