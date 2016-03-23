@@ -9,11 +9,10 @@ module Pwrake
       @shells = []
       @ior = r
       @iow = w
-      @runner = Runner.new(@option['HEARTBEAT'])
-      @master_hdl = Handler.new(@runner,@ior,@iow)
-      @master_chan = Channel.new(@master_hdl)
-      @wk_comm = {}
-      @wk_hdl_set = HandlerSet.new
+      @selector = AIO::Selector.new(@option['HEARTBEAT'])
+      @master_rd = AIO::Reader.new(@selector,@ior)
+      @master_wt = AIO::Writer.new(@selector,@iow)
+      #@wk_hdl_set = HandlerSet.new
       @shell_start_interval = @option['SHELL_START_INTERVAL']
     end
 
@@ -24,7 +23,7 @@ module Pwrake
       setup_shell
       setup_fiber
       setup_master_channel
-      @runner.run
+      @cs.run("task execution")
       Log.debug "Brandh#run end"
     end
 
@@ -49,108 +48,77 @@ module Pwrake
       else
         @logger.level = Logger::WARN
       end
-    end
-
-    def setup_worker
-      s = @ior.gets
-      if s.chomp != "host_list_begin"
-        raise "Branch#setup_worker: recv=#{s.chomp} expected=host_list_begin"
-      end
 
       if dir = @option['LOG_DIR']
         fn = File.join(dir,@option["COMMAND_CSV_FILE"])
         Shell.profiler.open(fn,@option['GNU_TIME'],@option['PLOT_PARALLELISM'])
       end
+    end
 
-      worker_code = WorkerCommunicator.read_worker_progs(@option)
-
-      while s = @ior.gets
-        s.chomp!
-        break if s == "host_list_end"
-        if /^host:(\d+) (\S+) ([+-]?\d+)?$/ =~ s
-          id, host, ncore = $1,$2,$3
-          ncore &&= ncore.to_i
-          comm = WorkerCommunicator.new(id,host,ncore,@runner,@option)
-          comm.setup_connection(worker_code)
-          @wk_comm[id] = comm
-          @wk_hdl_set << comm.handler
-          @task_q[id] = FiberQueue.new
-        else
-          raise "Branch#setup_worker: recv=#{s.chomp} expected=host:id hostname ncore"
-        end
-      end
-
-      errors = []
-
-      @wk_comm.values.each do |comm|
+    def setup_worker
+      @cs = CommunicatorSet.new(@master_rd,@selector,@option.worker_option)
+      @cs.create_communicators
+      worker_code = read_worker_progs(@option.worker_progs)
+      @cs.each_value do |comm|
         Fiber.new do
-          while true
-            if s = comm.channel.get_line
-              break unless comm.ncore_proc(s)
-            else
-              errors << comm
-              break
-            end
-          end
-          Log.debug "Branch#setup_worker: fiber end of ncore_proc"
+          comm.connect(worker_code)
         end.resume
       end
+      @cs.run("connect to workers")
+      #
+      Fiber.new do
+        @cs.each_value do |comm|
+          # set WorkerChannel#ncore at Master
+          @master_wt.put_line "ncore:#{comm.id}:#{comm.ncore}"
+        end
+        @master_wt.put_line "ncore:done"
+      end.resume
+      @selector.run
+    end
 
-      @runner.run
-
-      if !errors.empty?
-        errors.each{|comm| @wk_hdl_set.delete(comm.handler)}
-        hosts = errors.map{|comm| comm.host}.join(",")
-        raise RuntimeError,"Failed to connect to workers: #{hosts}"
+    def read_worker_progs(worker_progs)
+      d = File.dirname(__FILE__)+'/../worker/'
+      code = ""
+      worker_progs.each do |f|
+        code << IO.read(d+f+'.rb')
       end
-
-      # ncore
-      @wk_comm.each_value do |comm|
-        # set WorkerChannel#ncore at Master
-        @master_hdl.put_line "ncore:#{comm.id}:#{comm.ncore}"
-      end
-      @master_hdl.put_line "ncore:done"
+      code
     end
 
     def setup_shell
       @shells = []
-      errors = []
-      shell_id = 0
-      @wk_comm.each_value do |comm|
+      @cs.each_value do |comm|
+        puts "comm.host=#{comm.host} comm.id=#{comm.id}"
+        @task_q[comm.id] = task_q = FiberQueue.new
+        #puts "task_q=#{task_q.inspect} @task_q=#{@task_q.inspect} comm.id=#{comm.id}"
         comm.ncore.times do
-          chan = Channel.new(comm.handler,shell_id)
-          shell_id += 1
-          shell = Shell.new(chan,@task_q[comm.id],@option.worker_option)
+          #chan = Channel.new(comm.handler,shell_id)
+          chan = comm.new_channel
+          shell = Shell.new(chan,task_q,@option.worker_option)
           @shells << shell
           # wait for remote shell open
           Fiber.new do
-            if !shell.open
-              errors << comm.host
-            end
+            shell.open
             Log.debug "Branch#setup_shells: end of fiber to open shell"
           end.resume
           sleep @shell_start_interval
         end
       end
 
-      @runner.run
-
-      if !errors.empty?
-        raise RuntimeError,"Failed to start workers: #{errors.inspect}"
-      end
+      @cs.run("setup shells")
     end
 
     def setup_fiber
       # start fibers
       @shells.each do |shell|
-        shell.create_fiber(@master_hdl).resume
+        shell.create_fiber(@master_wt).resume
       end
       Log.debug "all fiber started"
 
-      @wk_comm.each_value do |comm|
+      @cs.each_value do |comm|
         #comm.start_default_fiber
         Fiber.new do
-          while s = comm.channel.get_line
+          while s = comm.reader.get_line
             break unless comm.common_line(s)
           end
           Log.debug "Branch#setup_fiber: end of fiber for default channel"
@@ -158,17 +126,17 @@ module Pwrake
       end
 
       # setup end
-      @wk_comm.values.each do |comm|
-        comm.handler.put_line "setup_end"
+      @cs.each_value do |comm|
+        comm.writer.put_line "setup_end"
       end
 
-      @master_hdl.put_line "branch_setup:done"
+      @master_wt.put_line "branch_setup:done"
       Log.debug "Branch#setup_fiber: setup end"
     end
 
     def setup_master_channel
       Fiber.new do
-        while s = @master_chan.get_line
+        while s = @master_rd.get_line
           # receive command from main pwrake
           Log.debug "Branch:recv #{s.inspect} from master"
           case s
@@ -180,7 +148,7 @@ module Pwrake
           when /^exit$/
             @task_q.each_value{|q| q.finish}
             @shells.each{|shell| shell.close}
-            @runner.finish
+            @selector.finish
             break
             #
           when /^kill:(.*)$/o
@@ -196,16 +164,16 @@ module Pwrake
 
     def kill(sig="INT")
       Log.warn "Branch#kill #{sig}"
-      @wk_hdl_set.kill(sig)
+      #@wk_hdl_set.kill(sig)
     end
 
     def finish
       return if @finished
       @finished = true
-      Log.debug "Branch#finish: begin"
-      @wk_hdl_set.exit
+      #Log.debug "Branch#finish: begin"
+      #@wk_hdl_set.exit
       Log.debug "Branch#finish: worker exited"
-      @master_hdl.put_line "exited"
+      @master_wt.put_line "exited"
       Log.debug "Branch#finish: sent 'exited' to master"
     end
 

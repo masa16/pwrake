@@ -87,7 +87,7 @@ module Pwrake
         count = 0
         @host_map.by_id.each do |host_info|
           #Log.debug "TaskQueue#deq_turn host_info=#{host_info.name}"
-          if host_info.idle_cores > 0
+          if (n = host_info.idle_cores) && n > 0
           if turn_empty?(turn)
             return queued
           elsif tw = deq_impl(host_info,turn)

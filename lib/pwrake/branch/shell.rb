@@ -22,11 +22,10 @@ module Pwrake
 
     def initialize(chan,task_q,opt={})
       @chan = chan
-      @host = chan.handler.host
+      @id   = chan.id
+      @host = chan.host
       @task_q = task_q
       @lock = DummyMutex.new
-      @id = chan.id
-      #
       @option = opt
       @work_dir = @option[:work_dir] || Dir.pwd
     end
