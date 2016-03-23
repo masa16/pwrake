@@ -178,7 +178,7 @@ module Pwrake
         ['NUM_THREADS', proc{|v| v && v.to_i}],
         ['SHELL_START_INTERVAL', proc{|v| (v || 0.012).to_f}],
         ['HEARTBEAT', proc{|v| (v || 240).to_i}],
-        ['RETRY', proc{|v| (v || 0).to_i}],
+        ['RETRY', proc{|v| (v || 1).to_i}],
         ['DISABLE_AFFINITY', proc{|v| v || ENV['AFFINITY']=='off'}],
         ['DISABLE_STEAL', proc{|v| v || ENV['STEAL']=='off'}],
         ['GFARM_BASEDIR', proc{|v| v || '/tmp'}],

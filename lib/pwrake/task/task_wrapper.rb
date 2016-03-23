@@ -27,7 +27,7 @@ module Pwrake
       @executed = false
       @assigned = []
       @exec_host = nil
-      @nretry = @property.retry || Rake.application.pwrake_options["RETRY"] || 0
+      @nretry = @property.retry || Rake.application.pwrake_options["RETRY"] || 1
     end
 
     def_delegators :@task, :name, :actions, :prerequisites, :subsequents
