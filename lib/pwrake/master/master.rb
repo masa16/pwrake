@@ -3,10 +3,10 @@ module Pwrake
   class Master
 
     def initialize
-      @runner = Runner.new
+      @selector = AIO::Selector.new
       @hostid_by_taskname = {}
       @option = Option.new
-      @hdl_set = HandlerSet.new
+      @hdl_set = AIO::HandlerSet.new
       @channel_by_hostid = {}
       @channels = []
       @hosts = {}
@@ -43,35 +43,29 @@ module Pwrake
     end
 
     def setup_branch_handler(sub_host)
+      ior,w0 = IO.pipe
+      r2,iow = IO.pipe
       if sub_host == "localhost" && /^(n|f)/i !~ ENV['T']
-        hdl = Handler.new(@runner) do |w0,w1,r2|
-          @thread = Thread.new(r2,w0,@option) do |r,w,o|
-            Rake.application.run_branch_in_thread(r,w,o)
-          end
+        @thread = Thread.new(r2,w0,@option) do |r,w,o|
+          Rake.application.run_branch_in_thread(r,w,o)
         end
       else
-        hdl = Handler.new(@runner) do |w0,w1,r2|
-          dir = File.absolute_path(File.dirname($PROGRAM_NAME))
-          #args = Shellwords.shelljoin(@args)
-          cmd = "ssh -x -T -q #{sub_host} '" +
-            "cd \"#{Dir.pwd}\";"+
-            "PATH=#{dir}:${PATH} exec pwrake_branch'"
-          Log.debug("BranchCommunicator cmd=#{cmd}")
-          #$stderr.puts "BranchCommunicator cmd=#{cmd}"
-          spawn(cmd,:pgroup=>true,:out=>w0,:err=>w1,:in=>r2)
-          w0.close
-          w1.close
-          r2.close
-        end
-        Marshal.dump(@option,hdl.iow)
-        hdl.iow.flush
-        s = hdl.ior.gets
+        dir = File.absolute_path(File.dirname($PROGRAM_NAME))
+        cmd = "ssh -x -T -q #{sub_host} '" +
+          "cd \"#{Dir.pwd}\";"+
+          "PATH=#{dir}:${PATH} exec pwrake_branch'"
+        Log.debug("BranchCommunicator cmd=#{cmd}")
+        spawn(cmd,:pgroup=>true,:out=>w0,:in=>r2)
+        w0.close
+        r2.close
+        Marshal.dump(@option,iow)
+        iow.flush
+        s = ior.gets
         if !s or s.chomp != "pwrake_branch start"
           raise RuntimeError,"pwrake_branch start failed: receive #{s.inspect}"
         end
       end
-      hdl.host = sub_host
-      return hdl
+      return AIO::Handler.new(@selector,ior,iow,sub_host)
     end
 
     def signal_trap(sig)
@@ -90,6 +84,7 @@ module Pwrake
         @no_more_run = true
         @failed = true
         @hdl_set.kill(sig)
+        # @selector.run : not required here
       when 1
         $stderr.puts "\nOnce more Ctrl-C (SIGINT) for exit."
       else
@@ -100,23 +95,21 @@ module Pwrake
 
     def setup_branches
       sum_ncore = 0
-
       @option.host_map.each do |sub_host, wk_hosts|
         @hdl_set << hdl = setup_branch_handler(sub_host)
-        @channels << chan = Channel.new(hdl)
-        chan.puts "host_list_begin"
+        Fiber.new do
+        hdl.put_line "host_list_begin"
         wk_hosts.each do |host_info|
           name = host_info.name
           ncore = host_info.ncore
           host_id = host_info.id
           Log.debug "connecting #{name} ncore=#{ncore} id=#{host_id}"
-          chan.puts "host:#{host_id} #{name} #{ncore}"
-          @channel_by_hostid[host_id] = chan
+          hdl.put_line "host:#{host_id} #{name} #{ncore}"
+          @channel_by_hostid[host_id] = hdl
           @hosts[host_id] = name
         end
-        chan.puts "host_list_end"
-
-        while s = chan.gets
+        hdl.put_line "host_list_end"
+        while s = hdl.get_line
           case s
           when /^ncore:done$/
             break
@@ -132,7 +125,9 @@ module Pwrake
             raise RuntimeError,"invalid return: #{msg}"
           end
         end
+        end.resume
       end
+      @selector.run
 
       Log.info "num_cores=#{sum_ncore}"
       @hosts.each do |id,host|
@@ -143,12 +138,14 @@ module Pwrake
       @task_queue = queue_class.new(@option.host_map)
 
       @branch_setup_thread = Thread.new do
-        @channels.each do |chan|
-          s = chan.gets
+        #@channels.each do |chan|
+        create_fiber(@hdl_set) do |hdl|
+          s = hdl.get_line
           if /^branch_setup:done$/ !~ s
-            raise RuntimeError,"branch_setup failed"
+            raise RuntimeError,"branch_setup failed: s=#{s.inspect}"
           end
         end
+        @selector.run
         @killed = 0
         [:TERM,:INT].each do |sig|
           Signal.trap(sig) do
@@ -177,7 +174,7 @@ module Pwrake
           tw.status = "end"
           @post_pool.enq(tw)
         end
-        @runner.run
+        @selector.run
         @post_pool.finish
         Log.debug "@post_pool.finish"
 
@@ -189,9 +186,9 @@ module Pwrake
       @branch_setup_thread.join
       send_task_to_idle_core
       #
-      create_fiber(@channels) do |chan|
-        while s = chan.get_line
-          Log.debug "Master:recv #{s.inspect} from branch[#{chan.handler.host}]"
+      create_fiber(@hdl_set) do |hdl|
+        while s = hdl.get_line
+          Log.debug "Master:recv #{s.inspect} from branch[#{hdl.host}]"
           case s
           when /^task(\w+):(\d*):(.*)$/o
             status, shell_id, task_name = $1, $2.to_i, $3
@@ -209,6 +206,7 @@ module Pwrake
                   case @option['FAILURE_TERMINATION']
                   when 'kill'
                     @hdl_set.kill("INT")
+                    @selector.run
                     @no_more_run = true
                     $stderr.puts "... Kill running tasks."
                   when 'continue'
@@ -237,7 +235,7 @@ module Pwrake
         end
         Log.debug "Master#invoke: fiber end"
       end
-      @runner.run if !ending?
+      @selector.run if !ending?
       @post_pool.finish
       Log.debug "Master#invoke: end of task=#{t.name}"
     end
@@ -272,7 +270,7 @@ module Pwrake
       i = 0
       n = @option.max_postprocess_pool
       @post_pool = FiberPool.new(n) do |pool|
-        postproc = @option.postprocess(@runner)
+        postproc = @option.postprocess(@selector)
         i += 1
         Log.debug "New postprocess fiber ##{i}"
         Fiber.new do
@@ -304,7 +302,8 @@ module Pwrake
         if ending?
           Log.debug "postproc##{j} closing @channels=#{@channels.inspect}"
           @finished = true
-          @channels.each{|ch| ch.finish} # exit
+          #@channels.each{|ch| ch.finish} # exit
+          @hdl_set.each{|hdl| hdl.finish} # exit
           true
         elsif !@no_more_run
           send_task_to_idle_core
@@ -340,7 +339,10 @@ module Pwrake
     def finish
       Log.debug "Master#finish begin"
       @branch_setup_thread.join
-      @hdl_set.exit unless @exited
+      if !@exited
+        @hdl_set.exit
+        @selector.run
+      end
       TaskWrapper.close_task_logger
       Log.debug "Master#finish end"
       @failed

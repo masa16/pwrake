@@ -6,10 +6,7 @@ require "csv"
 
 require "pwrake/version"
 
-require "pwrake/iomux/runner"
-require "pwrake/iomux/handler"
-require "pwrake/iomux/handler_set"
-require "pwrake/iomux/channel"
+require "pwrake/aio"
 
 require "pwrake/logger"
 require "pwrake/master/master"
