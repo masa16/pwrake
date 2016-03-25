@@ -15,8 +15,10 @@ class Rake::Application
   include Pwrake::BranchApplication
 end
 
-#require "tracer"
-#Tracer.on
+require "pwrake/task/task_algorithm"
+class Rake::Task
+  include Pwrake::TaskAlgorithm
+end
 
 # does NOT exit when writing to broken pipe
 Signal.trap(:PIPE, "IGNORE")
