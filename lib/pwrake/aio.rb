@@ -2,6 +2,8 @@ require "fiber"
 
 module Pwrake module AIO
 
+  class TimeoutError < IOError; end
+
   class Selector
 
     def initialize(timeout=nil)
@@ -63,7 +65,7 @@ module Pwrake module AIO
     # used to print an error message
     def get_host(io)
       hdl = @reader[io] || @writer[io]
-      h = hdl.respond_to?(:host) ? hdl.host : nil
+      hdl.respond_to?(:host) ? hdl.host : nil
     end
 
     # called when IO start and receive heartbeat
@@ -77,8 +79,8 @@ module Pwrake module AIO
 #------------------------------------------------------------------
 
   class Writer
-    def initialize(iosel, io)
-      @iosel = iosel
+    def initialize(selector, io)
+      @selector = selector
       @io = io
       @waiter = []
       @pool = []
@@ -91,7 +93,7 @@ module Pwrake module AIO
       @waiter = []
       w.each{|f| f.resume}
     ensure
-      @iosel.delete_writer(self) if @waiter.empty?
+      @selector.delete_writer(self) if @waiter.empty?
     end
 
     # call from Fiber context
@@ -126,7 +128,7 @@ module Pwrake module AIO
     end
 
     def select_io
-      @iosel.add_writer(self) if @waiter.empty?
+      @selector.add_writer(self) if @waiter.empty?
       @waiter.push(Fiber.current)
       Fiber.yield
     end
@@ -156,8 +158,8 @@ module Pwrake module AIO
 
   class Reader
 
-    def initialize(iosel, io, n_chan=0)
-      @iosel = iosel
+    def initialize(selector, io, n_chan=0)
+      @selector = selector
       @io = io
       @n_chan = n_chan
       @queue = @n_chan.times.map{|i| FiberReaderQueue.new(self)}
@@ -192,12 +194,12 @@ module Pwrake module AIO
 
     # call from FiberReaderQueue
     def select_io
-      @iosel.add_reader(self) if @sel_chan.empty?
+      @selector.add_reader(self) if @sel_chan.empty?
       @sel_chan[Fiber.current] = true
       Fiber.yield
     ensure
       @sel_chan.delete(Fiber.current)
-      @iosel.delete_reader(self) if @sel_chan.empty?
+      @selector.delete_reader(self) if @sel_chan.empty?
     end
 
     # call from Selector
@@ -284,6 +286,83 @@ module Pwrake module AIO
       end
     end
 
+  end
+
+#------------------------------------------------------------------
+
+  class Handler
+
+    def initialize(selector,ior,iow,hostname=nil)
+      @reader = Reader.new(selector,ior)
+      @writer = Writer.new(selector,iow)
+      @host = hostname
+    end
+    attr_reader :reader, :writer, :host
+
+    def get_line
+      @reader.get_line
+    end
+
+    def put_line(s)
+      @writer.put_line(s)
+    end
+
+    def put_kill(sig="INT")
+      #@writer.put_line("kill:#{sig}")
+      @writer.io.puts("kill:#{sig}")
+    end
+
+    def put_exit
+      @writer.put_line "exit"
+    end
+
+    def finish
+      @writer.finish
+      @reader.finish
+    end
+  end
+
+  class HandlerSet < Array
+
+    def kill(sig)
+      each do |hdl|
+        Fiber.new do
+          hdl.put_kill(sig)
+        end.resume
+      end
+    end
+
+    def exit
+      exit_msg = "exited"
+      each do |hdl|
+        Fiber.new do
+          iow = hdl.writer.io
+          Log.debug "HandlerSet#exit iow=#{iow.inspect}"
+          begin
+            hdl.put_exit
+            if line = hdl.get_line
+              line.chomp!
+              m = "HandlerSet#exit: #{line} host=#{hdl.host}"
+              if line == exit_msg
+                Log.debug m
+              else
+                Log.error m
+              end
+            else
+              Log.error "HandlerSet#exit: fail to read"
+            end
+          rescue Errno::EPIPE => e
+            if Rake.application.options.debug
+              $stderr.puts "Errno::EPIPE in #{self.class}.exit iow=#{iow.inspect}"
+              $stderr.puts e.backtrace.join("\n")
+            end
+            Log.error "Errno::EPIPE in #{self.class}.exit iow=#{iow.inspect}\n"+
+              e.backtrace.join("\n")
+          end
+        end.resume
+      end
+      Log.debug "HandlerSet#exit end"
+    end
   end
 
 end end
