@@ -1,6 +1,8 @@
 require "forwardable"
 
-module Pwrake class CommunicatorSet
+module Pwrake
+class CommunicatorSet
+
   extend Forwardable
 
   def initialize(master_rd,selector,option)
@@ -61,4 +63,17 @@ module Pwrake class CommunicatorSet
     end
   end
 
-end end
+  def handler_set
+    @communicators.each_value.map{|comm| comm.handler}
+  end
+
+  def kill(sig)
+    AIO::Handler.kill(handler_set,sig)
+  end
+
+  def exit
+    AIO::Handler.exit(handler_set)
+  end
+
+end
+end
