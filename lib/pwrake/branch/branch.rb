@@ -3,7 +3,7 @@ module Pwrake
   class Branch
 
     def initialize(opts,r,w)
-      #Thread.abort_on_exception = true
+      Thread.abort_on_exception = true
       @option = opts
       @task_q = {}  # worker_id => FiberQueue.new
       @shells = []
@@ -12,7 +12,6 @@ module Pwrake
       @selector = AIO::Selector.new(@option['HEARTBEAT'])
       @master_rd = AIO::Reader.new(@selector,@ior)
       @master_wt = AIO::Writer.new(@selector,@iow)
-      #@wk_hdl_set = HandlerSet.new
       @shell_start_interval = @option['SHELL_START_INTERVAL']
     end
 
@@ -88,11 +87,8 @@ module Pwrake
     def setup_shell
       @shells = []
       @cs.each_value do |comm|
-        puts "comm.host=#{comm.host} comm.id=#{comm.id}"
         @task_q[comm.id] = task_q = FiberQueue.new
-        #puts "task_q=#{task_q.inspect} @task_q=#{@task_q.inspect} comm.id=#{comm.id}"
         comm.ncore.times do
-          #chan = Channel.new(comm.handler,shell_id)
           chan = comm.new_channel
           shell = Shell.new(chan,task_q,@option.worker_option)
           @shells << shell
@@ -164,14 +160,14 @@ module Pwrake
 
     def kill(sig="INT")
       Log.warn "Branch#kill #{sig}"
-      #@wk_hdl_set.kill(sig)
+      @cs.kill(sig)
     end
 
     def finish
       return if @finished
       @finished = true
       #Log.debug "Branch#finish: begin"
-      #@wk_hdl_set.exit
+      @cs.exit
       Log.debug "Branch#finish: worker exited"
       @master_wt.put_line "exited"
       Log.debug "Branch#finish: sent 'exited' to master"

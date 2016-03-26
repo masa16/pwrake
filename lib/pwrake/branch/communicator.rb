@@ -25,7 +25,7 @@ class Communicator
   class ConnectError < IOError; end
 
   attr_reader :id, :host, :ncore, :channel
-  attr_reader :reader, :writer
+  attr_reader :reader, :writer, :handler
 
   def initialize(set,id,host,ncore,selector,option)
     @set = set
@@ -36,13 +36,6 @@ class Communicator
     @option = option
     if hb = @option[:heartbeat]
       @heartbeat_timeout = hb + 15
-    end
-  end
-
-  def close
-    if !@closed
-      @closed = true
-      @handler.close
     end
   end
 
@@ -68,9 +61,10 @@ class Communicator
     w1.close
     r2.close
     sel = @set.selector
-    @reader = AIO::Reader.new(sel,@ior)
+    @handler = AIO::Handler.new(sel,@ior,@iow,@host)
+    @reader = @handler.reader
+    @writer = @handler.writer
     @rd_err = AIO::Reader.new(sel,@ioe)
-    @writer = AIO::Writer.new(sel,@iow)
     #
     @writer.write(worker_code)
     @writer.write(Marshal.dump(@ncore))
