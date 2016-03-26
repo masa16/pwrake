@@ -316,53 +316,53 @@ module Pwrake module AIO
       @writer.put_line "exit"
     end
 
+    def exit
+      exit_msg = "exited"
+      iow = @writer.io
+      Log.debug "Handler#exit iow=#{iow.inspect}"
+      @writer.put_line "exit"
+      if line = get_line
+        line.chomp!
+        m = "Handler#exit: #{line} host=#{@host}"
+        if line == exit_msg
+          Log.debug m
+        else
+          Log.error m
+        end
+      else
+        Log.error "Handler#exit: fail to read"
+      end
+    rescue Errno::EPIPE => e
+      if Rake.application.options.debug
+        $stderr.puts "Errno::EPIPE in #{self.class}#exit iow=#{iow.inspect}"
+        $stderr.puts e.backtrace.join("\n")
+      end
+      Log.error "Errno::EPIPE in #{self.class}.exit iow=#{iow.inspect}\n"+
+        e.backtrace.join("\n")
+    end
+
     def finish
       @writer.finish
       @reader.finish
     end
-  end
 
-  class HandlerSet < Array
-
-    def kill(sig)
-      each do |hdl|
+    def self.kill(hdl_set,sig)
+      hdl_set.each do |hdl|
         Fiber.new do
           hdl.put_kill(sig)
         end.resume
       end
     end
 
-    def exit
-      exit_msg = "exited"
-      each do |hdl|
+    def self.exit(hdl_set)
+      hdl_set.each do |hdl|
         Fiber.new do
-          iow = hdl.writer.io
-          Log.debug "HandlerSet#exit iow=#{iow.inspect}"
-          begin
-            hdl.put_exit
-            if line = hdl.get_line
-              line.chomp!
-              m = "HandlerSet#exit: #{line} host=#{hdl.host}"
-              if line == exit_msg
-                Log.debug m
-              else
-                Log.error m
-              end
-            else
-              Log.error "HandlerSet#exit: fail to read"
-            end
-          rescue Errno::EPIPE => e
-            if Rake.application.options.debug
-              $stderr.puts "Errno::EPIPE in #{self.class}.exit iow=#{iow.inspect}"
-              $stderr.puts e.backtrace.join("\n")
-            end
-            Log.error "Errno::EPIPE in #{self.class}.exit iow=#{iow.inspect}\n"+
-              e.backtrace.join("\n")
-          end
+          hdl.exit
         end.resume
       end
-      Log.debug "HandlerSet#exit end"
+      Log.debug "Handler.exit end"
     end
+
   end
 
 end end
