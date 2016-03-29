@@ -5,8 +5,7 @@ module Pwrake
     def initialize(runner)
       @io = IO.popen('gfwhere-pipe','r+')
       @io.sync = true
-      @hdl = Handler.new(runner,@io,@io)
-      @chan = Channel.new(@hdl)
+      @hdl = AIO::Handler.new(runner,@io,@io)
     end
 
     def run(task_wrap)
@@ -15,13 +14,12 @@ module Pwrake
       end
       filename = task_wrap.name
       begin
-        @hdl.iow.puts(filename)
-        @hdl.iow.flush
+        @hdl.put_line(filename)
       rescue Errno::EPIPE
         Log.warn "GfarmPostprocess#run: Errno::EPIPE for #{filename}"
         return []
       end
-      s = @chan.get_line
+      s = @hdl.get_line
       if s.nil?
         raise "gfwhere: unexpected end"
       end
@@ -29,7 +27,7 @@ module Pwrake
       if s != filename
         raise "gfwhere: file=#{filename}, result=#{s}"
       end
-      while s = @chan.get_line
+      while s = @hdl.get_line
         s.chomp!
         case s
         when /^gfarm:\/\//
