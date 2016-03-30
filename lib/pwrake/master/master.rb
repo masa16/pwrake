@@ -140,9 +140,15 @@ module Pwrake
       @branch_setup_thread = Thread.new do
         #@channels.each do |chan|
         create_fiber(@hdl_set) do |hdl|
-          s = hdl.get_line
-          if /^branch_setup:done$/ !~ s
-            raise RuntimeError,"branch_setup failed: s=#{s.inspect}"
+          while s = hdl.get_line
+            case s
+            when /^retire:(\d+)$/
+              @option.host_map.by_id[$1.to_i].decrease(1)
+            when /^branch_setup:done$/
+              break
+            else
+              raise RuntimeError,"branch_setup failed: s=#{s.inspect}"
+            end
           end
         end
         @selector.run
@@ -235,7 +241,10 @@ module Pwrake
         end
         Log.debug "Master#invoke: fiber end"
       end
-      @selector.run if !ending?
+      if !ending?
+        Log.debug "@selector.run"
+        @selector.run
+      end
       @post_pool.finish
       Log.debug "Master#invoke: end of task=#{t.name}"
     end

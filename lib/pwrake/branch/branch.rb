@@ -91,10 +91,13 @@ module Pwrake
         comm.ncore.times do
           chan = comm.new_channel
           shell = Shell.new(chan,task_q,@option.worker_option)
-          @shells << shell
           # wait for remote shell open
           Fiber.new do
-            shell.open
+            if shell.open
+              @shells << shell
+            else
+              @master_wt.put_line "retire:#{comm.id}"
+            end
             Log.debug "Branch#setup_shells: end of fiber to open shell"
           end.resume
           sleep @shell_start_interval
