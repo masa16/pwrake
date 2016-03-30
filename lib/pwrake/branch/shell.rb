@@ -132,7 +132,7 @@ module Pwrake
       a = []
       @lock.synchronize do
         _puts(cmd)
-        status = io_read_loop{|x| a << x}
+        @status = io_read_loop{|x| a << x}
       end
       a.join("\n")
     end
@@ -142,7 +142,7 @@ module Pwrake
       if !@opened
         raise "closed"
       end
-      status = nil
+      @status = nil
       start_time = Time.now
       begin
         _puts(cmd)

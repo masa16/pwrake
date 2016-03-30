@@ -16,13 +16,13 @@ module Pwrake
       @@current_id += 1
       @location = []
       @group = []
-      @group_id
+      @group_id = nil
       @suggest_location = nil
-      @file_stat
-      @input_file_size
-      @input_file_mtime
-      @rank
-      @priority
+      @file_stat = nil
+      @input_file_size = nil
+      @input_file_mtime = nil
+      @rank = nil
+      @priority = nil
       @lock_rank = Monitor.new
       @executed = false
       @assigned = []
@@ -81,9 +81,9 @@ module Pwrake
 
     def postprocess(location)
       @executed = true if !@task.actions.empty?
-      tm_taskend = Time.now
+      #tm_taskend = Time.now
       if is_file_task?
-        t = Time.now
+        #t = Time.now
         if File.exist?(name)
           @file_stat = File::Stat.new(name)
           @location = location
