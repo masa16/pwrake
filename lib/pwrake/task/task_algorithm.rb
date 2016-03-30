@@ -9,6 +9,7 @@ module Pwrake
     attr_reader :subsequents
     attr_reader :arguments
     attr_reader :property
+    attr_reader :unfinished_prereq
 
     def pw_search_tasks(args)
       Log.debug "#{self.class}#pw_search_tasks start, args=#{args.inspect}"
@@ -81,10 +82,12 @@ module Pwrake
     private :format_search_flags
 
     def pw_enq_subsequents
-      t = Time.now
+      #t = Time.now
       #h = application.pwrake_options['HALT_QUEUE_WHILE_SEARCH']
       #application.task_queue.synchronize(h) do
         @subsequents.each do |t|        # <<--- competition !!!
+          #u = t.unfinished_prereq.keys
+          #Log.debug "enq_subseq: self=#{self.name} subseq=#{t.name} @unfin_preq=#{u.inspect}"
           if t && t.check_prereq_finished(self.name)
             application.task_queue.enq(t.wrapper)
           end
