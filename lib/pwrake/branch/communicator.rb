@@ -34,9 +34,6 @@ class Communicator
     @ncore = @ncore_given = ncore
     @selector = selector
     @option = option
-    if hb = @option[:heartbeat]
-      @heartbeat_timeout = hb + 15
-    end
   end
 
   def new_channel

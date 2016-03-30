@@ -11,6 +11,9 @@ class CommunicatorSet
     @option = option
     @communicators = {}
     @initial_communicators = []
+    if hb = @option[:heartbeat]
+      @heartbeat_timeout = hb + 15
+    end
   end
 
   attr_reader :selector
@@ -36,7 +39,7 @@ class CommunicatorSet
         end
       end
     end.resume
-    @selector.run
+    @selector.run(@heartbeat_timeout)
     @initial_communicators = @communicators.dup
   end
 
@@ -52,7 +55,7 @@ class CommunicatorSet
   def run(message)
     @error_host = []
     n1 = @communicators.size
-    @selector.run
+    @selector.run(@heartbeat_timeout)
     n2 = @communicators.size
     if n1 != n2
       Log.error "#{message.inspect} failed. hosts=[#{@error_host.join(',')}]"
