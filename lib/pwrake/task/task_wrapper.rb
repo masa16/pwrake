@@ -66,17 +66,8 @@ module Pwrake
       @time_start = Time.now
     end
 
-    def retry
-      if @nretry > 0
-        s="retry task: #{name}"
-        Log.debug(s)
-        $stderr.puts(s)
-        @nretry -= 1
-        Rake.application.task_queue.enq(self)
-        true
-      else
-        false
-      end
+    def no_more_retry?
+      @status=="end" && @nretry==0
     end
 
     def postprocess(location)
@@ -92,8 +83,21 @@ module Pwrake
       #Log.debug "postprocess time=#{Time.now-tm_taskend}"
       log_task
       @shell.current_task = nil if @shell
+    end
+
+    def retry_or_subsequent
       if @status=="end"
         @task.pw_enq_subsequents
+      elsif @nretry > 0
+        s="retry task n=#{@nretry}: #{name}"
+        Log.warn(s)
+        $stderr.puts(s)
+        @nretry -= 1
+        Rake.application.task_queue.enq(self)
+      else
+        s="no more retry task: #{name}"
+        Log.error(s)
+        $stderr.puts(s)
       end
     end
 

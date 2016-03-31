@@ -105,13 +105,11 @@ module Pwrake
 
     def _gets
       s = @chan.get_line
-      #Log.debug "Shell#_gets(host=#{@host},id=#{@id}): #{s.inspect}"
-      if s.nil?
-        begin
-          raise
-        rescue => e
-          Log.debug e
-        end
+      Log.debug "Shell#_gets(host=#{@host},id=#{@id}): #{s.inspect}"
+      case s
+      when Exception
+        Log.error "Shell#_gets: "+s.to_s
+        raise s
       end
       s
     end

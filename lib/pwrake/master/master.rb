@@ -202,11 +202,14 @@ module Pwrake
             tw.shell_id = shell_id
             tw.status = status
             hid = @hostid_by_taskname[task_name]
+            if hid.nil?
+              raise "unknown hostid: task_name=#{task_name} s=#{s.inspect} @hostid_by_taskname=#{@hostid_by_taskname.inspect}"
+            end
             @task_queue.task_end(tw,hid) # @idle_cores.increase(..
             # check failure
             if tw.status == "fail"
               $stderr.puts %[task "#{tw.name}" failed.]
-              if !tw.retry
+              if tw.no_more_retry?
                 if !@failed
                   @failed = true
                   case @option['FAILURE_TERMINATION']
@@ -242,8 +245,9 @@ module Pwrake
         Log.debug "Master#invoke: fiber end"
       end
       if !ending?
-        Log.debug "@selector.run"
+        Log.debug "@selector.run begin"
         @selector.run
+        Log.debug "@selector.run end"
       end
       @post_pool.finish
       Log.debug "Master#invoke: end of task=#{t.name}"
@@ -290,6 +294,7 @@ module Pwrake
             tw.postprocess(loc)
             pool.count_down
             @hostid_by_taskname.delete(tw.name)
+            tw.retry_or_subsequent
             break if yield(pool,j)
           end
           postproc.close
@@ -311,8 +316,7 @@ module Pwrake
         if ending?
           Log.debug "postproc##{j} closing @channels=#{@channels.inspect}"
           @finished = true
-          #@channels.each{|ch| ch.finish} # exit
-          @hdl_set.each{|hdl| hdl.finish} # exit
+          @hdl_set.each{|hdl| hdl.break_fiber} # get out of fiber
           true
         elsif !@no_more_run
           send_task_to_idle_core

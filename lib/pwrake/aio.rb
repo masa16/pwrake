@@ -6,11 +6,10 @@ module Pwrake module AIO
 
   class Selector
 
-    def initialize(timeout=nil)
+    def initialize
       @reader = {}
       @writer = {}
       @running = false
-      @timeout = timeout
       @hb_time = {}
     end
 
@@ -32,20 +31,25 @@ module Pwrake module AIO
       @writer.delete(hdl.io)
     end
 
-    def run
+    def run(timeout=nil)
       @running = true
       while @running && !empty?
-        r, w = IO.select(@reader.keys,@writer.keys,[],@timeout)
+        r, w = IO.select(@reader.keys,@writer.keys,[],timeout)
         if r.nil? && w.nil?
-          raise TimeoutError,"Timeout (#{@timeout} s) in IO.select"
+          raise TimeoutError,"Timeout (#{timeout} s) in IO.select"
         end
         r.each{|io| @reader[io].call}
         w.each{|io| @writer[io].call}
-        if @timeout && @hb_earliest
-          if Time.now - @hb_earliest > @timeout
+        if timeout && @hb_earliest
+          if Time.now - @hb_earliest > timeout
             io = @hb_time.key(@hb_earliest)
-            raise TimeoutError,"Timeout (#{@timeout}s) "+
-              "in Heartbeat from host=#{get_host(io)}"
+            if hdl = @reader[io]
+              e = TimeoutError.new("HB Timeout (#{timeout}s) #<Reader:#{hdl.__id__}> #{io.inspect}")
+              hdl.error(e)
+            end
+            heartbeat(io)
+            #raise TimeoutError,"Timeout (#{timeout}s) "+
+            #  "in Heartbeat" #" from host=#{get_host(io)}"
           end
         end
       end
@@ -57,8 +61,8 @@ module Pwrake module AIO
     end
 
     def finish
-      @writer.each_value{|hdl| hdl.finish}
-      @reader.each_value{|hdl| hdl.finish}
+      @writer.each_value{|w| w.break_fiber}
+      @reader.each_value{|r| r.break_fiber}
       @running = false
     end
 
@@ -115,7 +119,7 @@ module Pwrake module AIO
       end
     end
 
-    def finish
+    def break_fiber
       #@io.close
     end
 
@@ -207,9 +211,15 @@ module Pwrake module AIO
       read_lines
     end
 
-    def finish
-      @queue.each{|q| q.finish}
-      @default_queue.finish if @default_queue
+    def error(e)
+      Log.warn "Reader#error "+e.to_s
+      @queue.each{|q| q.enq(e)}
+      #@default_queue.enq(e) if @default_queue
+    end
+
+    def break_fiber
+      @queue.each{|q| q.break_fiber}
+      @default_queue.break_fiber if @default_queue
       #@io.close
     end
 
@@ -219,14 +229,16 @@ module Pwrake module AIO
         while index = @buf.index(@sep)
           enq_line(@buf.slice!(0, index+@sep.bytesize))
         end
-        @buf << @io.read_nonblock(@chunk_size)
+        if @io.closed?
+          enq_line(@buf) unless @buf.empty?
+          @buf = ''
+          enq_line(nil)
+          return
+        else
+          @buf << @io.read_nonblock(@chunk_size)
+        end
       end
     rescue EOFError
-      if !@buf.empty?
-        enq_line(@buf)
-        @buf = ''
-      end
-      enq_line(nil)
     rescue IO::WaitReadable
     end
 
@@ -259,7 +271,7 @@ module Pwrake module AIO
       @reader = reader
       @q = []
       @waiter = []
-      @finished = false
+      @breaking = false
     end
 
     def enq(x)
@@ -270,7 +282,7 @@ module Pwrake module AIO
 
     def deq
       while @q.empty?
-        return nil if @finished
+        return nil if @breaking
         @waiter.push(Fiber.current)
         @reader.select_io
       end
@@ -279,11 +291,12 @@ module Pwrake module AIO
 
     alias get_line :deq
 
-    def finish
-      @finished = true
+    def break_fiber
+      @breaking = true
       while f = @waiter.shift
         f.resume
       end
+      @breaking = false
     end
 
   end
@@ -321,7 +334,7 @@ module Pwrake module AIO
       iow = @writer.io
       Log.debug "Handler#exit iow=#{iow.inspect}"
       @writer.put_line "exit"
-      if line = get_line
+      if line = @reader.get_line
         line.chomp!
         m = "Handler#exit: #{line} host=#{@host}"
         if line == exit_msg
@@ -330,7 +343,7 @@ module Pwrake module AIO
           Log.error m
         end
       else
-        Log.error "Handler#exit: fail to read"
+        Log.error "Handler#exit: fail to get_line : #{line.inspect} closed?=#{@reader.io.closed?}"
       end
     rescue Errno::EPIPE => e
       if Rake.application.options.debug
@@ -341,9 +354,9 @@ module Pwrake module AIO
         e.backtrace.join("\n")
     end
 
-    def finish
-      @writer.finish
-      @reader.finish
+    def break_fiber
+      @writer.break_fiber
+      @reader.break_fiber
     end
 
     def self.kill(hdl_set,sig)

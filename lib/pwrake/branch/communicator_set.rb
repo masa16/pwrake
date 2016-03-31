@@ -14,6 +14,7 @@ class CommunicatorSet
     if hb = @option[:heartbeat]
       @heartbeat_timeout = hb + 15
     end
+    #@heartbeat_timeout = 3
   end
 
   attr_reader :selector
