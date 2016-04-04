@@ -58,10 +58,10 @@ class Communicator
     w1.close
     r2.close
     sel = @set.selector
-    @handler = AIO::Handler.new(sel,@ior,@iow,@host)
-    @reader = @handler.reader
-    @writer = @handler.writer
-    @rd_err = AIO::Reader.new(sel,@ioe)
+    @reader = NBIO::MultiReader.new(sel,@ior)
+    @rd_err = NBIO::Reader.new(sel,@ioe)
+    @writer = NBIO::Writer.new(sel,@iow)
+    @handler = NBIO::Handler.new(@reader,@writer,@host)
     #
     @writer.write(worker_code)
     @writer.write(Marshal.dump(@ncore))

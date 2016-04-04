@@ -73,11 +73,11 @@ class CommunicatorSet
   end
 
   def kill(sig)
-    AIO::Handler.kill(handler_set,sig)
+    NBIO::Handler.kill(handler_set,sig)
   end
 
   def exit
-    AIO::Handler.exit(handler_set)
+    NBIO::Handler.exit(handler_set)
   end
 
 end

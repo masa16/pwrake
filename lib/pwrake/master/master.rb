@@ -1,6 +1,6 @@
 require "fileutils"
 require "pwrake/logger"
-require "pwrake/aio"
+require "pwrake/nbio"
 require "pwrake/option/option"
 require "pwrake/task/task_wrapper"
 require "pwrake/queue/task_queue"
@@ -11,7 +11,7 @@ module Pwrake
   class Master
 
     def initialize
-      @selector = AIO::Selector.new
+      @selector = NBIO::Selector.new
       @hostid_by_taskname = {}
       @option = Option.new
       @hdl_set = []
@@ -73,7 +73,9 @@ module Pwrake
           raise RuntimeError,"pwrake_branch start failed: receive #{s.inspect}"
         end
       end
-      return AIO::Handler.new(@selector,ior,iow,sub_host)
+      rd = NBIO::Reader.new(@selector,ior)
+      wt = NBIO::Writer.new(@selector,iow)
+      return NBIO::Handler.new(rd,wt,sub_host)
     end
 
     def signal_trap(sig)
@@ -91,7 +93,7 @@ module Pwrake
         $stderr.puts "Exiting..."
         @no_more_run = true
         @failed = true
-        AIO::Handler.kill(@hdl_set,sig)
+        NBIO::Handler.kill(@hdl_set,sig)
         # @selector.run : not required here
       when 1
         $stderr.puts "\nOnce more Ctrl-C (SIGINT) for exit."
@@ -222,7 +224,7 @@ module Pwrake
                   @failed = true
                   case @option['FAILURE_TERMINATION']
                   when 'kill'
-                    AIO::Handler.kill(@hdl_set,"INT")
+                    NBIO::Handler.kill(@hdl_set,"INT")
                     @selector.run
                     @no_more_run = true
                     $stderr.puts "... Kill running tasks."
@@ -361,7 +363,7 @@ module Pwrake
       Log.debug "Master#finish begin"
       @branch_setup_thread.join
       if !@exited
-        AIO::Handler.exit(@hdl_set)
+        NBIO::Handler.exit(@hdl_set)
         @selector.run
       end
       TaskWrapper.close_task_logger

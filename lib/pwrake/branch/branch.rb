@@ -16,9 +16,9 @@ module Pwrake
       @shells = []
       @ior = r
       @iow = w
-      @selector = AIO::Selector.new
-      @master_rd = AIO::Reader.new(@selector,@ior)
-      @master_wt = AIO::Writer.new(@selector,@iow)
+      @selector = NBIO::Selector.new
+      @master_rd = NBIO::Reader.new(@selector,@ior)
+      @master_wt = NBIO::Writer.new(@selector,@iow)
       @shell_start_interval = @option['SHELL_START_INTERVAL']
     end
 

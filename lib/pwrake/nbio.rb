@@ -1,8 +1,10 @@
 require "fiber"
 
-module Pwrake module AIO
+module Pwrake
+module NBIO
 
-  class TimeoutError < IOError; end
+  class TimeoutError < IOError
+  end
 
   class Selector
 
@@ -61,8 +63,8 @@ module Pwrake module AIO
     end
 
     def finish
-      @writer.each_value{|w| w.break_fiber}
-      @reader.each_value{|r| r.break_fiber}
+      @writer.each_value{|w| w.finish}
+      @reader.each_value{|r| r.finish}
       @running = false
     end
 
@@ -96,6 +98,9 @@ module Pwrake module AIO
       w = @waiter
       @waiter = []
       w.each{|f| f.resume}
+      #while f = @waiter.shift
+      #  f.resume
+      #end
     ensure
       @selector.delete_writer(self) if @waiter.empty?
     end
@@ -106,6 +111,16 @@ module Pwrake module AIO
       line = "#{ch}:#{line}" if ch
       write(line+"\n")
     end
+
+    def finish
+      @breaking = true
+      while f = @waiter.shift
+        f.resume
+      end
+      @breaking = false
+    end
+
+    # from Bartender
 
     def write(buf, buffered=false)
       push(buf)
@@ -119,8 +134,12 @@ module Pwrake module AIO
       end
     end
 
-    def break_fiber
-      #@io.close
+    def select_io
+      @selector.add_writer(self) if @waiter.empty?
+      @waiter.push(Fiber.current)
+      Fiber.yield
+    #ensure
+    #  @selector.delete_writer(self) if @waiter.empty?
     end
 
     private
@@ -129,12 +148,6 @@ module Pwrake module AIO
     rescue IO::WaitWritable
       select_io
       retry
-    end
-
-    def select_io
-      @selector.add_writer(self) if @waiter.empty?
-      @waiter.push(Fiber.current)
-      Fiber.yield
     end
 
     def push(string)
@@ -162,18 +175,118 @@ module Pwrake module AIO
 
   class Reader
 
-    def initialize(selector, io, n_chan=0)
+    def initialize(selector, io)
       @selector = selector
       @io = io
-      @n_chan = n_chan
-      @queue = @n_chan.times.map{|i| FiberReaderQueue.new(self)}
-      @default_queue = FiberReaderQueue.new(self)
-      @sel_chan = {}
+      @waiter = []
       @buf = ''
       @sep = "\n"
       @chunk_size = 8192
     end
-    attr_reader :io, :queue
+    attr_reader :io
+
+    # call from Selector#run
+    def call
+      @waiter.each{|f| f.resume}
+      #while f = @waiter.shift
+      #  f.resume
+      #end
+    end
+
+    # call from MultiReader#call
+    def read_line_nonblock
+      until index = @buf.index(@sep)
+        @buf << @io.read_nonblock(@chunk_size)
+      end
+      @buf.slice!(0, index+@sep.bytesize)
+    rescue EOFError => e
+      if @buf.empty?
+        #return nil
+        raise e
+      else
+        buf = @buf; @buf = ''
+        return buf
+      end
+    #rescue IO::WaitReadable
+    end
+
+    # call from Reader#_read and FiberReaderQueue#deq
+    def select_io
+      @selector.add_reader(self) if @waiter.empty?
+      @waiter.push(Fiber.current)
+      Fiber.yield
+    ensure
+      @waiter.delete(Fiber.current)
+      @selector.delete_reader(self) if @waiter.empty?
+    end
+
+    def error(e)
+      raise e
+    end
+
+    def finish
+      @breaking = true
+      while f = @waiter.shift
+        f.resume
+      end
+      @breaking = false
+    end
+
+    # from Bartender
+
+    def _read(sz)
+      @io.read_nonblock(sz)
+    rescue EOFError
+      nil
+    rescue IO::WaitReadable
+      select_io
+      retry
+    end
+
+    def read(n)
+      while @buf.bytesize < n
+        chunk = _read(n)
+        break if chunk.nil? || chunk.empty?
+        @buf += chunk
+      end
+      @buf.slice!(0, n)
+    end
+
+    def read_until(sep="\r\n", chunk_size=8192)
+      until i = @buf.index(sep)
+        if s = _read(chunk_size)
+          @buf += s
+        else
+          if @buf.empty?
+            return nil
+          else
+            buf = @buf; @buf = ''
+            return buf
+          end
+        end
+      end
+      @buf.slice!(0, i+sep.bytesize)
+    end
+
+    def readln
+      read_until(@sep)
+    end
+
+    alias get_line :readln
+
+  end
+
+#------------------------------------------------------------------
+
+  class MultiReader < Reader
+
+    def initialize(selector, io, n_chan=0)
+      super(selector, io)
+      @n_chan = n_chan
+      @queue = @n_chan.times.map{|i| FiberReaderQueue.new(self)}
+      @default_queue = FiberReaderQueue.new(self)
+    end
+    attr_reader :queue
     attr_accessor :default_queue
 
     def [](ch)
@@ -196,19 +309,26 @@ module Pwrake module AIO
       end
     end
 
-    # call from FiberReaderQueue
-    def select_io
-      @selector.add_reader(self) if @sel_chan.empty?
-      @sel_chan[Fiber.current] = true
-      Fiber.yield
-    ensure
-      @sel_chan.delete(Fiber.current)
-      @selector.delete_reader(self) if @sel_chan.empty?
-    end
-
-    # call from Selector
     def call
-      read_lines
+      while line = read_line_nonblock
+        if /^(\d+):(.*)$/ =~ line
+          ch,str = $1,$2
+          if q = @queue[ch.to_i]
+            q.enq(str)
+          else
+            raise "No queue ##{ch}, received: #{line}"
+          end
+        elsif @default_queue
+          @default_queue.enq(line)
+        else
+          raise "No default_queue, received: #{line}"
+        end
+      end
+    rescue EOFError
+      @default_queue.enq(nil)
+      @queue.each{|q| q.enq(nil)}
+    rescue IO::WaitReadable
+      #p IO::WaitReadable
     end
 
     def error(e)
@@ -217,53 +337,14 @@ module Pwrake module AIO
       #@default_queue.enq(e) if @default_queue
     end
 
-    def break_fiber
+    def finish
       @queue.each{|q| q.break_fiber}
       @default_queue.break_fiber if @default_queue
       #@io.close
     end
-
-    private
-    def read_lines
-      while true
-        while index = @buf.index(@sep)
-          enq_line(@buf.slice!(0, index+@sep.bytesize))
-        end
-        if @io.closed?
-          enq_line(@buf) unless @buf.empty?
-          @buf = ''
-          enq_line(nil)
-          return
-        else
-          @buf << @io.read_nonblock(@chunk_size)
-        end
-      end
-    rescue EOFError
-    rescue IO::WaitReadable
-    end
-
-    def enq_line(s)
-      if s.nil? # EOF
-        @default_queue.enq(nil)
-        @queue.each{|q| q.enq(nil)}
-        return
-      end
-      s = s.chomp
-      if !@queue.empty? && /^(\d+):(.*)$/ =~ s
-        ch,line = $1,$2
-        if q = @queue[ch.to_i]
-          q.enq(line)
-        else
-          raise "No queue ##{ch}"
-        end
-      elsif @default_queue
-        @default_queue.enq(s)
-      else
-        raise "No default_queue, received: #{s}"
-      end
-    end
-
   end
+
+#------------------------------------------------------------------
 
   class FiberReaderQueue
 
@@ -305,9 +386,9 @@ module Pwrake module AIO
 
   class Handler
 
-    def initialize(selector,ior,iow,hostname=nil)
-      @reader = Reader.new(selector,ior)
-      @writer = Writer.new(selector,iow)
+    def initialize(reader,writer,hostname=nil)
+      @writer = writer
+      @reader = reader
       @host = hostname
     end
     attr_reader :reader, :writer, :host
@@ -355,8 +436,8 @@ module Pwrake module AIO
     end
 
     def break_fiber
-      @writer.break_fiber
-      @reader.break_fiber
+      @writer.finish
+      @reader.finish
     end
 
     def self.kill(hdl_set,sig)
@@ -378,30 +459,39 @@ module Pwrake module AIO
 
   end
 
-end end
+end
 
+#------------------------------------------------------------------
 
 if __FILE__ == $0
+  iosel = NBIO::Selector.new
 
-module Pwrake
-  ior,iow = IO.pipe
-  iosel = AIO::Selector.new
-  rd = AIO::Reader.new(iosel,ior,1)
-  wr = AIO::Writer.new(iosel,iow)
+  io = 5.times.map do
+    IO.pipe
+  end
 
-  Fiber.new do
-    2000.times do |i|
-      wr.put_line "0:test str#{i}"+"-"*80
-    end
-    iow.close
-  end.resume
+  io.each do |ior,iow|
+    rd = NBIO::MultiReader.new(iosel,ior,1)
+    Fiber.new do
+      while s = rd.get_line(0)
+        puts s
+      end
+      puts "fiber end"
+    end.resume
+  end
 
-  Fiber.new do
-    while s=rd[0].get_line
-      p s
-    end
-    puts "fiber end"
-  end.resume
+  io.each do |ior,iow|
+    wr = NBIO::Writer.new(iosel,iow)
+    Fiber.new do
+      2000.times do |i|
+        wr.put_line("test str#{i}"+"-"*80,0)
+        #iow.puts "0:test str#{i}"+"-"*80
+      end
+      #iow.print "hage"
+      iow.close
+    end.resume
+  end
 
   iosel.run
-end; end
+end
+end
