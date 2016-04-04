@@ -1,3 +1,5 @@
+require "csv"
+
 module Pwrake
 
   class Report

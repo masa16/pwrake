@@ -1,3 +1,5 @@
+require 'pwrake/branch/shell_profiler'
+
 module Pwrake
 
   class DummyMutex

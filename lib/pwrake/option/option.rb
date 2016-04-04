@@ -1,3 +1,7 @@
+require "pathname"
+require "yaml"
+require "pwrake/option/host_map"
+
 module Pwrake
 
   START_TIME = Time.now
@@ -356,3 +360,5 @@ done
 
   end
 end
+
+require "pwrake/option/option_filesystem"

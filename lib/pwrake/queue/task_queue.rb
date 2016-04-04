@@ -1,3 +1,6 @@
+require "pwrake/queue/queue_array"
+require "pwrake/queue/no_action_queue"
+
 module Pwrake
 
   class TaskQueue

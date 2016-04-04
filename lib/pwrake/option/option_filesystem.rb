@@ -1,3 +1,5 @@
+require "pwrake/option/option_filesystem"
+
 module Pwrake
 
   class Option

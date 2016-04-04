@@ -1,3 +1,5 @@
+require "pwrake/task/task_property"
+
 module Pwrake
 
   module TaskManager

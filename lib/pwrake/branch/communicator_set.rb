@@ -1,4 +1,5 @@
 require "forwardable"
+require "pwrake/branch/communicator"
 
 module Pwrake
 class CommunicatorSet

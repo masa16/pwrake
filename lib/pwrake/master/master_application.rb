@@ -1,3 +1,5 @@
+require "pwrake/master/master"
+
 module Pwrake
 
   # a mixin for managing Rake application.

@@ -10,8 +10,11 @@ end
 libpath = File.absolute_path(File.dirname(__FILE__))+"/../lib"
 $LOAD_PATH.unshift libpath
 
-require "pwrake/master"
-require "pwrake/branch"
+require "pwrake/version"
+require "pwrake/master/master_application"
+require "pwrake/task/task_manager"
+require "pwrake/task/task_algorithm"
+require "pwrake/branch/branch_application"
 class Rake::Application
   include Pwrake::BranchApplication
   prepend Pwrake::MasterApplication

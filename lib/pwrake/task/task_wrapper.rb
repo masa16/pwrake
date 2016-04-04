@@ -1,4 +1,6 @@
-require 'forwardable'
+require "forwardable"
+require "csv"
+require "pwrake/task/task_rank"
 
 module Pwrake
 

@@ -1,3 +1,10 @@
+require "pwrake/aio"
+require "pwrake/branch/communicator_set"
+require "pwrake/branch/fiber_queue"
+require "pwrake/branch/shell"
+require "pwrake/branch/file_utils"
+require "pwrake/option/option"
+
 module Pwrake
 
   class Branch

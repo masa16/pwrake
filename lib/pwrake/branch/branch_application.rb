@@ -1,3 +1,6 @@
+require "pwrake/logger"
+require "pwrake/branch/branch"
+
 module Pwrake
 
   # The TaskManager module is a mixin for managing tasks.

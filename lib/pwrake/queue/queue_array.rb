@@ -1,4 +1,5 @@
 require "forwardable"
+require "pwrake/task/task_rank"
 
 module Pwrake
 

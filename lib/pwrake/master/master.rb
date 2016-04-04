@@ -1,3 +1,11 @@
+require "fileutils"
+require "pwrake/logger"
+require "pwrake/aio"
+require "pwrake/option/option"
+require "pwrake/task/task_wrapper"
+require "pwrake/queue/task_queue"
+require "pwrake/master/fiber_pool"
+
 module Pwrake
 
   class Master
