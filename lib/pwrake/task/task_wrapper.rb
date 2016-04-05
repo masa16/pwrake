@@ -68,8 +68,8 @@ module Pwrake
       @time_start = Time.now
     end
 
-    def no_more_retry?
-      @status=="end" && @nretry==0
+    def retry?
+      @status != "end" && @nretry > 0
     end
 
     def postprocess(location)
@@ -97,7 +97,7 @@ module Pwrake
         @nretry -= 1
         Rake.application.task_queue.enq(self)
       else
-        s="no more retry task: #{name}"
+        s="retry task n=0 (no retry): #{name}"
         Log.error(s)
         $stderr.puts(s)
       end

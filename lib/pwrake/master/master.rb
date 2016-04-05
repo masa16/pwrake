@@ -219,7 +219,14 @@ module Pwrake
             # check failure
             if tw.status == "fail"
               $stderr.puts %[task "#{tw.name}" failed.]
-              if tw.no_more_retry?
+              if tw.retry?
+                if tw.has_output_file? && File.exist?(tw.name)
+                  ::FileUtils.rm(tw.name)
+                  msg = "Delete failed target file '#{tw.name}'"
+                  $stderr.puts(msg)
+                  Log.warn(msg)
+                end
+              else
                 if !@failed
                   @failed = true
                   case @option['FAILURE_TERMINATION']
