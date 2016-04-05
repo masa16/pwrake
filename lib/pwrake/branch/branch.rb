@@ -1,4 +1,4 @@
-require "pwrake/aio"
+require "pwrake/nbio"
 require "pwrake/branch/communicator_set"
 require "pwrake/branch/fiber_queue"
 require "pwrake/branch/shell"
@@ -154,7 +154,7 @@ module Pwrake
           when /^exit$/
             @task_q.each_value{|q| q.finish}
             @shells.each{|shell| shell.close}
-            @selector.finish
+            @selector.halt
             break
             #
           when /^kill:(.*)$/o

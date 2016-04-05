@@ -11,8 +11,8 @@ module NBIO
     def initialize
       @reader = {}
       @writer = {}
-      @running = false
       @hb_time = {}
+      @running = false
     end
 
     attr_reader :reader, :writer
@@ -55,6 +55,7 @@ module NBIO
           end
         end
       end
+    ensure
       @running = false
     end
 
@@ -62,10 +63,10 @@ module NBIO
       @reader.empty? && @writer.empty?
     end
 
-    def finish
-      @writer.each_value{|w| w.finish}
-      @reader.each_value{|r| r.finish}
+    def halt
       @running = false
+      @writer.each_value{|w| w.halt}
+      @reader.each_value{|r| r.halt}
     end
 
     # used to print an error message
@@ -112,12 +113,14 @@ module NBIO
       write(line+"\n")
     end
 
-    def finish
-      @breaking = true
-      while f = @waiter.shift
-        f.resume
-      end
-      @breaking = false
+    def halt
+      @halting = true
+      w = @waiter
+      @waiter = []
+      w.each{|f| f.resume}
+    ensure
+      @selector.delete_writer(self) if @waiter.empty?
+      @halting = false
     end
 
     # from Bartender
@@ -146,6 +149,7 @@ module NBIO
     def _write(buf)
       return @io.write_nonblock(buf)
     rescue IO::WaitWritable
+      return nil if @halting
       select_io
       retry
     end
@@ -224,12 +228,11 @@ module NBIO
       raise e
     end
 
-    def finish
-      @breaking = true
-      while f = @waiter.shift
-        f.resume
-      end
-      @breaking = false
+    def halt
+      @halting = true
+      @waiter.each{|f| f.resume}
+    ensure
+      @halting = false
     end
 
     # from Bartender
@@ -239,6 +242,7 @@ module NBIO
     rescue EOFError
       nil
     rescue IO::WaitReadable
+      return nil if @halting
       select_io
       retry
     end
@@ -332,14 +336,13 @@ module NBIO
     end
 
     def error(e)
-      Log.warn "Reader#error "+e.to_s
       @queue.each{|q| q.enq(e)}
-      #@default_queue.enq(e) if @default_queue
+      @default_queue.enq(e) if @default_queue
     end
 
-    def finish
-      @queue.each{|q| q.break_fiber}
-      @default_queue.break_fiber if @default_queue
+    def halt
+      @queue.each{|q| q.halt}
+      @default_queue.halt if @default_queue
       #@io.close
     end
   end
@@ -352,7 +355,7 @@ module NBIO
       @reader = reader
       @q = []
       @waiter = []
-      @breaking = false
+      @halting = false
     end
 
     def enq(x)
@@ -363,7 +366,7 @@ module NBIO
 
     def deq
       while @q.empty?
-        return nil if @breaking
+        return nil if @halting
         @waiter.push(Fiber.current)
         @reader.select_io
       end
@@ -372,12 +375,13 @@ module NBIO
 
     alias get_line :deq
 
-    def break_fiber
-      @breaking = true
+    def halt
+      @halting = true
       while f = @waiter.shift
         f.resume
       end
-      @breaking = false
+    ensure
+      @halting = false
     end
 
   end
@@ -435,9 +439,9 @@ module NBIO
         e.backtrace.join("\n")
     end
 
-    def break_fiber
-      @writer.finish
-      @reader.finish
+    def halt
+      @writer.halt
+      @reader.halt
     end
 
     def self.kill(hdl_set,sig)
@@ -454,7 +458,6 @@ module NBIO
           hdl.exit
         end.resume
       end
-      Log.debug "Handler.exit end"
     end
 
   end

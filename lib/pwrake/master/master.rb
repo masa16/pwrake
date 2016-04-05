@@ -324,9 +324,9 @@ module Pwrake
         #Log.debug "@hostid_by_taskname=#{@hostid_by_taskname.inspect}"
         #Log.debug "pool.empty?=#{pool.empty?}"
         if ending?
-          Log.debug "postproc##{j} closing @channels=#{@channels.inspect}"
+          Log.debug "postproc##{j} closing"
           @finished = true
-          @hdl_set.each{|hdl| hdl.break_fiber} # get out of fiber
+          @selector.halt
           true
         elsif !@no_more_run
           send_task_to_idle_core
