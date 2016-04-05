@@ -99,9 +99,6 @@ module NBIO
       w = @waiter
       @waiter = []
       w.each{|f| f.resume}
-      #while f = @waiter.shift
-      #  f.resume
-      #end
     ensure
       @selector.delete_writer(self) if @waiter.empty?
     end
@@ -115,11 +112,8 @@ module NBIO
 
     def halt
       @halting = true
-      w = @waiter
-      @waiter = []
-      w.each{|f| f.resume}
+      call
     ensure
-      @selector.delete_writer(self) if @waiter.empty?
       @halting = false
     end
 
@@ -141,8 +135,6 @@ module NBIO
       @selector.add_writer(self) if @waiter.empty?
       @waiter.push(Fiber.current)
       Fiber.yield
-    #ensure
-    #  @selector.delete_writer(self) if @waiter.empty?
     end
 
     private
@@ -192,9 +184,6 @@ module NBIO
     # call from Selector#run
     def call
       @waiter.each{|f| f.resume}
-      #while f = @waiter.shift
-      #  f.resume
-      #end
     end
 
     # call from MultiReader#call
@@ -230,7 +219,7 @@ module NBIO
 
     def halt
       @halting = true
-      @waiter.each{|f| f.resume}
+      call
     ensure
       @halting = false
     end
@@ -343,7 +332,6 @@ module NBIO
     def halt
       @queue.each{|q| q.halt}
       @default_queue.halt if @default_queue
-      #@io.close
     end
   end
 
