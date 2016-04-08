@@ -22,14 +22,16 @@ module Pwrake
       BY_FIBER[Fiber.current]
     end
 
-    def initialize(chan,task_q,opt={})
+    def initialize(chan,comm,task_q,opt={})
       @chan = chan
       @id   = chan.id
       @host = chan.host
+      @comm = comm
       @task_q = task_q
       @lock = DummyMutex.new
       @option = opt
       @work_dir = @option[:work_dir] || Dir.pwd
+      @comm.shells[self] = true
     end
 
     attr_reader :id, :host, :status, :profile
@@ -110,8 +112,12 @@ module Pwrake
       Log.debug "Shell#_gets(host=#{@host},id=#{@id}): #{s.inspect}"
       case s
       when Exception
-        Log.error "Shell#_gets: "+s.to_s
-        raise s
+        #Log.error "Shell#_gets: "+s.to_s
+        finish
+        Log.error s
+        m = s.backtrace
+        Log.error m.join("\n") if m
+        #raise s
       end
       s
     end
@@ -183,6 +189,9 @@ module Pwrake
             end
             return status
           end
+        when NBIO::TimeoutError
+          finish
+          return "timeout"
         end
         msg = "Shell#io_read_loop: Invalid result: #{s.inspect}"
         $stderr.puts(msg)
@@ -192,7 +201,7 @@ module Pwrake
 
     public
 
-    def create_fiber(hdl)
+    def create_fiber(master_w)
       if !@opened
         Log.warn "not opened: host=#{@host} id=#{@id}"
       end
@@ -218,12 +227,19 @@ module Pwrake
               Log.error e
               result = "taskfail:#{@id}:#{task.name}"
             end
-            hdl.put_line result
+            master_w.put_line result
           end
         ensure
           Log.debug "shell id=#{@id} fiber end"
+          master_w.put_line "retire:#{@comm.id}"
+          #comm.delete_shell(self)
         end
       end
+    end
+
+    def finish
+      #@task_q.finish
+      @chan.halt
     end
 
   end

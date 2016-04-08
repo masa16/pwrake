@@ -5,14 +5,14 @@ module Pwrake
 
   class TaskQueue
 
-    def initialize(host_map, group_map=nil)
+    def initialize(hostinfo_by_id, group_map=nil)
       @q = []
       @empty = []
 
       @enable_steal = true
       @q_no_action = NoActionQueue.new
 
-      @host_map = host_map
+      @hostinfo_by_id = hostinfo_by_id
 
       pri = Rake.application.pwrake_options['QUEUE_PRIORITY'] || "LIHR"
       case pri
@@ -68,7 +68,7 @@ module Pwrake
       Log.debug "deq_noaction_task:"+(empty? ? " (empty)" : "\n#{inspect_q}")
       while tw = @q_no_action.shift
         Log.debug "deq_noaction: #{tw.name}"
-        yield(tw,nil)
+        yield(tw)
       end
     end
 
@@ -88,7 +88,7 @@ module Pwrake
       queued = 0
       while true
         count = 0
-        @host_map.by_id.each do |host_info|
+        @hostinfo_by_id.each_value do |host_info|
           #Log.debug "TaskQueue#deq_turn host_info=#{host_info.name}"
           if (n = host_info.idle_cores) && n > 0
           if turn_empty?(turn)
@@ -102,8 +102,7 @@ module Pwrake
               Log.fatal m
               raise RuntimeError,m
             else
-              host_info.decrease(n_task_cores)
-              yield(tw,host_info.id)
+              yield(tw,host_info,n_task_cores)
               count += 1
               queued += 1
             end
@@ -135,11 +134,6 @@ module Pwrake
       @q_no_action.empty? &&
         @q_input.empty? &&
         @q_no_input.empty?
-    end
-
-    def task_end(tw, hid)
-      host_info = @host_map.by_id[hid]
-      host_info.increase(tw.n_used_cores(host_info))
     end
 
     def _qstr(h,q)

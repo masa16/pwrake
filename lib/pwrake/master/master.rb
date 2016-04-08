@@ -12,12 +12,12 @@ module Pwrake
 
     def initialize
       @selector = NBIO::Selector.new
-      @hostid_by_taskname = {}
+      @hostinfo_by_taskname = {}
       @option = Option.new
       @hdl_set = []
       @channel_by_hostid = {}
       @channels = []
-      @hosts = {}
+      @hostinfo_by_id = {}
       init_logger
     end
 
@@ -97,6 +97,8 @@ module Pwrake
         # @selector.run : not required here
       when 1
         $stderr.puts "\nOnce more Ctrl-C (SIGINT) for exit."
+      when 2
+        @thread.kill if @thread
       else
         Kernel.exit(false) # must wait for nomral exit
       end
@@ -116,7 +118,7 @@ module Pwrake
           Log.debug "connecting #{name} ncore=#{ncore} id=#{host_id}"
           hdl.put_line "host:#{host_id} #{name} #{ncore}"
           @channel_by_hostid[host_id] = hdl
-          @hosts[host_id] = name
+          @hostinfo_by_id[host_id] = host_info
         end
         hdl.put_line "host_list_end"
         while s = hdl.get_line
@@ -126,7 +128,7 @@ module Pwrake
           when /^ncore:(\d+):(\d+)$/
             id, ncore = $1.to_i, $2.to_i
             Log.debug "worker_id=#{id} ncore=#{ncore}"
-            @option.host_map.by_id[id].set_ncore(ncore)
+            @hostinfo_by_id[id].set_ncore(ncore)
             sum_ncore += ncore
           when /^exited$/
             raise RuntimeError,"Unexpected branch exit"
@@ -140,12 +142,18 @@ module Pwrake
       @selector.run
 
       Log.info "num_cores=#{sum_ncore}"
-      @hosts.each do |id,host|
-        Log.info "#{host} id=#{id} ncore=#{
-          @option.host_map.by_id[id].idle_cores}"
+      @hostinfo_by_id.each do |id,host|
+        if ncore = @hostinfo_by_id[id].idle_cores
+          Log.info "#{host} id=#{id} ncore=#{ncore}"
+        else
+          @hostinfo_by_id.delete(id)
+        end
+      end
+      if @hostinfo_by_id.empty?
+        raise RuntimeError,"no worker host"
       end
       queue_class = Pwrake.const_get(@option.queue_class)
-      @task_queue = queue_class.new(@option.host_map)
+      @task_queue = queue_class.new(@hostinfo_by_id)
 
       @branch_setup_thread = Thread.new do
         #@channels.each do |chan|
@@ -153,7 +161,16 @@ module Pwrake
           while s = hdl.get_line
             case s
             when /^retire:(\d+)$/
-              @option.host_map.by_id[$1.to_i].decrease(1)
+              host_info = @hostinfo_by_id[$1.to_i]
+              if host_info.decrease(1)
+                # all retired
+                Log.warn("retired: host #{host_info.name}")
+                $stderr.puts "retired: host #{host_info.name}"
+                @hostinfo_by_id.delete(host_info.id)
+                if @hostinfo_by_id.empty?
+                  raise RuntimeError,"no worker host"
+                end
+              end
             when /^branch_setup:done$/
               break
             else
@@ -185,7 +202,7 @@ module Pwrake
 
       if @option['GRAPH_PARTITION']
         setup_postprocess0
-        @task_queue.deq_noaction_task do |tw,hid|
+        @task_queue.deq_noaction_task do |tw|
           tw.preprocess
           tw.status = "end"
           @post_pool.enq(tw)
@@ -211,22 +228,15 @@ module Pwrake
             tw = Rake.application[task_name].wrapper
             tw.shell_id = shell_id
             tw.status = status
-            hid = @hostid_by_taskname[task_name]
-            if hid.nil?
-              raise "unknown hostid: task_name=#{task_name} s=#{s.inspect} @hostid_by_taskname=#{@hostid_by_taskname.inspect}"
+            host_info = @hostinfo_by_taskname[task_name]
+            if host_info.nil?
+              raise "unknown hostid: task_name=#{task_name} s=#{s.inspect}"+
+                " @hostinfo_by_taskname.keys=#{@hostinfo_by_taskname.keys.inspect}"
             end
-            @task_queue.task_end(tw,hid) # @idle_cores.increase(..
+            task_end(tw,host_info) # @idle_cores.increase(..
             # check failure
             if tw.status == "fail"
               $stderr.puts %[task "#{tw.name}" failed.]
-              if tw.retry?
-                if tw.has_output_file? && File.exist?(tw.name)
-                  ::FileUtils.rm(tw.name)
-                  msg = "Delete failed target file '#{tw.name}'"
-                  $stderr.puts(msg)
-                  Log.warn(msg)
-                end
-              else
                 if !@failed
                   @failed = true
                   case @option['FAILURE_TERMINATION']
@@ -245,11 +255,12 @@ module Pwrake
                 if tw.has_output_file? && File.exist?(tw.name)
                   handle_failed_target(tw.name)
                 end
-              end
             end
             # postprocess
             @post_pool.enq(tw) # must be after @no_more_run = true
             break if @finished
+          when /^retire:(\d+)$/
+            @hostinfo_by_id[$1.to_i].retire(1)
           when /^exited$/o
             @exited = true
             Log.debug "receive #{s.chomp} from branch"
@@ -274,21 +285,23 @@ module Pwrake
       #Log.debug "#{self.class}#send_task_to_idle_core start"
       count = 0
       # @idle_cores.decrease(..
-      @task_queue.deq_task do |tw,hid|
+      @task_queue.deq_task do |tw,host_info,ncore|
+        host_info.busy(ncore)
         count += 1
-        @hostid_by_taskname[tw.name] = hid
+        @hostinfo_by_taskname[tw.name] = host_info
         tw.preprocess
         if tw.has_action?
+          hid = host_info.id
           s = "#{hid}:#{tw.task_id}:#{tw.name}"
           @channel_by_hostid[hid].put_line(s)
-          tw.exec_host = @hosts[hid]
+          tw.exec_host = host_info.name
         else
           tw.status = "end"
-          @task_queue.task_end(tw,hid) # @idle_cores.increase(..
+          task_end(tw,host_info) # @idle_cores.increase(..
           @post_pool.enq(tw)
         end
       end
-      if count == 0 && !@task_queue.empty? && @hostid_by_taskname.empty?
+      if count == 0 && !@task_queue.empty? && @hostinfo_by_taskname.empty?
         m="No task was invoked while unexecuted tasks remain"
         Log.error m
         raise RuntimeError,m
@@ -310,13 +323,20 @@ module Pwrake
             loc = postproc.run(tw)
             tw.postprocess(loc)
             pool.count_down
-            @hostid_by_taskname.delete(tw.name)
+            @hostinfo_by_taskname.delete(tw.name)
             tw.retry_or_subsequent
             break if yield(pool,j)
           end
           postproc.close
           Log.debug "postproc##{j} end"
         end
+      end
+    end
+
+    def task_end(tw,host_info)
+      if host_info.idle(tw.n_used_cores(host_info))
+        # all retired
+        @hostinfo_by_id.delete(host_info.id)
       end
     end
 
@@ -328,7 +348,7 @@ module Pwrake
       setup_postprocess do |pool,j|
         #Log.debug "@no_more_run=#{@no_more_run.inspect}"
         #Log.debug "@task_queue.empty?=#{@task_queue.empty?}"
-        #Log.debug "@hostid_by_taskname=#{@hostid_by_taskname.inspect}"
+        #Log.debug "@hostinfo_by_taskname=#{@hostinfo_by_taskname.inspect}"
         #Log.debug "pool.empty?=#{pool.empty?}"
         if ending?
           Log.debug "postproc##{j} closing"
@@ -343,7 +363,8 @@ module Pwrake
     end
 
     def ending?
-      (@no_more_run || @task_queue.empty?) && @hostid_by_taskname.empty?
+      (@no_more_run || @task_queue.empty? || @hostinfo_by_id.empty?) &&
+        @hostinfo_by_taskname.empty?
     end
 
     def handle_failed_target(name)

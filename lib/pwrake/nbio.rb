@@ -19,10 +19,12 @@ module NBIO
 
     def add_reader(hdl)
       @reader[hdl.io] = hdl
+      heartbeat(hdl.io) if hdl.timeout
     end
 
     def delete_reader(hdl)
       @reader.delete(hdl.io)
+      delete_heartbeat(hdl.io)
     end
 
     def add_writer(hdl)
@@ -37,22 +39,15 @@ module NBIO
       @running = true
       while @running && !empty?
         r, w = IO.select(@reader.keys,@writer.keys,[],timeout)
-        if r.nil? && w.nil?
-          raise TimeoutError,"Timeout (#{timeout} s) in IO.select"
-        end
-        r.each{|io| @reader[io].call}
-        w.each{|io| @writer[io].call}
-        if timeout && @hb_earliest
-          if Time.now - @hb_earliest > timeout
-            io = @hb_time.key(@hb_earliest)
-            if hdl = @reader[io]
-              e = TimeoutError.new("HB Timeout (#{timeout}s) #<Reader:#{hdl.__id__}> #{io.inspect}")
-              hdl.error(e)
-            end
-            heartbeat(io)
-            #raise TimeoutError,"Timeout (#{timeout}s) "+
-            #  "in Heartbeat" #" from host=#{get_host(io)}"
+        r.each{|io| @reader[io].call} if r
+        w.each{|io| @writer[io].call} if w
+        while timeout && @hb_earliest && Time.now - @hb_earliest > timeout
+          io = @hb_time.key(@hb_earliest)
+          if hdl = @reader[io]
+            e = TimeoutError.new("HB Timeout (#{timeout}s) #<Reader:%x> #{io.inspect}"%hdl.__id__)
+            hdl.error(e)
           end
+          delete_heartbeat(io)
         end
       end
     ensure
@@ -78,6 +73,11 @@ module NBIO
     # called when IO start and receive heartbeat
     def heartbeat(io)
       @hb_time[io] = Time.now
+      @hb_earliest = @hb_time.values.min
+    end
+
+    def delete_heartbeat(io)
+      @hb_time.delete(io)
       @hb_earliest = @hb_time.values.min
     end
 
@@ -180,6 +180,7 @@ module NBIO
       @chunk_size = 8192
     end
     attr_reader :io
+    attr_accessor :timeout
 
     # call from Selector#run
     def call
@@ -278,8 +279,10 @@ module NBIO
       @n_chan = n_chan
       @queue = @n_chan.times.map{|i| FiberReaderQueue.new(self)}
       @default_queue = FiberReaderQueue.new(self)
+      @timeout = true
     end
     attr_reader :queue
+    attr_accessor :timeout
     attr_accessor :default_queue
 
     def [](ch)
@@ -318,20 +321,19 @@ module NBIO
         end
       end
     rescue EOFError
-      @default_queue.enq(nil)
-      @queue.each{|q| q.enq(nil)}
+      halt
     rescue IO::WaitReadable
       #p IO::WaitReadable
     end
 
     def error(e)
       @queue.each{|q| q.enq(e)}
-      @default_queue.enq(e) if @default_queue
+      @default_queue.enq(e)
     end
 
     def halt
       @queue.each{|q| q.halt}
-      @default_queue.halt if @default_queue
+      @default_queue.halt
     end
   end
 
@@ -396,6 +398,7 @@ module NBIO
     def put_kill(sig="INT")
       #@writer.put_line("kill:#{sig}")
       @writer.io.puts("kill:#{sig}")
+      @writer.io.flush
     end
 
     def put_exit

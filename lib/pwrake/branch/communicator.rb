@@ -18,6 +18,11 @@ class CommChannel
   def get_line
     @queue.deq
   end
+
+  def halt
+    @queue.halt
+    @writer.halt
+  end
 end
 
 class Communicator
@@ -26,6 +31,7 @@ class Communicator
 
   attr_reader :id, :host, :ncore, :channel
   attr_reader :reader, :writer, :handler
+  attr_reader :shells
 
   def initialize(set,id,host,ncore,selector,option)
     @set = set
@@ -34,6 +40,7 @@ class Communicator
     @ncore = @ncore_given = ncore
     @selector = selector
     @option = option
+    @shells = {}
   end
 
   def new_channel
@@ -45,7 +52,7 @@ class Communicator
     rb_cmd = "ruby -e 'eval ARGF.read(#{worker_code.size})'"
     if ['localhost','localhost.localdomain','127.0.0.1'].include? @host
     #if /^localhost/ =~ @host
-      cmd = "cd; #{rb_cmd}"
+      cmd = rb_cmd
     else
       cmd = "ssh -x -T #{@option[:ssh_option]} #{@host} \"#{rb_cmd}\""
     end
@@ -97,6 +104,10 @@ class Communicator
       Log.info "worker(#{host})>#{$1}"
     when String
       Log.warn "worker(#{host}) out> #{s.inspect}"
+    when Exception
+      Log.warn "worker(#{host}) out> #{s.inspect}"
+      dropout(s)
+      return false
     else
       raise ConnectError, "invalid for read: #{s.inspect}"
     end
@@ -104,10 +115,11 @@ class Communicator
   end
 
   def dropout(exc=nil)
+    @shells.each_key{|sh| sh.finish}
     # Error output
     err_out = []
     begin
-      @iow.close
+      #@iow.close
       while s = @rd_err.get_line
         err_out << s
       end
@@ -117,13 +129,6 @@ class Communicator
       $stderr.puts m
       Log.error(m)
     end
-    # Exception
-    if exc
-      m = "#{exc.class}: #{exc.message}\n" +
-        exc.backtrace.dup.map{|x|"\tfrom #{x}"}.join("\n")
-      $stderr.puts m
-      Log.error m
-    end
     # Error output
     if !err_out.empty?
       m = "Error message from external process:\n"+err_out.join("\n")
@@ -131,6 +136,14 @@ class Communicator
       Log.error m
     end
     #@stage = false
+    # Exception
+    if exc
+      b = exc.backtrace
+      t = b ? b.dup.map{|x|"\tfrom #{x}"}.join("\n") : ""
+      m = "#{exc.class}: #{exc.message}\n" + t
+      $stderr.puts m
+      Log.error m
+    end
   ensure
     @set.delete(self)
   end

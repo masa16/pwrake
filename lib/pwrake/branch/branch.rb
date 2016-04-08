@@ -97,7 +97,7 @@ module Pwrake
         @task_q[comm.id] = task_q = FiberQueue.new
         comm.ncore.times do
           chan = comm.new_channel
-          shell = Shell.new(chan,task_q,@option.worker_option)
+          shell = Shell.new(chan,comm,task_q,@option.worker_option)
           # wait for remote shell open
           Fiber.new do
             if shell.open

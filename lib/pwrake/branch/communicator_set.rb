@@ -15,7 +15,6 @@ class CommunicatorSet
     if hb = @option[:heartbeat]
       @heartbeat_timeout = hb + 15
     end
-    #@heartbeat_timeout = 3
   end
 
   attr_reader :selector
@@ -62,9 +61,6 @@ class CommunicatorSet
     if n1 != n2
       Log.error "#{message.inspect} failed. hosts=[#{@error_host.join(',')}]"
       Log.error "# of communicators is varied from #{n1} to #{n2}."
-    end
-    if @communicators.empty?
-      raise RuntimeError,"#{message.inspect} failed. hosts=[#{@error_host.join(',')}]"
     end
   end
 

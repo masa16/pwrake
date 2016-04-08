@@ -14,18 +14,28 @@ module Pwrake
     attr_accessor :idle_cores
 
     def set_ncore(n)
+      @retire = 0
+      @busy_cores = 0
       @ncore = @idle_cores = n
     end
 
-    def increase(n)
+    def idle(n)
+      @busy_cores -= n
       @idle_cores += n
+      @idle_cores -= @retire
+      @retire = 0
+      @idle_cores + @busy_cores < 1 # all retired
+    end
+
+    def busy(n)
+      @busy_cores += n
+      @idle_cores -= n
+      @idle_cores + @busy_cores < 1 # all retired
     end
 
     def decrease(n)
       @idle_cores -= n
-      if @idle_cores < 0
-        raise RuntimeError,"# of cores must be non-negative"
-      end
+      @idle_cores + @busy_cores < 1 # all retired
     end
 
     def steal_phase
@@ -33,6 +43,11 @@ module Pwrake
       t = yield(self)
       @steal_flag = false
       t
+    end
+
+    def retire(n)
+      @retire += n
+      Log.debug "retire n=#{n}, host=#{@name}"
     end
   end
 
