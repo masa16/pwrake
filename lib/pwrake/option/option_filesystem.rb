@@ -1,4 +1,5 @@
 require "pwrake/option/option_filesystem"
+require "parallel"
 
 module Pwrake
 
@@ -10,7 +11,14 @@ module Pwrake
 
     def setup_filesystem
 
-      @worker_progs = %w[ writer log_executor executor invoker shared_directory ]
+      @worker_progs = %w[
+        parallel/processor_count
+        pwrake/worker/writer
+        pwrake/worker/log_executor
+        pwrake/worker/executor
+        pwrake/worker/invoker
+        pwrake/worker/shared_directory
+      ]
       @worker_option = {
         :base_dir  => "",
         :work_dir  => self['WORK_DIR'],
@@ -49,7 +57,7 @@ module Pwrake
           :gfarm2fs_debug_wait => self['GFARM2FS_DEBUG_WAIT'],
           :single_mp => self['GFARM_SINGLE_MP']
         })
-        @worker_progs << "gfarm_directory"
+        @worker_progs.push "pwrake/worker/gfarm_directory"
 
 	if self['DISABLE_AFFINITY']
 	  @queue_class = "TaskQueue"
@@ -63,7 +71,7 @@ module Pwrake
         #@num_noaction_threads = (n_noaction_th || 1).to_i
         @worker_option[:shared_directory] = "SharedDirectory"
       end
-      @worker_progs << "worker_main"
+      @worker_progs.push "pwrake/worker/worker_main"
       Log.debug "@queue_class=#{@queue_class}"
     end
 

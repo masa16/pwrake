@@ -1,6 +1,9 @@
 module Pwrake
 
   class Invoker
+    # using Michael Grosser's parallel
+    # https://github.com/grosser/parallel
+    include Parallel::ProcessorCount
 
     def initialize(dir_class, ncore, option)
       @dir_class = dir_class
@@ -162,35 +165,6 @@ module Pwrake
         $stdout.puts e.backtrace.join("\n")
       end
       @out.puts "exited"
-    end
-
-    # from Michael Grosser's parallel
-    # https://github.com/grosser/parallel
-    def processor_count
-      host_os = RbConfig::CONFIG['host_os']
-      case host_os
-      when /linux|cygwin/
-        ncpu = 0
-        open("/proc/cpuinfo").each do |l|
-          ncpu += 1 if /^processor\s+: \d+/=~l
-        end
-        ncpu
-      when /darwin9/
-        `hwprefs cpu_count`.to_i
-      when /darwin/
-        (hwprefs_available? ? `hwprefs thread_count` : `sysctl -n hw.ncpu`).to_i
-      when /(open|free)bsd/
-        `sysctl -n hw.ncpu`.to_i
-      when /mswin|mingw/
-        require 'win32ole'
-        wmi = WIN32OLE.connect("winmgmts://")
-        cpu = wmi.ExecQuery("select NumberOfLogicalProcessors from Win32_Processor")
-        cpu.to_enum.first.NumberOfLogicalProcessors
-      when /solaris2/
-        `psrinfo -p`.to_i # physical cpus
-      else
-        raise "Unknown architecture: #{host_os}"
-      end
     end
 
   end

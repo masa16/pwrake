@@ -83,10 +83,27 @@ module Pwrake
     end
 
     def read_worker_progs(worker_progs)
-      d = File.dirname(__FILE__)+'/../worker/'
       code = ""
+      modpath = {}
       worker_progs.each do |f|
-        code << IO.read(d+f+'.rb')
+        m = f.split(/\//).first
+        if !modpath[m]
+          $LOAD_PATH.each do |x|
+            if File.directory?(File.join(x,m))
+              modpath[m] = x
+              break
+            end
+          end
+          if !modpath[m]
+            raise RuntimeError,"load path for module #{m} not found"
+          end
+        end
+        path = File.join(modpath[m],f)
+        path += '.rb' if /\.rb$/ !~ path
+        if !File.exist?(path)
+          raise RuntimeError,"program file #{path} not found"
+        end
+        code << IO.read(path) + "\n"
       end
       code
     end

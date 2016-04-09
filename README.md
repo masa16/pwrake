@@ -18,20 +18,22 @@ Parallel Workflow extension for Rake, runs on multicores, clusters, clouds.
   * Pwrake automatically connects to remote hosts using SSH. You do not need to start a daemon.
   * Remote host names and the number of cores to use are provided in a hostfile.
 * [Gfarm file system](http://sourceforge.net/projects/gfarm/) utilizes storage of compute nodes. It provides the high-performance parallel I/O.
-  * Parallel I/O access to local stroage of compute nodes enables scalable increase in the I/O performance.
+  * Parallel I/O access to local storage of compute nodes enables scalable increase in the I/O performance.
   * Gfarm schedules a compute node to store an output file, to local storage.
   * Pwrake schedules a compute node to execute a task, to a node where input files are stored.
   * Other supports for Gfarm: Automatic mount of the Gfarm file system, etc.
 
 ## Installation
 
-Download source tgz/zip and expand, cd to subdirectory and install:
+Install with RubyGems:
+
+    $ gem install pwrake
+
+Or download source tgz/zip and expand, cd to subdirectory and install:
 
     $ ruby setup.rb
 
-Or, gem install:
-
-    $ gem install pwrake
+In the latter case, you need install [Parallel](https://github.com/grosser/parallel) manually. It is required by Pwrake for processor count.
 
 ## Usage
 
@@ -73,7 +75,7 @@ Or, gem install:
     -A, --disable-affinity           [Pw] Turn OFF affinity (AFFINITY=off)
     -S, --disable-steal              [Pw] Turn OFF task steal
     -d, --debug                      [Pw] Output Debug messages
-        --pwrake-conf [FILE]         [Pw] Pwrake configuation file in YAML
+        --pwrake-conf [FILE]         [Pw] Pwrake configuration file in YAML
         --show-conf, --show-config   [Pw] Show Pwrake configuration options
         --report LOGDIR              [Pw] Report workflow statistics from LOGDIR to HTML and exit.
         --clear-gfarm2fs             [Pw] Clear gfarm2fs mountpoints left after failure.
@@ -106,7 +108,7 @@ Or, gem install:
         SHELL_COMMAND     default=$SHELL
         SHELL_RC          Run-Command when shell starts
         PASS_ENV          (Array) Environment variables passed to SSH
-        HEARTBEAT         defulat=240 - Hearbeat interval in seconds
+        HEARTBEAT         default=240 - Hearbeat interval in seconds
         RETRY             default=0 - The number of default task retry
         FAILED_TARGET     rename(default)|delete|leave - Treatment of failed target files
         FAILURE_TERMINATION wait(default)|kill|continue - Behavior of other tasks when a task is failed
