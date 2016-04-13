@@ -237,24 +237,31 @@ module Pwrake
             # check failure
             if tw.status == "fail"
               $stderr.puts %[task "#{tw.name}" failed.]
-                if !@failed
-                  @failed = true
-                  case @option['FAILURE_TERMINATION']
-                  when 'kill'
-                    NBIO::Handler.kill(@hdl_set,"INT")
-                    @selector.run
-                    @no_more_run = true
-                    $stderr.puts "... Kill running tasks."
-                  when 'continue'
-                    $stderr.puts "... Continue runable tasks."
-                  else # 'wait'
-                    @no_more_run = true
-                    $stderr.puts "... Wait for running tasks."
-                  end
+              continuous_fail = host_info.task_result(tw.status)
+              Log.debug "task=#{tw.name} continuous_fail=#{continuous_fail}"
+              if continuous_fail >= host_info.ncore
+                # retire this host
+                @hostinfo_by_id.delete(host_info.id)
+                Log.warn("retired host:#{host_info.name} due to continuous fail")
+              end
+              if !@failed
+                @failed = true
+                case @option['FAILURE_TERMINATION']
+                when 'kill'
+                  NBIO::Handler.kill(@hdl_set,"INT")
+                  @selector.run
+                  @no_more_run = true
+                  $stderr.puts "... Kill running tasks."
+                when 'continue'
+                  $stderr.puts "... Continue runable tasks."
+                else # 'wait'
+                  @no_more_run = true
+                  $stderr.puts "... Wait for running tasks."
                 end
-                if tw.has_output_file? && File.exist?(tw.name)
-                  handle_failed_target(tw.name)
-                end
+              end
+              if tw.has_output_file? && File.exist?(tw.name)
+                handle_failed_target(tw.name)
+              end
             end
             # postprocess
             @post_pool.enq(tw) # must be after @no_more_run = true
@@ -337,6 +344,7 @@ module Pwrake
       if host_info.idle(tw.n_used_cores(host_info))
         # all retired
         @hostinfo_by_id.delete(host_info.id)
+        Log.warn("retired host:#{host_info.name} because all core retired")
       end
     end
 

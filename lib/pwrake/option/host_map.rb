@@ -8,6 +8,9 @@ module Pwrake
       @weight = weight || 1.0
       @group = group || 0
       @id = id
+      @continuous_fail = 0
+      @total_fail = 0
+      @count_task = 0
     end
 
     attr_reader :name, :ncore, :weight, :group, :id, :steal_flag
@@ -48,6 +51,20 @@ module Pwrake
     def retire(n)
       @retire += n
       Log.debug "retire n=#{n}, host=#{@name}"
+    end
+
+    def task_result(result)
+      @count_task += 1
+      case result
+      when "end"
+        @continuous_fail = 0
+      when "fail"
+        @continuous_fail += 1
+        @total_fail += 1
+      else
+        raise "unknown result: #{result}"
+      end
+      @continuous_fail
     end
   end
 

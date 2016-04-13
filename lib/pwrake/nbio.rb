@@ -410,16 +410,11 @@ module NBIO
       iow = @writer.io
       Log.debug "Handler#exit iow=#{iow.inspect}"
       @writer.put_line "exit"
-      if line = @reader.get_line
+      while line = @reader.get_line
+        # here might receive "retire:0" from branch...
         line.chomp!
-        m = "Handler#exit: #{line} host=#{@host}"
-        if line == exit_msg
-          Log.debug m
-        else
-          Log.error m
-        end
-      else
-        Log.error "Handler#exit: fail to get_line : #{line.inspect} closed?=#{@reader.io.closed?}"
+        Log.debug "Handler#exit: #{line} host=#{@host}"
+        return if line == exit_msg
       end
     rescue Errno::EPIPE => e
       if Rake.application.options.debug

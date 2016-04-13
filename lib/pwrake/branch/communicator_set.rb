@@ -60,7 +60,7 @@ class CommunicatorSet
     n2 = @communicators.size
     if n1 != n2
       Log.error "#{message.inspect} failed. hosts=[#{@error_host.join(',')}]"
-      Log.error "# of communicators is varied from #{n1} to #{n2}."
+      Log.warn "# of communicators is varied from #{n1} to #{n2}."
     end
   end
 
