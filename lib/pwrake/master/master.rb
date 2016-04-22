@@ -161,16 +161,7 @@ module Pwrake
           while s = hdl.get_line
             case s
             when /^retire:(\d+)$/
-              host_info = @hostinfo_by_id[$1.to_i]
-              if host_info.decrease(1)
-                # all retired
-                Log.warn("retired: host #{host_info.name}")
-                $stderr.puts "retired: host #{host_info.name}"
-                @task_queue.retire_host(host_info) # delete from hostinfo_by_id
-                if @hostinfo_by_id.empty?
-                  raise RuntimeError,"no worker host"
-                end
-              end
+              retire($1.to_i)
             when /^branch_setup:done$/
               break
             else
@@ -187,6 +178,20 @@ module Pwrake
         end
       end
 
+    end
+
+    def retire(hid)
+      host_info = @hostinfo_by_id[hid.to_i]
+      if host_info.decrease(1)
+        # all retired
+        m = "retired: host #{host_info.name}"
+        Log.warn(m)
+        $stderr.puts(m)
+        drop_host(host_info) # delete from hostinfo_by_id
+        if @hostinfo_by_id.empty?
+          raise RuntimeError,"no worker host"
+        end
+      end
     end
 
     def create_fiber(channels,&blk)
@@ -244,7 +249,7 @@ module Pwrake
                 Log.debug "task=#{tw.name} continuous_fail=#{continuous_fail}"
                 if continuous_fail >= host_info.ncore
                   # retire this host
-                  @task_queue.retire_host(host_info)
+                  drop_host(host_info)
                   Log.warn("retired host:#{host_info.name} due to continuous fail")
                 end
               end
@@ -271,10 +276,7 @@ module Pwrake
             @post_pool.enq(tw) # must be after @no_more_run = true
             break if @finished
           when /^retire:(\d+)$/
-            if host_info = @hostinfo_by_id[$1.to_i]
-              @task_queue.retire_host(host_info)
-              host_info.retire(1)
-            end
+            retire($1.to_i)
           when /^exited$/o
             @exited = true
             Log.debug "receive #{s.chomp} from branch"
@@ -350,8 +352,8 @@ module Pwrake
     def task_end(tw,host_info)
       if host_info && host_info.idle(tw.n_used_cores(host_info))
         # all retired
-        @task_queue.retire_host(host_info)
         Log.warn("retired host:#{host_info.name} because all core retired")
+        drop_host(host_info)
       end
     end
 
@@ -400,6 +402,16 @@ module Pwrake
         Log.warn(msg)
         #
       when /leave/i
+      end
+    end
+
+    def drop_host(host_info)
+      hid = host_info.id
+      if @hostinfo_by_id[hid]
+        s = "drop:#{hid}"
+        @channel_by_hostid[hid].put_line(s)
+        @task_queue.drop_host(host_info)
+        @hostinfo_by_id.delete(hid)
       end
     end
 
