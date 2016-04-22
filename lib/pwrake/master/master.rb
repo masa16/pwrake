@@ -244,7 +244,7 @@ module Pwrake
                 @hostinfo_by_id.delete(host_info.id)
                 Log.warn("retired host:#{host_info.name} due to continuous fail")
               end
-              if !@failed
+              if tw.no_more_retry && !@failed
                 @failed = true
                 case @option['FAILURE_TERMINATION']
                 when 'kill'
@@ -354,10 +354,10 @@ module Pwrake
 
     def setup_postprocess1
       setup_postprocess do |pool,j|
-        #Log.debug "@no_more_run=#{@no_more_run.inspect}"
-        #Log.debug "@task_queue.empty?=#{@task_queue.empty?}"
-        #Log.debug "@hostinfo_by_taskname=#{@hostinfo_by_taskname.inspect}"
-        #Log.debug "pool.empty?=#{pool.empty?}"
+        #Log.debug " @no_more_run=#{@no_more_run.inspect}"
+        #Log.debug " @task_queue.empty?=#{@task_queue.empty?}"
+        #Log.debug " @hostinfo_by_taskname=#{@hostinfo_by_taskname.inspect}"
+        #Log.debug " pool.empty?=#{pool.empty?}"
         if ending?
           Log.debug "postproc##{j} closing"
           @finished = true

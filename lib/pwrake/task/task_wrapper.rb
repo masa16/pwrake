@@ -72,6 +72,10 @@ module Pwrake
       @status != "end" && @nretry > 0
     end
 
+    def no_more_retry
+      @nretry == 0
+    end
+
     def postprocess(location)
       @executed = true if !@task.actions.empty?
       #tm_taskend = Time.now
