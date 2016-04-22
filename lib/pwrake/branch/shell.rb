@@ -189,6 +189,12 @@ module Pwrake
             end
             return status
           end
+        when "exit"
+          msg = "Shell#io_read_loop: exit"
+          $stderr.puts(msg)
+          Log.error(msg)
+          finish
+          return "exit"
         when NBIO::TimeoutError
           finish
           return "timeout"
