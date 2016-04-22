@@ -166,7 +166,7 @@ module Pwrake
                 # all retired
                 Log.warn("retired: host #{host_info.name}")
                 $stderr.puts "retired: host #{host_info.name}"
-                @hostinfo_by_id.delete(host_info.id)
+                @task_queue.retire_host(host_info) # delete from hostinfo_by_id
                 if @hostinfo_by_id.empty?
                   raise RuntimeError,"no worker host"
                 end
@@ -230,19 +230,23 @@ module Pwrake
             tw.status = status
             host_info = @hostinfo_by_taskname[task_name]
             if host_info.nil?
-              raise "unknown hostid: task_name=#{task_name} s=#{s.inspect}"+
+              m = "unknown hostid: task_name=#{task_name} s=#{s.inspect}"+
                 " @hostinfo_by_taskname.keys=#{@hostinfo_by_taskname.keys.inspect}"
+              Log.error(m)
+              $stderr.puts(m)
             end
             task_end(tw,host_info) # @idle_cores.increase(..
             # check failure
             if tw.status == "fail"
               $stderr.puts %[task "#{tw.name}" failed.]
-              continuous_fail = host_info.task_result(tw.status)
-              Log.debug "task=#{tw.name} continuous_fail=#{continuous_fail}"
-              if continuous_fail >= host_info.ncore
-                # retire this host
-                @hostinfo_by_id.delete(host_info.id)
-                Log.warn("retired host:#{host_info.name} due to continuous fail")
+              if host_info
+                continuous_fail = host_info.task_result(tw.status)
+                Log.debug "task=#{tw.name} continuous_fail=#{continuous_fail}"
+                if continuous_fail >= host_info.ncore
+                  # retire this host
+                  @task_queue.retire_host(host_info)
+                  Log.warn("retired host:#{host_info.name} due to continuous fail")
+                end
               end
               if tw.no_more_retry && !@failed
                 @failed = true
@@ -267,7 +271,10 @@ module Pwrake
             @post_pool.enq(tw) # must be after @no_more_run = true
             break if @finished
           when /^retire:(\d+)$/
-            @hostinfo_by_id[$1.to_i].retire(1)
+            if host_info = @hostinfo_by_id[$1.to_i]
+              @task_queue.retire_host(host_info)
+              host_info.retire(1)
+            end
           when /^exited$/o
             @exited = true
             Log.debug "receive #{s.chomp} from branch"
@@ -341,9 +348,9 @@ module Pwrake
     end
 
     def task_end(tw,host_info)
-      if host_info.idle(tw.n_used_cores(host_info))
+      if host_info && host_info.idle(tw.n_used_cores(host_info))
         # all retired
-        @hostinfo_by_id.delete(host_info.id)
+        @task_queue.retire_host(host_info)
         Log.warn("retired host:#{host_info.name} because all core retired")
       end
     end
@@ -356,7 +363,8 @@ module Pwrake
       setup_postprocess do |pool,j|
         #Log.debug " @no_more_run=#{@no_more_run.inspect}"
         #Log.debug " @task_queue.empty?=#{@task_queue.empty?}"
-        #Log.debug " @hostinfo_by_taskname=#{@hostinfo_by_taskname.inspect}"
+        #Log.debug " @hostinfo_by_id.empty?=#{@hostinfo_by_id.empty?}"
+        #Log.debug " @hostinfo_by_taskname.size=#{@hostinfo_by_taskname.keys.size}"
         #Log.debug " pool.empty?=#{pool.empty?}"
         if ending?
           Log.debug "postproc##{j} closing"
@@ -381,13 +389,13 @@ module Pwrake
       when /rename/i, NilClass
         dst = name+"._fail_"
         ::FileUtils.mv(name,dst)
-        msg = "Rename failed target file '#{name}' to '#{dst}'"
+        msg = "Rename output file '#{name}' to '#{dst}'"
         $stderr.puts(msg)
         Log.warn(msg)
         #
       when /delete/i
         ::FileUtils.rm(name)
-        msg = "Delete failed target file '#{name}'"
+        msg = "Delete output file '#{name}'"
         $stderr.puts(msg)
         Log.warn(msg)
         #

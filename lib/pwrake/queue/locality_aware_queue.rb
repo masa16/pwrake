@@ -92,7 +92,9 @@ module Pwrake
         t = q.shift(run_host)
         if t
           t.assigned.each do |h|
-            @q[h].delete(t)
+            if q_h = @q[h]
+              q_h.delete(t)
+            end
           end
           @size_q -= 1
         end
@@ -135,7 +137,12 @@ module Pwrake
         n = 0
         @q.each do |h,q|
           if q.size > 0
-            s << _qstr(@hostinfo_by_id[h].name,q)
+            hinfo = @hostinfo_by_id[h]
+            if hinfo
+              s << _qstr(hinfo.name,q)
+            else
+              s << _qstr("(#{hinfo.inspect})",q)
+            end
           else
             n += 1
           end
@@ -156,6 +163,17 @@ module Pwrake
       @size_q == 0 &&
         @q_no_action.empty? &&
         @q_remote.empty?
+    end
+
+    def retire_host(host_info)
+      hid = host_info.id
+      if q_retire = @q[hid]
+        while item = q_retire.shift
+          @q_remote.push(item)
+        end
+        @q.delete(hid)
+      end
+      @hostinfo_by_id.delete(hid)
     end
 
   end

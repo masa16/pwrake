@@ -6,9 +6,6 @@ module Pwrake
   class TaskQueue
 
     def initialize(hostinfo_by_id, group_map=nil)
-      @q = []
-      @empty = []
-
       @enable_steal = true
       @q_no_action = NoActionQueue.new
 
@@ -155,6 +152,10 @@ module Pwrake
       _qstr("noaction",@q_no_action) +
       _qstr("input",   @q_input) +
       _qstr("no_input",@q_no_input)
+    end
+
+    def retire_host(host_info)
+      @hostinfo_by_id.delete(host_info.id)
     end
 
   end
