@@ -154,8 +154,7 @@ module Pwrake
       _qstr("no_input",@q_no_input)
     end
 
-    def retire_host(host_info)
-      @hostinfo_by_id.delete(host_info.id)
+    def drop_host(host_info)
     end
 
   end

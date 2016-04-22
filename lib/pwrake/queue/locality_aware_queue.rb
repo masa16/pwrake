@@ -165,15 +165,14 @@ module Pwrake
         @q_remote.empty?
     end
 
-    def retire_host(host_info)
+    def drop_host(host_info)
       hid = host_info.id
-      if q_retire = @q[hid]
-        while item = q_retire.shift
+      if q_drop = @q[hid]
+        while item = q_drop.shift
           @q_remote.push(item)
         end
         @q.delete(hid)
       end
-      @hostinfo_by_id.delete(hid)
     end
 
   end
