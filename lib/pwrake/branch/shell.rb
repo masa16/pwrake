@@ -39,6 +39,7 @@ module Pwrake
     def open
       if @opened
         Log.warn "already opened: host=#{@host} id=#{@id}"
+        return
       end
       _puts("open")
       if (s = _gets) == "open"
@@ -54,6 +55,7 @@ module Pwrake
     def close
       if !@opened
         Log.warn "already closed: host=#{@host} id=#{@id}"
+        return
       end
       _puts("exit")
       if (s = _gets) == "exit"
@@ -195,6 +197,9 @@ module Pwrake
           Log.error(msg)
           finish
           return "exit"
+        when IOError
+          finish
+          return "ioerror"
         when NBIO::TimeoutError
           finish
           return "timeout"
@@ -239,6 +244,7 @@ module Pwrake
           Log.debug "shell id=#{@id} fiber end"
           master_w.put_line "retire:#{@comm.id}"
           #comm.delete_shell(self)
+          @opened = false
         end
       end
     end
