@@ -39,6 +39,7 @@ module Pwrake
     def run_branch_in_thread(r,w,opts)
       #standard_exception_handling do
         @branch = Branch.new(opts,r,w)
+        @branch.init_logger
         begin
           @branch.run
         rescue => e
