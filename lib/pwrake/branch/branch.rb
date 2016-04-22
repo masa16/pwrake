@@ -174,6 +174,8 @@ module Pwrake
             @selector.halt
             break
             #
+          when /^drop:(.*)$/o
+            @cs.drop($1)
           when /^kill:(.*)$/o
             sig = $1
             kill(sig)

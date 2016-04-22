@@ -53,6 +53,14 @@ class CommunicatorSet
     @error_host << comm.host
   end
 
+  def drop(id)
+    comm = @communicators[id]
+    Log.debug "drop:id=#{id} comm=#{comm.inspect} @communicators.keys=#{@communicators.keys}"
+    if comm
+      comm.dropout
+    end
+  end
+
   def run(message)
     @error_host = []
     n1 = @communicators.size
