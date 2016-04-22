@@ -35,25 +35,6 @@ module NBIO
       @writer.delete(hdl.io)
     end
 
-    def run(timeout=nil)
-      @running = true
-      while @running && !empty?
-        r, w = IO.select(@reader.keys,@writer.keys,[],timeout)
-        r.each{|io| @reader[io].call} if r
-        w.each{|io| @writer[io].call} if w
-        while timeout && @hb_earliest && Time.now - @hb_earliest > timeout
-          io = @hb_time.key(@hb_earliest)
-          if hdl = @reader[io]
-            e = TimeoutError.new("HB Timeout (#{timeout}s) #<Reader:%x> #{io.inspect}"%hdl.__id__)
-            hdl.error(e)
-          end
-          delete_heartbeat(io)
-        end
-      end
-    ensure
-      @running = false
-    end
-
     def empty?
       @reader.empty? && @writer.empty?
     end
@@ -79,6 +60,53 @@ module NBIO
     def delete_heartbeat(io)
       @hb_time.delete(io)
       @hb_earliest = @hb_time.values.min
+    end
+
+    def run(timeout=nil)
+      @running = true
+      while @running && !empty?
+        #Log.debug "Selector#run: "+caller[0]
+        #$stderr.puts "Selector#run: "+caller[0]
+        run_select(timeout)
+      end
+    ensure
+      @running = false
+    end
+
+    private
+    def run_select(timeout)
+      r, w = IO.select(@reader.keys,@writer.keys,[],timeout)
+      r.each{|io| @reader[io].call} if r
+      w.each{|io| @writer[io].call} if w
+      while timeout && @hb_earliest && Time.now - @hb_earliest > timeout
+        io = @hb_time.key(@hb_earliest)
+        if hdl = @reader[io]
+          e = TimeoutError.new("HB Timeout (#{timeout}s) #<Reader:%x> #{io.inspect}"%hdl.__id__)
+          hdl.error(e)
+        end
+        delete_heartbeat(io)
+      end
+    rescue IOError => e
+      em = "#{e.class.name}: #{e.message}"
+      @reader.keys.each do |io|
+        if io.closed?
+          m = "#{em} io=#{io}"
+          Log.error(m)
+          $stderr.puts m
+          hdl = @reader.delete(io)
+          hdl.error(e)
+        end
+      end
+      @writer.keys.each do |io|
+        if io.closed?
+          m = "#{em} io=#{io}"
+          Log.error(m)
+          $stderr.puts m
+          hdl = @writer.delete(io)
+          hdl.error(e)
+        end
+      end
+      #raise e
     end
 
   end
@@ -115,6 +143,11 @@ module NBIO
       call
     ensure
       @halting = false
+    end
+
+    def error(e)
+      @closed = true
+      raise e
     end
 
     # from Bartender
@@ -215,6 +248,7 @@ module NBIO
     end
 
     def error(e)
+      @closed = true
       raise e
     end
 
@@ -327,6 +361,7 @@ module NBIO
     end
 
     def error(e)
+      @closed = true
       @queue.each{|q| q.enq(e)}
       @default_queue.enq(e)
     end
@@ -409,6 +444,7 @@ module NBIO
       exit_msg = "exited"
       iow = @writer.io
       Log.debug "Handler#exit iow=#{iow.inspect}"
+      return if iow.closed?
       @writer.put_line "exit"
       while line = @reader.get_line
         # here might receive "retire:0" from branch...
