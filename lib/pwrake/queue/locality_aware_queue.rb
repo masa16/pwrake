@@ -6,9 +6,13 @@ module Pwrake
       # group_map = {gid1=>[hid1,hid2,...], ...}
       @size_q = 0
       @q = {}
-      @host_map.by_id.each{|h| @q[h.id] = @array_class.new(h.ncore)}
+      @hostinfo_by_name = {}
+      @hostinfo_by_id.each do |id,h|
+        @hostinfo_by_name[h.name] = h
+        @q[id] = @array_class.new(h.ncore)
+      end
       @q_group = {}
-      group_map ||= {1=>@host_map.by_id.map{|h| h.id}}
+      group_map ||= {1=>@hostinfo_by_id.map{|id,h| id}}
       group_map.each do |gid,ary|
         q1 = {}     # same group
         q2 = @q.dup # other groups
@@ -31,7 +35,7 @@ module Pwrake
       else
         stored = false
         hints.each do |h|
-          host_info = @host_map.by_name[h]
+          host_info = @hostinfo_by_name[h]
           if host_info && q = @q[host_info.id]
             t.assigned.push(host_info.id)
             q.push(t)
@@ -113,7 +117,7 @@ module Pwrake
           end
         end
         if max_num > 0
-          max_info = @host_map.by_id[max_host]
+          max_info = @hostinfo_by_id[max_host]
           Log.debug "deq_steal max_host=#{max_info.name} max_num=#{max_num}"
           t = host_info.steal_phase{|h| deq_locate(max_info,h)}
           #Log.debug "deq_steal task=#{t.inspect}"
@@ -131,7 +135,7 @@ module Pwrake
         n = 0
         @q.each do |h,q|
           if q.size > 0
-            s << _qstr(@host_map.by_id[h].name,q)
+            s << _qstr(@hostinfo_by_id[h].name,q)
           else
             n += 1
           end
