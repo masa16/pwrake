@@ -29,6 +29,7 @@ module Pwrake
       @executed = false
       @assigned = []
       @exec_host = nil
+      @tried_hosts = []
       @nretry = @property.retry || Rake.application.pwrake_options["RETRY"] || 1
     end
 
@@ -38,6 +39,7 @@ module Pwrake
     attr_reader :task, :task_id, :group, :group_id, :file_stat
     attr_reader :location
     attr_reader :assigned
+    attr_reader :tried_hosts
     attr_accessor :executed
     attr_accessor :exec_host
     attr_accessor :shell_id, :status
@@ -92,9 +94,11 @@ module Pwrake
     end
 
     def retry_or_subsequent
+      @tried_hosts << @exec_host
       if @status=="end"
         @task.pw_enq_subsequents
       elsif @nretry > 0
+        @suggest_location = []
         s="retry task n=#{@nretry}: #{name}"
         Log.warn(s)
         $stderr.puts(s)
@@ -314,6 +318,11 @@ module Pwrake
 
     def n_used_cores(host_info=nil)
       @n_used_cores ||= @property.n_used_cores(host_info)
+    end
+
+    def untried_host?(host_info)
+      return true unless host_info
+      !@tried_hosts.include?(host_info.name)
     end
 
   end

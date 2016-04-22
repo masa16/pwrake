@@ -39,6 +39,7 @@ module Pwrake
     end
 
     def acceptable_for(host_info)
+      return true unless host_info
       if @disable_steal && host_info.steal_flag
         #Log.debug("@disable_steal && host_info.steal_flag")
         return false
