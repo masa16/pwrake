@@ -30,7 +30,7 @@ module Pwrake
       setup_fiber
       setup_master_channel
       @cs.run("task execution")
-      Log.debug "Brandh#run end"
+      Log.debug "Branch#run end"
     end
 
     attr_reader :logger
