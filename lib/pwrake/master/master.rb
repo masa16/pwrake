@@ -338,7 +338,7 @@ module Pwrake
             tw.postprocess(loc)
             pool.count_down
             @hostinfo_by_taskname.delete(tw.name)
-            tw.retry_or_subsequent
+            tw.retry_or_subsequent unless @exited
             break if yield(pool,j)
           end
           postproc.close
@@ -406,9 +406,16 @@ module Pwrake
     def finish
       Log.debug "Master#finish begin"
       @branch_setup_thread.join
+      # continues running fibers
+      Log.debug "Master#finish @selector.run begin"
+      @selector.run(60)
+      Log.debug "Master#finish @selector.run end"
       if !@exited
+        @exited = true
+        Log.debug "Master#finish Hander.exit begin"
         NBIO::Handler.exit(@hdl_set)
-        @selector.run
+        @selector.run(60)
+        Log.debug "Master#finish Hander.exit end"
       end
       TaskWrapper.close_task_logger
       Log.debug "Master#finish end"

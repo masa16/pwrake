@@ -36,6 +36,12 @@ module Pwrake
           top_level
           Log.debug "main: #{Time.now-t} sec"
           t = Time.now
+        rescue Exception => e
+          # Exit with error message
+          m = e.class.name+": "+e.message+"\n"+e.backtrace.join("\n")
+          Log.fatal m
+          $stderr.puts m
+          @master.signal_trap("INT")
         ensure
           @failed = @master.finish
           Log.debug "finish: #{Time.now-t} sec"
