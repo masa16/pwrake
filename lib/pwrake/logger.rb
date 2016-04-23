@@ -10,5 +10,8 @@ module Pwrake
       Rake.application.logger.send(meth_id,*args)
     end
 
+    def bt(e)
+      "#{e.class}: #{e.message}\n "+(e.backtrace||[]).join("\n ")
+    end
   end
 end
