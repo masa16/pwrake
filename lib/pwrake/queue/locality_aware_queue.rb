@@ -150,6 +150,7 @@ module Pwrake
       end
       s << _qstr("local*#{n}",[]) if n > 0
       s << _qstr("remote",@q_remote)
+      s << "@size_q=#{@size_q}"
       s
     end
 
@@ -167,11 +168,24 @@ module Pwrake
 
     def drop_host(host_info)
       hid = host_info.id
-      if q_drop = @q[hid]
-        while item = q_drop.shift
-          @q_remote.push(item)
+      if q_drop = @q.delete(hid)
+        n_move = 0
+        q_size = q_drop.size
+        while t = q_drop.shift
+          assigned_other = false
+          t.assigned.each do |h|
+            if h != hid && @q[h]
+              assigned_other = true
+              break
+            end
+          end
+          if !assigned_other
+            @size_q -= 1
+            @q_remote.push(t)
+            n_move += 1
+          end
         end
-        @q.delete(hid)
+        Log.debug "LAQ#drop_host: host=#{host_info.name} q.size=#{q_size} n_move=#{n_move}"
       end
     end
 
