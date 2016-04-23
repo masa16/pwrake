@@ -56,8 +56,20 @@ class CommunicatorSet
   def drop(id)
     comm = @communicators[id]
     Log.debug "drop:id=#{id} comm=#{comm.inspect} @communicators.keys=#{@communicators.keys}"
-    if comm
-      comm.dropout
+    comm.dropout if comm
+  end
+
+  def drop_all
+    Log.debug "drop_all"
+    @communicators.keys.each do |id|
+      @communicators[id].dropout
+    end
+  end
+
+  def finish_shells
+    Log.debug "finish_shells"
+    @communicators.keys.each do |id|
+      @communicators[id].finish_shells
     end
   end
 
@@ -67,8 +79,8 @@ class CommunicatorSet
     @selector.run(@heartbeat_timeout)
     n2 = @communicators.size
     if n1 != n2
-      Log.error "#{message.inspect} failed. hosts=[#{@error_host.join(',')}]"
-      Log.warn "# of communicators is varied from #{n1} to #{n2}."
+      Log.info "# of communicators: #{n1}->#{n2} during #{message.inspect}"
+      Log.info "retired hosts=[#{@error_host.join(',')}]"
     end
   end
 
