@@ -164,6 +164,7 @@ module Pwrake
         $stdout.puts e
         $stdout.puts e.backtrace.join("\n")
       end
+    ensure
       @out.puts "exited"
     end
 
