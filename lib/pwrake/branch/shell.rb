@@ -41,10 +41,10 @@ module Pwrake
         Log.warn "already opened: host=#{@host} id=#{@id}"
         return
       end
+      @opened = true
       _puts("open")
       if (s = _gets) == "open"
         OPEN_LIST[__id__] = self
-        @opened = true
         true
       else
         Log.error("Shell#open failed: recieve #{s.inspect}")
@@ -52,20 +52,24 @@ module Pwrake
       end
     end
 
-    def close
+    def exit
       if !@opened
-        Log.warn "already closed: host=#{@host} id=#{@id}"
+        Log.debug "already exited: host=#{@host} id=#{@id}"
         return
       end
+      @opened = false
       _puts("exit")
       if (s = _gets) == "exit"
         OPEN_LIST.delete(__id__)
-        @opened = false
+        Log.debug("Shell#exit: recieve #{s.inspect}")
         true
       else
-        Log.warn("Shell#close failed: recieve #{s.inspect}")
+        Log.debug("Shell#exit: recieve #{s.inspect}")
         false
       end
+    rescue IOError,Errno::EPIPE => e
+      Log.debug("Shell#exit: #{Log.bt(e)}")
+      false
     end
 
     def set_current_task(task_id,task_name)
@@ -114,19 +118,14 @@ module Pwrake
       Log.debug "Shell#_gets(host=#{@host},id=#{@id}): #{s.inspect}"
       case s
       when Exception
-        #Log.error "Shell#_gets: "+s.to_s
-        finish
-        Log.error s
-        m = s.backtrace
-        Log.error m.join("\n") if m
-        #raise s
+        @chan.halt
+        Log.error Log.bt(s)
       end
       s
     end
 
     def _system(cmd)
       @cmd = cmd
-      #raise "@chan is closed" if @chan.closed?
       @lock.synchronize do
         _puts(cmd)
         status = io_read_loop{}
@@ -136,7 +135,6 @@ module Pwrake
 
     def _backquote(cmd)
       @cmd = cmd
-      #raise "@chan is closed" if @chan.closed?
       a = []
       @lock.synchronize do
         _puts(cmd)
@@ -148,7 +146,7 @@ module Pwrake
     def _execute(cmd,quote=nil,&block)
       @cmd = cmd
       if !@opened
-        raise "closed"
+        raise "non opened"
       end
       @status = nil
       start_time = Time.now
@@ -195,13 +193,13 @@ module Pwrake
           msg = "Shell#io_read_loop: exit"
           $stderr.puts(msg)
           Log.error(msg)
-          finish
+          @chan.halt
           return "exit"
         when IOError
-          finish
+          @chan.halt
           return "ioerror"
         when NBIO::TimeoutError
-          finish
+          @chan.halt
           return "timeout"
         end
         msg = "Shell#io_read_loop: Invalid result: #{s.inspect}"
@@ -213,6 +211,7 @@ module Pwrake
     public
 
     def create_fiber(master_w)
+      @master_w = master_w
       if !@opened
         Log.warn "not opened: host=#{@host} id=#{@id}"
       end
@@ -237,20 +236,38 @@ module Pwrake
               Rake.application.display_error_message(e)
               Log.error e
               result = "taskfail:#{@id}:#{task.name}"
+            ensure
+              master_w.put_line result
             end
-            master_w.put_line result
           end
-        ensure
           Log.debug "shell id=#{@id} fiber end"
           master_w.put_line "retire:#{@comm.id}"
-          #comm.delete_shell(self)
-          @opened = false
+          @comm.shells.delete(self)
+          exit
+          if @comm.shells.empty?
+            @comm.dropout
+          end
+          @chan.halt
+        rescue => e
+          m = Log.bt(e)
+          #$stderr.puts m
+          Log.error(m)
         end
       end
     end
 
-    def finish
-      #@task_q.finish
+    def finish_task_q
+      @task_q.finish
+      #Log.debug "finish_task_q: @task_q=#{@task_q.inspect}"
+      while task_str = @task_q.deq_nonblock
+        if /^(\d+):(.*)$/ =~ task_str
+          task_id, task_name = $1.to_i, $2
+        else
+          raise RuntimeError, "invalid task_str: #{task_str}"
+        end
+        @master_w.put_line "taskfail:#{@id}:#{task_name}"
+        Log.warn "unexecuted task: #{result}"
+      end
       @chan.halt
     end
 
