@@ -99,13 +99,13 @@ module Pwrake
         @task.pw_enq_subsequents
       elsif @nretry > 0
         @suggest_location = []
-        s="retry task n=#{@nretry}: #{name}"
+        s="retry task (retry_count=#{@nretry}): #{name}"
         Log.warn(s)
         $stderr.puts(s)
         @nretry -= 1
         Rake.application.task_queue.enq(self)
       else
-        s="retry task n=0 (no retry): #{name}"
+        s="give up retry (retry_count=0): #{name}"
         Log.error(s)
         $stderr.puts(s)
       end

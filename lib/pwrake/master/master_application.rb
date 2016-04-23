@@ -38,7 +38,7 @@ module Pwrake
           t = Time.now
         rescue Exception => e
           # Exit with error message
-          m = e.class.name+": "+e.message+"\n"+e.backtrace.join("\n")
+          m = Log.bt(e)
           Log.fatal m
           $stderr.puts m
           @master.signal_trap("INT")
