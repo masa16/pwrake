@@ -2,16 +2,22 @@ module Pwrake
 
 class CommChannel
 
-  def initialize(host,id,queue,writer)
+  def initialize(host,id,queue,writer,ios=[])
     @host = host
     @id = id
     @queue = queue
     @writer = writer
+    @ios = ios
   end
 
   attr_reader :host, :id
 
   def put_line(s)
+    if $cause_fault
+      $cause_fault = nil
+      Log.warn("closing writer io caller=\n#{caller.join("\n")}")
+      @ios.each{|io| io.close}
+    end
     @writer.put_line(s,@id)
   end
 
@@ -43,9 +49,13 @@ class Communicator
     @shells = {}
   end
 
+  def inspect
+    "#<#{self.class} @id=#{@id},@host=#{@host},@ncore=#{@ncore}>"
+  end
+
   def new_channel
     i,q = @reader.new_queue
-    CommChannel.new(@host,i,q,@writer)
+    CommChannel.new(@host,i,q,@writer,[@ior,@iow,@ioe])
   end
 
   def connect(worker_code)
@@ -94,54 +104,56 @@ class Communicator
   end
 
   def common_line(s)
-    Log.debug "Communicator#common_line(#{s.inspect}) id=#{@id} host=#{@host}"
+    x = "Communicator#common_line(id=#{@id},host=#{@host})"
     case s
     when /^heartbeat$/
+      Log.debug "#{x}: #{s.inspect}"
       @selector.heartbeat(@reader.io)
     when /^exited$/
+      Log.debug "#{x}: #{s.inspect}"
       return false
     when /^log:(.*)$/
-      Log.info "worker(#{host})>#{$1}"
+      Log.info "#{x}: log>#{$1}"
     when String
-      Log.warn "worker(#{host}) out> #{s.inspect}"
+      Log.warn "#{x}: out>#{s.inspect}"
     when Exception
-      Log.warn "worker(#{host}) out> #{s.inspect}"
+      Log.warn "#{x}: err>#{s.class}: #{s.message}"
       dropout(s)
       return false
     else
-      raise ConnectError, "invalid for read: #{s.inspect}"
+      raise ConnectError, "#{x}: invalid for read: #{s.inspect}"
     end
     true
   end
 
+  def finish_shells
+    @shells.keys.each{|sh| sh.finish_task_q}
+  end
+
   def dropout(exc=nil)
-    @shells.each_key{|sh| sh.finish}
     # Error output
     err_out = []
     begin
-      #@iow.close
+      finish_shells
+      @handler.exit
       while s = @rd_err.get_line
         err_out << s
       end
     rescue => e
-      m = "#{e.class}: #{e.message}\n" +
-        e.backtrace.dup.map{|x|"\tfrom #{x}"}.join("\n")
-      $stderr.puts m
+      m = Log.bt(e)
+      #$stderr.puts m
       Log.error(m)
     end
     # Error output
     if !err_out.empty?
-      m = "Error message from external process:\n"+err_out.join("\n")
-      $stderr.puts m
+      m = "Error message from external process:\n "+err_out.join("\n ")
+      #$stderr.puts m
       Log.error m
     end
-    #@stage = false
     # Exception
     if exc
-      b = exc.backtrace
-      t = b ? b.dup.map{|x|"\tfrom #{x}"}.join("\n") : ""
-      m = "#{exc.class}: #{exc.message}\n" + t
-      $stderr.puts m
+      m = Log.bt(exc)
+      #$stderr.puts m
       Log.error m
     end
   ensure
