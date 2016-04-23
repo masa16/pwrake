@@ -166,19 +166,35 @@ module Pwrake
             #
           when /^(\d+):(.+)$/o
             id, tname = $1,$2
-            @task_q[id].enq(tname)
+            begin
+              task_name = tname.sub(/^\d+:/,"")
+              @task_q[id].enq(tname)
+            rescue => e
+              Log.error Log.bt(e)
+              ret="taskfail:#{id}:#{task_name}"
+              Log.debug "fail to enq task_q[#{id}], ret=#{ret}"
+              @master_wt.put_line(ret)
+            end
             #
           when /^exit$/
-            @task_q.each_value{|q| q.finish}
-            @shells.each{|shell| shell.close}
-            @selector.halt
+            #@task_q.each_value{|q| q.finish}
+            #@cs.drop_all
+            @cs.finish_shells
+
+            #@shells.each{|shell| shell.exit} # just for comfirm
+            #@selector.halt # should halt after exited
             break
             #
           when /^drop:(.*)$/o
-            @cs.drop($1)
+            id = $1
+            taskq = @task_q.delete(id)
+            Log.debug "drop @task_q[#{id}]=#{taskq.inspect}"
+            @cs.drop(id)
+            #
           when /^kill:(.*)$/o
             sig = $1
             kill(sig)
+            #
           else
             Log.debug "Branch: invalid line from master: #{s}"
           end
