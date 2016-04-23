@@ -2,6 +2,9 @@ require 'fiber'
 
 module Pwrake
 
+  class FiberQueueError < StandardError
+  end
+
   class FiberQueue
 
     def initialize
@@ -11,6 +14,9 @@ module Pwrake
     end
 
     def enq(x)
+      if @finished
+        raise FiberQueueError,"cannot enq to already finished queue"
+      end
       @q.push(x)
       f = @waiter.shift
       f.resume if f
@@ -23,6 +29,10 @@ module Pwrake
         Fiber.yield
       end
       return @q.shift
+    end
+
+    def deq_nonblock
+      @q.shift
     end
 
     def finish
