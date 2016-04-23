@@ -65,8 +65,11 @@ module NBIO
     def run(timeout=nil)
       @running = true
       while @running && !empty?
-        #Log.debug "Selector#run: "+caller[0]
-        #$stderr.puts "Selector#run: "+caller[0]
+        if $debug
+          Log.debug "Selector#run: "+caller[0..1].join(", ")+
+            " @reader.size=#{@reader.size} @writer.size=#{@writer.size}"
+          $stderr.puts "Selector#run: "+caller[0]
+        end
         run_select(timeout)
       end
     ensure
