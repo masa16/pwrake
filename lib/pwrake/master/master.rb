@@ -182,7 +182,7 @@ module Pwrake
 
     def retire(hid)
       host_info = @hostinfo_by_id[hid.to_i]
-      if host_info.decrease(1)
+      if host_info && host_info.decrease(1)
         # all retired
         m = "retired: host #{host_info.name}"
         Log.warn(m)
