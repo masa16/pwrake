@@ -35,6 +35,15 @@ Or download source tgz/zip and expand, cd to subdirectory and install:
 
 In the latter case, you need install [Parallel](https://github.com/grosser/parallel) manually. It is required by Pwrake for processor count.
 
+If you use rbenv, your system may fail to find pwrake command after installation:
+
+    -bash: pwrake: command not found
+
+In this case, you need the rehash of command paths:
+
+    $ rbenv rehash
+
+
 ## Usage
 
 ### Parallel execution using 4 cores at localhost:
