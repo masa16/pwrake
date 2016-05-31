@@ -30,7 +30,7 @@ module Pwrake
       @assigned = []
       @exec_host = nil
       @tried_hosts = []
-      @nretry = @property.retry || Rake.application.pwrake_options["RETRY"] || 1
+      @n_retry = @property.retry || Rake.application.pwrake_options["RETRY"] || 1
     end
 
     def_delegators :@task, :name, :actions, :prerequisites, :subsequents
@@ -71,11 +71,11 @@ module Pwrake
     end
 
     def retry?
-      @status != "end" && @nretry > 0
+      @status != "end" && @n_retry > 0
     end
 
     def no_more_retry
-      @nretry == 0
+      @n_retry == 0
     end
 
     def postprocess(location)
@@ -97,12 +97,12 @@ module Pwrake
       @tried_hosts << @exec_host
       if @status=="end"
         @task.pw_enq_subsequents
-      elsif @nretry > 0
+      elsif @n_retry > 0
         @suggest_location = []
-        s="retry task (retry_count=#{@nretry}): #{name}"
+        s="retry task (retry_count=#{@n_retry}): #{name}"
         Log.warn(s)
         $stderr.puts(s)
-        @nretry -= 1
+        @n_retry -= 1
         Rake.application.task_queue.enq(self)
       else
         s="give up retry (retry_count=0): #{name}"
