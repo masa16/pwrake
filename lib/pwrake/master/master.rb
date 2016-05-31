@@ -18,6 +18,7 @@ module Pwrake
       @channel_by_hostid = {}
       @channels = []
       @hostinfo_by_id = {}
+      @n_retry = @option["RETRY"]
       init_logger
     end
 
@@ -247,7 +248,7 @@ module Pwrake
               if host_info
                 continuous_fail = host_info.task_result(tw.status)
                 Log.debug "task=#{tw.name} continuous_fail=#{continuous_fail}"
-                if continuous_fail >= host_info.ncore
+                if continuous_fail > @n_retry && @hostinfo_by_id.size > 1
                   # retire this host
                   drop_host(host_info)
                   Log.warn("retired host:#{host_info.name} due to continuous fail")
@@ -364,10 +365,6 @@ module Pwrake
 
     def setup_postprocess1
       setup_postprocess do |pool,j|
-        #Log.debug " @no_more_run=#{@no_more_run.inspect}"
-        #Log.debug " @task_queue.empty?=#{@task_queue.empty?}"
-        #Log.debug " @hostinfo_by_id.empty?=#{@hostinfo_by_id.empty?}"
-        #Log.debug " @hostinfo_by_taskname.keys=#{@hostinfo_by_taskname.keys.inspect}"
         #Log.debug " pool.empty?=#{pool.empty?}"
         if ending?
           Log.debug "postproc##{j} closing"
@@ -382,6 +379,10 @@ module Pwrake
     end
 
     def ending?
+      #Log.debug " @no_more_run=#{@no_more_run.inspect}"
+      #Log.debug " @task_queue.empty?=#{@task_queue.empty?}"
+      #Log.debug " @hostinfo_by_id.empty?=#{@hostinfo_by_id.empty?}"
+      #Log.debug " @hostinfo_by_taskname.keys=#{@hostinfo_by_taskname.keys.inspect}"
       (@no_more_run || @task_queue.empty? || @hostinfo_by_id.empty?) &&
         @hostinfo_by_taskname.empty?
     end
@@ -407,12 +408,22 @@ module Pwrake
     end
 
     def drop_host(host_info)
+      Log.debug "drop_host: #{host_info.name}"
       hid = host_info.id
       if @hostinfo_by_id[hid]
         s = "drop:#{hid}"
         @channel_by_hostid[hid].put_line(s)
         @task_queue.drop_host(host_info)
         @hostinfo_by_id.delete(hid)
+        if @hostinfo_by_id.empty?
+          if @finished
+            Log.debug "drop_host: @finished and @hostinfo_by_id.empty?"
+          else
+            Log.error "drop_host: No worker left."
+            $stderr.puts "No worker left."
+            @failed = true
+          end
+        end
       end
     end
 
