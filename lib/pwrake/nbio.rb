@@ -457,8 +457,8 @@ module NBIO
       end
     rescue Errno::EPIPE => e
       if Rake.application.options.debug
-        $stderr.puts "Errno::EPIPE in #{self.class}#exit iow=#{iow.inspect}"
-        $stderr.puts e.backtrace.join("\n")
+        #$stderr.puts "Errno::EPIPE in #{self.class}#exit iow=#{iow.inspect}"
+        #$stderr.puts e.backtrace.join("\n")
       end
       Log.error "Errno::EPIPE in #{self.class}.exit iow=#{iow.inspect}\n"+
         e.backtrace.join("\n")
