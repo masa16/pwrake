@@ -118,7 +118,7 @@ In this case, you need the rehash of command paths:
         SHELL_RC          Run-Command when shell starts
         PASS_ENV          (Array) Environment variables passed to SSH
         HEARTBEAT         default=240 - Hearbeat interval in seconds
-        RETRY             default=0 - The number of default task retry
+        RETRY             default=1 - The number of retry
         FAILED_TARGET     rename(default)|delete|leave - Treatment of failed target files
         FAILURE_TERMINATION wait(default)|kill|continue - Behavior of other tasks when a task is failed
         QUEUE_PRIORITY          LIHR(default)|FIFO|LIFO|RANK
@@ -197,6 +197,8 @@ Properties (The leftmost item is default):
 
 ## Acknowledgment
 
-This work is supported by
-* JST CREST, research area: "Development of System Software Technologies for Post-Peta Scale High Performance Computing," and
+This work is supported by:
+* JST CREST, research themes:
+  * ["Statistical Computational Cosmology with Big Astronomical Imaging Data,"](http://www.jst.go.jp/kisoken/crest/en/project/44/14532369.html)
+  * ["System Software for Post Petascale Data Intensive Science,"](http://postpeta.jst.go.jp/en/researchers/tatebe22.html)
 * MEXT Promotion of Research for Next Generation IT Infrastructure "Resources Linkage for e-Science (RENKEI)."

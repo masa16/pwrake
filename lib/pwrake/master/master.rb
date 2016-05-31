@@ -419,8 +419,8 @@ module Pwrake
           if @finished
             Log.debug "drop_host: @finished and @hostinfo_by_id.empty?"
           else
-            Log.error "drop_host: No worker left."
-            $stderr.puts "No worker left."
+            Log.error "drop_host: All workers retired."
+            $stderr.puts "All workers retired."
             @failed = true
           end
         end
