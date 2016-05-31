@@ -146,9 +146,8 @@ class Communicator
     end
     # Error output
     if !err_out.empty?
-      m = "Error message from external process:\n "+err_out.join("\n ")
-      #$stderr.puts m
-      Log.error m
+      $stderr.puts err_out.join("\n")
+      Log.error((["process error output:"]+err_out).join("\n "))
     end
     # Exception
     if exc
