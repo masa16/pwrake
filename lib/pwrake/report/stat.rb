@@ -28,6 +28,7 @@ module Pwrake
     attr_reader :hist, :hist_min, :hist_max, :bin
 
     def make_logx_histogram(bin)
+      if @min>0
       @bin = bin # 1.0/10
       @i_max = (Math.log10(@max)/@bin).floor
       @i_min = (Math.log10(@min)/@bin).floor
@@ -38,6 +39,7 @@ module Pwrake
         i = (Math.log10(x)/@bin-@i_min).floor
         raise "invalid index i=#{i}" if i<0 || i>@i_max-@i_min
         @hist[i] += 1
+      end
       end
     end
 
@@ -89,9 +91,18 @@ module Pwrake
       [@n, @mean, @median, @min, @max, @sdev||0]
     end
 
+    def fmt(x)
+      case x
+      when Numeric
+        "%g"%x
+      else
+        x.to_s
+      end
+    end
+
     def html_td
-      "<td>%i</td><td>%g</td><td>%g</td><td>%g</td><td>%g</td><td>%g</td>" %
-        [@n, @mean, @median, @min, @max, @sdev||0]
+      "<td>%i</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>" %
+        [@n, fmt(@mean), fmt(@median), fmt(@min), fmt(@max), fmt(@sdev)]
     end
 
     def self.html_th
