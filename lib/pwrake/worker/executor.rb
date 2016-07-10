@@ -54,7 +54,7 @@ module Pwrake
                 pid,status = Process.waitpid2(@pid)
               }
             rescue => exc
-              @log.error ([exc.to_s]+exc.backtrace).join("\n")
+              @log.error(([exc.to_s]+exc.backtrace).join("\n"))
               @log.info("#{@id}:kill INT sh @pid=#{@pid}")
               Process.kill("INT",@pid)
               pid,status = Process.waitpid2(@pid)
@@ -63,7 +63,7 @@ module Pwrake
           end
         rescue => exc
           @out.puts "#{@id}:exc:#{exc}"
-          @log.error ([exc.to_s]+exc.backtrace).join("\n")
+          @log.error(([exc.to_s]+exc.backtrace).join("\n"))
         ensure
           @dir.close_messages.each{|m| @log.info(m)}
           @dir.close
