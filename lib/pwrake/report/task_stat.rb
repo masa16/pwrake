@@ -13,7 +13,7 @@ module Pwrake
       shell_id = {}
       @task_table.each do |row|
         if id=row['shell_id']
-          shell_id[id.to_i] = true
+          shell_id[[row['exec_host'],id].join(":")] = true
         end
       end
       @ncore = shell_id.size
