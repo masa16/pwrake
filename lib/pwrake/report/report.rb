@@ -285,11 +285,11 @@ EOL
           command_list << cmd
         end
       end
-      hist_image = @base+"/hist.png"
+      hist_image = @base+"/hist.svg"
       if system("which gnuplot >/dev/null 2>&1")
       IO.popen("gnuplot","r+") do |f|
         f.puts "
-set terminal png # size 480,360
+set terminal svg # size 480,360
 set output '#{hist_image}'
 set ylabel 'histogram'
 set xlabel 'Execution time (sec)'

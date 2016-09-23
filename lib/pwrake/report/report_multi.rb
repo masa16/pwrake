@@ -9,7 +9,7 @@ module Pwrake
         r
       end
       @pattern = pattern
-      @elap_png = 'elap.png'
+      @elap_svg = 'elap.svg'
     end
 
     def report(stat_html)
@@ -29,7 +29,7 @@ module Pwrake
       end
       html << "</table>\n"
       html << "<h2>Elapsed time</h2>\n"
-      html << "<img src='./#{File.basename(@elap_png)}'  align='top'/></br>\n"
+      html << "<img src='./#{File.basename(@elap_svg)}'  align='top'/></br>\n"
 
       html << "<h2>Histogram of Execution time</h2>\n"
       html << report_histogram()
@@ -51,8 +51,8 @@ module Pwrake
       ymax = 10**(mid+wid)
       IO.popen("gnuplot","r+") do |f|
         f.puts "
-set terminal png size 640,480
-set output '#{@elap_png}'
+set terminal svg size 640,480
+set output '#{@elap_svg}'
 set xlabel 'ncore'
 set ylabel 'time (sec)'
 set yrange [#{ymin}:#{ymax}]
@@ -64,7 +64,7 @@ plot #{a}/x,'-' w lp lw 2 ps 2 title 'elapsed time'
         end
         f.puts "e"
       end
-      puts "Ncore-time plot: "+@elap_png
+      puts "Ncore-time plot: "+@elap_svg
     end
 
     def report_histogram
@@ -81,7 +81,7 @@ plot #{a}/x,'-' w lp lw 2 ps 2 title 'elapsed time'
       end
 
       @cmd_rep.each_key do |cmd|
-        @images[cmd] = 'hist_'+cmd.gsub(/[\/.]/,'_')+'.png'
+        @images[cmd] = 'hist_'+cmd.gsub(/[\/.]/,'_')+'.svg'
       end
       histogram_plot
       histogram_html
@@ -106,7 +106,7 @@ plot #{a}/x,'-' w lp lw 2 ps 2 title 'elapsed time'
       @cmd_rep.each do |cmd,cmd_rep|
         IO.popen("gnuplot","r+") do |f|
           f.puts "
-set terminal png # size 480,360
+set terminal svg # size 480,360
 set output '#{@images[cmd]}'
 set ylabel 'histogram'
 set xlabel 'Execution time (sec)'
@@ -139,7 +139,7 @@ set title '#{cmd}'"
       @cmd_rep.each do |cmd,cmd_rep|
         IO.popen("gnuplot","r+") do |f|
           f.puts "
-set terminal png # size 480,360
+set terminal svg # size 480,360
 set output '#{@images[cmd]}'
 set nohidden3d
 set palette rgb 33,13,10
