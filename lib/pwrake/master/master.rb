@@ -143,6 +143,7 @@ module Pwrake
       @selector.run
 
       Log.info "num_cores=#{sum_ncore}"
+      @option.total_cores = sum_ncore
       @hostinfo_by_id.each do |id,host|
         if ncore = @hostinfo_by_id[id].idle_cores
           Log.info "#{host} id=#{id} ncore=#{ncore}"

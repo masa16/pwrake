@@ -39,6 +39,7 @@ module Pwrake
 
     attr_reader :counter
     attr_reader :logger
+    attr_accessor :total_cores
 
     DEFAULT_CONFFILES = ["pwrake_conf.yaml","PwrakeConf.yaml"]
 
