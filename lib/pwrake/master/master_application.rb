@@ -26,10 +26,10 @@ module Pwrake
       standard_exception_handling do
         init("pwrake")  # <- parse options here
         @role = @master = Master.new
-        load_rakefile
         t = Time.now
         @master.init
         @master.setup_branches
+        load_rakefile
         begin
           Log.debug "init: #{Time.now-t} sec"
           t = Time.now
