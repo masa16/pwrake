@@ -193,12 +193,15 @@ module Pwrake
           msg = "Shell#io_read_loop: exit"
           $stderr.puts(msg)
           Log.error(msg)
+          @exited = true
           @chan.halt
           return "exit"
         when IOError
+          @exited = true
           @chan.halt
           return "ioerror"
         when NBIO::TimeoutError
+          @exited = true
           @chan.halt
           return "timeout"
         end
@@ -236,6 +239,7 @@ module Pwrake
               Rake.application.display_error_message(e)
               Log.error e
               result = "taskfail:#{@id}:#{task.name}"
+              break if @exited
             ensure
               master_w.put_line result
             end
