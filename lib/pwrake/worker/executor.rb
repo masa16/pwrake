@@ -117,7 +117,13 @@ module Pwrake
       loop do
         io_sel, = IO.select(io_set,nil,nil)
         for io in io_sel
-          s = io.gets.chomp
+          s = nil
+          begin
+            s = io.gets.chomp
+          rescue => exc
+            @log.error(([exc.to_s]+exc.backtrace).join("\n"))
+            break
+          end
           case io
           when @sh_out
             if s[0,TLEN] == @terminator
