@@ -4,8 +4,17 @@ require "logger"
 
 module Pwrake
 
+  DELEGATE_METHODS = [
+    :debug, :info, :error, :fatal, :warn, :unknown,
+    :debug?, :info?, :error?, :fatal?, :warn?, :unknown?,
+    :level, :level=,
+    :formatter, :formatter=,
+    :datetime_format, :datetime_format=
+  ]
+
   class DummyLogger
-    def method_missing(id,*args)
+    DELEGATE_METHODS.each do |m|
+      define_method(m){|*a|}
     end
   end
 
@@ -13,15 +22,10 @@ module Pwrake
     include Singleton
     extend Forwardable
 
-    def_delegators :@logger, :debug, :info, :error, :fatal, :warn, :unknown
-    def_delegators :@logger, :debug?, :info?, :error?, :fatal?, :warn?, :unknown?
-    def_delegators :@logger, :level, :level=
-    def_delegators :@logger, :formatter, :formatter=
-    def_delegators :@logger, :datetime_format, :datetime_format=
+    def_delegators :@logger, *DELEGATE_METHODS
 
     def initialize
       @level = ::Logger::DEBUG
-      #@logger = @logger_stderr = ::Logger.new($stderr)
       @logger = @logger_stderr = DummyLogger.new
       @logger.level = @level
     end
