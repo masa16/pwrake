@@ -62,7 +62,11 @@ module Pwrake
       opts.each_with_index do |a,i|
         if a[0] == '--version'
           a[3] = lambda { |value|
-            puts "rake, version #{RAKEVERSION}"
+            if defined? RAKEVERSION
+              puts "rake, version #{RAKEVERSION}"
+            elsif defined? Rake::VERSION
+              puts "rake, version #{Rake::VERSION}"
+            end
             puts "pwrake, version #{Pwrake::VERSION}"
             exit
           }
