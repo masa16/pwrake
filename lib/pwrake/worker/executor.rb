@@ -2,174 +2,147 @@ module Pwrake
 
   class Executor
 
-    LIST = {}
-    CHARS='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
-    TLEN=32
-
-    def initialize(dir_class,id,shell_cmd,shell_rc)
+    def initialize(selector,dir_class,id)
+      @selector = selector
       @id = id
-      @shell_rc = shell_rc
-      @shell_cmd = shell_cmd || ENV['SHELL'] || '/bin/sh'
-      @terminator = ""
-      TLEN.times{ @terminator << CHARS[rand(CHARS.length)] }
       @out = Writer.instance
       @log = LogExecutor.instance
-      @queue = Queue.new
+      @queue = []
+      @rd_list = []
       @dir = dir_class.new
-      @spawn_in, @sh_in = IO.pipe
-      @sh_out, @spawn_out = IO.pipe
-      @sh_err, @spawn_err = IO.pipe
-      LIST[@id] = self
-      @exec_thread = start_exec_thread
+      @dir.open
+      @dir.open_messages.each{|m| @log.info(m)}
+      @out.puts "#{@id}:open"
     end
 
-    def execute(cmd)
-      @queue.enq(cmd)
-    end
-
-    def start_exec_thread
-      Thread.new do
-        begin
-          @dir.open
-          @dir.open_messages.each{|m| @log.info(m)}
-          @pid = Kernel.spawn(@shell_cmd,
-                              :out=>@spawn_out,
-                              :err=>@spawn_err,
-                              :in=>@spawn_in,
-                              :chdir=>@dir.current)
-          begin
-            @out.puts "#{@id}:open"
-            @shell_rc.each do |cmd|
-              run_rc(cmd)
-            end
-            while cmd = @queue.deq
-              run(cmd)
-            end
-            @sh_in.puts("exit")
-            @sh_in.flush
-          ensure
-            status = nil
-            begin
-              Timeout.timeout(5){
-                pid,status = Process.waitpid2(@pid)
-              }
-            rescue => exc
-              @log.error(([exc.to_s]+exc.backtrace).join("\n"))
-              @log.info("#{@id}:kill INT sh @pid=#{@pid}")
-              Process.kill("INT",@pid)
-              pid,status = Process.waitpid2(@pid)
-            end
-            @log.info("shell exit status: "+status.inspect)
-          end
-        rescue => exc
-          @out.puts "#{@id}:exc:#{exc}"
-          @log.error(([exc.to_s]+exc.backtrace).join("\n"))
-        ensure
-          @dir.close_messages.each{|m| @log.info(m)}
-          @dir.close
-        end
-      end
-    end
-
-    def run(cmd)
-      case cmd
-      when Proc
-        cmd.call
-      when "cd"
-        @dir.cd
-        run_command("cd "+@dir.current)
-        #
-      when /^cd\s+(.*)$/
-        @dir.cd($1)
-        run_command("cd "+@dir.current)
-        #
-      when /^exit\b/
-        close
-        @out.puts "#{@id}:exit"
-        #
-      when String
-        run_command(cmd)
-        #
-      else
-        raise RuntimeError,"invalid cmd: #{cmd.inspect}"
-      end
-    end
-
-    def run_rc(cmd)
-      run_command_main(cmd){|s| @log.info "<"+s if @log}
-    end
-
-    def run_command(cmd)
-      run_command_main(cmd){|s| @out.puts s}
-    end
-
-    def run_command_main(cmd)
-      if /\\$/ =~ cmd  # command line continues
-        @sh_in.puts(cmd)
-        @sh_in.flush
-        return
-      end
-      term = "\necho '#{@terminator}':$? \necho '#{@terminator}' 1>&2"
-      @sh_in.puts(cmd+term)
-      @sh_in.flush
-      status = ""
-      io_set = [@sh_out,@sh_err]
-      loop do
-        io_sel, = IO.select(io_set,nil,nil)
-        for io in io_sel
-          s = nil
-          begin
-            s = io.gets.chomp
-          rescue => exc
-            @log.error(([exc.to_s]+exc.backtrace).join("\n"))
-            break
-          end
-          case io
-          when @sh_out
-            if s[0,TLEN] == @terminator
-              status = s[TLEN+1..-1]
-              io_set.delete(@sh_out)
-            else
-              yield "#{@id}:o:"+s
-            end
-          when @sh_err
-            if s[0,TLEN] == @terminator
-              io_set.delete(@sh_err)
-            else
-              yield "#{@id}:e:"+s
-            end
-          end
-        end
-        break if io_set.empty?
-      end
-      yield "#{@id}:z:#{status}"
+    def stop
+      @stopped = true
+      @queue.clear
     end
 
     def close
-      execute(nil)  # threads end
+      if @thread
+        @thread.join(15)
+        sleep 0.1
+      end
+      @thread = Thread.new do
+        @dir.close_messages.each{|m| @log.info(m)}
+        @dir.close
+      end
+    rescue => exc
+      @log.error(([exc.to_s]+exc.backtrace).join("\n"))
     end
 
     def join
-      LIST.delete(@id)
-      @exec_thread.join(15) if @exec_thread
+      if @thread
+        @thread.join(15)
+      end
+    rescue => exc
+      @log.error(([exc.to_s]+exc.backtrace).join("\n"))
+    end
+
+    def execute(cmd)
+      return if @stopped
+      @queue.push(cmd)
+      start_process
+    end
+
+    def start_process
+      return if @thread      # running
+      command = @queue.shift
+      return if !command     # empty queue
+      @spawn_in, @sh_in = IO.pipe
+      @sh_out, @spawn_out = IO.pipe
+      @sh_err, @spawn_err = IO.pipe
+
+      @pid = Kernel.spawn(command,
+                          :in=>@spawn_in,
+                          :out=>@spawn_out,
+                          :err=>@spawn_err,
+                          :chdir=>@dir.current,
+                          :pgroup=>true
+                         )
+      @log.info "pid=#{@pid} started. command=#{command.inspect}"
+
+      @thread = Thread.new do
+        @pid2,@status = Process.waitpid2(@pid)
+        @spawn_in.close
+        @spawn_out.close
+        @spawn_err.close
+      end
+
+      @rd_out = Reader.new(@sh_out,"o")
+      @rd_err = Reader.new(@sh_err,"e")
+      @rd_list = [@rd_out,@rd_err]
+
+      @selector.add_reader(@sh_out){callback(@rd_out)}
+      @selector.add_reader(@sh_err){callback(@rd_err)}
+    end
+
+    def callback(rd)
+      while s = rd.gets
+        @out.puts "#{@id}:#{rd.mode}:#{s.chomp}"
+      end
+      if rd.eof?
+        @selector.delete_reader(rd.io)
+        @rd_list.delete(rd)
+        if @rd_list.empty?  # process_end
+          @thread = @pid = nil
+          @log.info inspect_status
+          @out.puts "#{@id}:z:#{exit_status}"
+          @sh_in.close
+          @sh_out.close
+          @sh_err.close
+          start_process     # next process
+        end
+      end
+    rescue => exc
+      @log.error(([exc.to_s]+exc.backtrace).join("\n"))
+      stop
+    end
+
+    def inspect_status
+      s = @status
+      case
+      when s.signaled?
+        if s.coredump?
+          "pid=#{s.pid} dumped core."
+        else
+          "pid=#{s.pid} was killed by signal #{s.termsig}"
+        end
+      when s.stopped?
+        "pid=#{s.pid} was stopped by signal #{s.stopsig}"
+      when s.exited?
+        "pid=#{s.pid} exited normally. status=#{s.exitstatus}"
+      else
+        "unknown status %#x" % s.to_i
+      end
+    end
+
+    def exit_status
+      s = @status
+      case
+      when s.signaled?
+        if s.coredump?
+          "core_dumped"
+        else
+          "killed:#{s.termsig}"
+        end
+      when s.stopped?
+        "stopped:#{s.stopsig}"
+      when s.exited?
+        "#{s.exitstatus}"
+      else
+        "unknown:%#x" % s.to_i
+      end
     end
 
     def kill(sig)
-      @queue.clear
+      stop
       if @pid
-        # kill process group
-        s = `ps ho pid --ppid=#{@pid}`
-        s.each_line do |x|
-          pid = x.to_i
-          Process.kill(sig,pid)
-          @log.warn "Executor(id=#{@id})#kill pid=#{pid} sig=#{sig}"
-        end
-        if s.empty?
-          @log.warn "Executor(id=#{@id})#kill nothing killed"
-        end
+        Process.kill(sig,-@pid)
+        @log.warn "Executor(id=#{@id})#kill pid=#{@pid} sig=#{sig}"
       end
-      @spawn_out.flush
-      @spawn_err.flush
     end
 
   end
