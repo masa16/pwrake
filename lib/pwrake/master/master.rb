@@ -437,10 +437,10 @@ module Pwrake
       Log.debug "Master#finish @selector.run end"
       if !@exited
         @exited = true
-        Log.debug "Master#finish Hander.exit begin"
+        Log.debug "Master#finish Handler.exit begin"
         NBIO::Handler.exit(@hdl_set)
         @selector.run(60)
-        Log.debug "Master#finish Hander.exit end"
+        Log.debug "Master#finish Handler.exit end"
       end
       TaskWrapper.close_task_logger
       Log.debug "Master#finish end"
