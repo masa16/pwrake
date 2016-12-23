@@ -108,7 +108,6 @@ class Communicator
     case s
     when /^heartbeat$/
       Log.debug "#{x}: #{s.inspect}"
-      @selector.heartbeat(@reader.io)
     when /^exited$/
       Log.debug "#{x}: #{s.inspect}"
       return false

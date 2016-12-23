@@ -3,7 +3,7 @@ require "fiber"
 module Pwrake
 module NBIO
 
-  class TimeoutError < IOError
+  class TimeoutError < StandardError
   end
 
   class Selector
@@ -11,7 +11,6 @@ module NBIO
     def initialize
       @reader = {}
       @writer = {}
-      @hb_time = {}
       @running = false
     end
 
@@ -19,12 +18,10 @@ module NBIO
 
     def add_reader(hdl)
       @reader[hdl.io] = hdl
-      heartbeat(hdl.io) if hdl.timeout
     end
 
     def delete_reader(hdl)
       @reader.delete(hdl.io)
-      delete_heartbeat(hdl.io)
     end
 
     def add_writer(hdl)
@@ -51,19 +48,9 @@ module NBIO
       hdl.respond_to?(:host) ? hdl.host : nil
     end
 
-    # called when IO start and receive heartbeat
-    def heartbeat(io)
-      @hb_time[io] = Time.now
-      @hb_earliest = @hb_time.values.min
-    end
-
-    def delete_heartbeat(io)
-      @hb_time.delete(io)
-      @hb_earliest = @hb_time.values.min
-    end
-
     def run(timeout=nil)
       @running = true
+      init_heartbeat if timeout
       while @running && !empty?
         if $debug
           Log.debug "Selector#run: "+caller[0..1].join(", ")+
@@ -74,21 +61,16 @@ module NBIO
       end
     ensure
       @running = false
+      @hb_time = nil
     end
 
     private
     def run_select(timeout)
-      r, w = IO.select(@reader.keys,@writer.keys,[],timeout)
+      to = (timeout) ? timeout*0.75 : nil
+      r, w, = IO.select(@reader.keys,@writer.keys,[],to)
+      check_heartbeat(r,timeout) if timeout
       r.each{|io| @reader[io].call} if r
       w.each{|io| @writer[io].call} if w
-      while timeout && @hb_earliest && Time.now - @hb_earliest > timeout
-        io = @hb_time.key(@hb_earliest)
-        if hdl = @reader[io]
-          e = TimeoutError.new("HB Timeout (#{timeout}s) #<Reader:%x> #{io.inspect}"%hdl.__id__)
-          hdl.error(e)
-        end
-        delete_heartbeat(io)
-      end
     rescue IOError => e
       em = "#{e.class.name}: #{e.message}"
       @reader.keys.each do |io|
@@ -110,6 +92,33 @@ module NBIO
         end
       end
       #raise e
+    end
+
+    def init_heartbeat
+      t = Time.now
+      @hb_time = {}
+      @reader.each_key{|io| @hb_time[io] = t}
+    end
+
+    def check_heartbeat(ios,timeout)
+      t = Time.now
+      rds = @reader.dup
+      if ios
+        ios.each do |io|
+          @hb_time[io] = t
+          rds.delete(io)
+        end
+      end
+      rds.each do |io,hdl|
+        if hdl.check_timeout
+          tdif = t - @hb_time[io]
+          if tdif > timeout
+            m = "Heartbeat Timeout: no response during #{tdif}s "+
+              "> timeout #{timeout}s from host=#{get_host(io)}"
+            hdl.error(TimeoutError.new(m))
+          end
+        end
+      end
     end
 
   end
@@ -216,7 +225,7 @@ module NBIO
       @chunk_size = 8192
     end
     attr_reader :io
-    attr_accessor :timeout
+    attr_accessor :check_timeout
 
     # call from Selector#run
     def call
@@ -316,10 +325,9 @@ module NBIO
       @n_chan = n_chan
       @queue = @n_chan.times.map{|i| FiberReaderQueue.new(self)}
       @default_queue = FiberReaderQueue.new(self)
-      @timeout = true
+      @check_timeout = true
     end
     attr_reader :queue
-    attr_accessor :timeout
     attr_accessor :default_queue
 
     def [](ch)
