@@ -86,7 +86,8 @@ In this case, you need the rehash of command paths:
     -d, --debug                      [Pw] Output Debug messages
         --pwrake-conf [FILE]         [Pw] Pwrake configuration file in YAML
         --show-conf, --show-config   [Pw] Show Pwrake configuration options
-        --report LOGDIR              [Pw] Report workflow statistics from LOGDIR to HTML and exit.
+        --report LOGDIR              [Pw] Generate `report.html' (Report of workflow statistics) in LOGDIR and exit.
+        --report-image IMAGE_TYPE    [Pw] Gnuplot output format (png,jpg,svg etc.) in report.html.
         --clear-gfarm2fs             [Pw] Clear gfarm2fs mountpoints left after failure.
 
 ### pwrake_conf.yaml
@@ -125,6 +126,7 @@ In this case, you need the rehash of command paths:
         NOACTION_QUEUE_PRIORITY FIFO(default)|LIFO|RAND
         SHELL_START_INTERVAL    default=0.012 (sec)
         GRAPH_PARTITION         false(default)|true
+        REPORT_IMAGE            default=png
 
 * Options for Gfarm system:
 

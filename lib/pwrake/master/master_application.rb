@@ -146,7 +146,7 @@ module Pwrake
        ['--report LOGDIR',"[Pw] Generate `report.html' (Report of workflow statistics) in LOGDIR and exit.",
         lambda {|value| options.report_dir = value }
        ],
-       ['--report-image REPORT_IMAGE',"[Pw] Gnuplot output format (png,jpg,svg etc.) in report.html.",
+       ['--report-image IMAGE_TYPE',"[Pw] Gnuplot output format (png,jpg,svg etc.) in report.html.",
         lambda {|value| options.report_image = value }
        ],
        ['--clear-gfarm2fs',"[Pw] Clear gfarm2fs mountpoints left after failure.",
