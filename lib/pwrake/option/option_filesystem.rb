@@ -12,6 +12,7 @@ module Pwrake
     def setup_filesystem
 
       @worker_progs = %w[
+        parallel/processor_count.rb
         pwrake/worker/reader
         pwrake/worker/writer
         pwrake/worker/log_executor

@@ -1,8 +1,9 @@
-require "etc"
-
 module Pwrake
 
   class Invoker
+    # use Michael Grosser's Parallel module
+    # https://github.com/grosser/parallel
+    include Parallel::ProcessorCount
 
     def initialize(dir_class, ncore, option)
       @dir_class = dir_class
@@ -18,7 +19,7 @@ module Pwrake
         if ncore > 0
           @ncore = ncore
         else
-          @ncore = Etc.nprocessors + ncore
+          @ncore = processor_count() + ncore
         end
         if @ncore <= 0
           m = "Out of range: ncore=#{ncore.inspect}"
@@ -26,7 +27,7 @@ module Pwrake
           raise ArgumentError,m
         end
       elsif ncore.nil?
-        @ncore = Etc.nprocessors
+        @ncore = processor_count()
       else
         m = "Invalid argument: ncore=#{ncore.inspect}"
         @out.puts "ncore:"+m
