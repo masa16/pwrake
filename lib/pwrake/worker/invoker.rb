@@ -1,9 +1,16 @@
 module Pwrake
 
   class Invoker
-    # use Michael Grosser's Parallel module
-    # https://github.com/grosser/parallel
-    include Parallel::ProcessorCount
+    begin
+      # use Michael Grosser's Parallel module
+      # https://github.com/grosser/parallel
+      include Parallel::ProcessorCount
+    rescue
+      def processor_count
+        # only for Linux
+        IO.read("/proc/cpuinfo").scan(/^processor/).size
+      end
+    end
 
     def initialize(dir_class, ncore, option)
       @dir_class = dir_class
