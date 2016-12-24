@@ -64,7 +64,7 @@ module Pwrake
       d
     end
 
-    def plot_parallelism(file)
+    def plot_parallelism(file,fmt)
       a = count_start_end_from_csv(file)
       return if a.size < 4
 
@@ -101,8 +101,8 @@ module Pwrake
 
       IO.popen("gnuplot","r+") do |f|
         f.puts "
-set terminal svg
-set output '#{base}.svg'
+set terminal #{fmt}
+set output '#{base}.#{fmt}'
 #set rmargin 10
 set title '#{base}'
 set xlabel 'time (sec)'
@@ -115,17 +115,17 @@ plot '#{fpara}' w l axis x1y1 title 'parallelism'
 "
       end
 
-      #puts "Parallelism plot: #{base}.svg"
+      #puts "Parallelism plot: #{base}.#{fmt}"
     end
 
 
-    def plot_parallelism2(csvtable, base)
+    def plot_parallelism2(csvtable, base, fmt)
       a = count_start_end_from_csv_table(csvtable)
       return if a.size < 4
 
       density = exec_density(a)
 
-      fimg = base+'/parallelism.svg'
+      fimg = base+'/parallelism.'+fmt
 
       n = a.size
       i = 0
@@ -155,7 +155,7 @@ plot '#{fpara}' w l axis x1y1 title 'parallelism'
       if system("which gnuplot >/dev/null 2>&1")
       IO.popen("gnuplot","r+") do |f|
         f.print "
-set terminal svg
+set terminal #{fmt}
 set output '#{fimg}'
 #set rmargin 10
 set title '#{base}'
@@ -259,7 +259,7 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
       h
     end
 
-    def plot_parallelism_by_pattern(csvtable, base, pattern)
+    def plot_parallelism_by_pattern(csvtable, base, pattern, fmt)
       y_max = 0
       t_end = 0
       para = {}
@@ -290,13 +290,13 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
         end
       end
 
-      fimg = base+'/para_cmd.svg'
+      fimg = base+'/para_cmd.'+fmt
 
       if system("which gnuplot >/dev/null 2>&1")
       IO.popen("gnuplot","r+") do |f|
         #begin f = $stdout
         f.print "
-set terminal svg
+set terminal #{fmt}
 set output '#{fimg}'
 set title '#{base}'
 set xlabel 'time (sec)'
@@ -338,10 +338,10 @@ set ylabel 'parallelism'
       return grid
     end
 
-    def plot_parallelism_by_host(csvtable,base)
-      fsvg = base+"/para_host.svg"
+    def plot_parallelism_by_host(csvtable,base,fmt)
+      fimg = base+"/para_host."+fmt
       data = read_time_by_host_from_csv(csvtable)
-      return fsvg if data.size == 0
+      return fimg if data.size == 0
 
       grid = []
       hosts = data.keys.sort
@@ -353,8 +353,8 @@ set ylabel 'parallelism'
       if system("which gnuplot >/dev/null 2>&1")
       IO.popen("gnuplot","r+") do |f|
         f.puts "
-set terminal svg
-set output '#{fsvg}'
+set terminal #{fmt}
+set output '#{fimg}'
 #set rmargin 7
 set lmargin 16
 set pm3d map
@@ -385,7 +385,7 @@ set format y ''
         f.printf "e\n"
       end
       end
-      fsvg
+      fimg
     end
 
   end

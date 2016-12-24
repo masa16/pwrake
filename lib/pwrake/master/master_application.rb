@@ -143,8 +143,11 @@ module Pwrake
         "[Pw] Show Pwrake configuration options",
         lambda {|value| options.show_conf = true }
        ],
-       ['--report LOGDIR',"[Pw] Report workflow statistics from LOGDIR to HTML and exit.",
+       ['--report LOGDIR',"[Pw] Generate `report.html' (Report of workflow statistics) in LOGDIR and exit.",
         lambda {|value| options.report_dir = value }
+       ],
+       ['--report-image REPORT_IMAGE',"[Pw] Gnuplot output format (png,jpg,svg etc.) in report.html.",
+        lambda {|value| options.report_image = value }
        ],
        ['--clear-gfarm2fs',"[Pw] Clear gfarm2fs mountpoints left after failure.",
          lambda { |value|

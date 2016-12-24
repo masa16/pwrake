@@ -122,6 +122,7 @@ module Pwrake
         'PLOT_PARALLELISM',
         'SHOW_CONF',
         ['REPORT_DIR','REPORT'],
+        'REPORT_IMAGE',
         'FAILED_TARGET', # rename(default), delete, leave
         'FAILURE_TERMINATION', # wait, kill, continue
         'QUEUE_PRIORITY', # RANK(default), FIFO, LIFO, DFS

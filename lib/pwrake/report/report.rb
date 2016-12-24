@@ -43,6 +43,8 @@ EOL
       @id = @@id
       @base = @dir
 
+      @img_fmt = option['REPORT_IMAGE'] || 'png'
+
       @cmd_file = File.join(@dir,option['COMMAND_CSV_FILE'])
       @task_file = File.join(@dir,option['TASK_CSV_FILE'])
       @html_file = File.join(@dir,'report.html')
@@ -196,15 +198,15 @@ EOL
       end
       html << "</table>\n"
       html << "<h2>Parallelism</h2>\n"
-      fimg = Parallelism.plot_parallelism2(@sh_table,@base)
+      fimg = Parallelism.plot_parallelism2(@sh_table,@base,@img_fmt)
       html << "<img src='./#{File.basename(fimg)}' align='top'/></br>\n"
 
       html << "<h2>Parallelism by command</h2>\n"
-      fimg3 = Parallelism.plot_parallelism_by_pattern(@sh_table,@base,@pattern)
+      fimg3 = Parallelism.plot_parallelism_by_pattern(@sh_table,@base,@pattern,@img_fmt)
       html << "<img src='./#{File.basename(fimg3)}' align='top'/></br>\n"
 
       html << "<h2>Parallelism by host</h2>\n"
-      fimg2 = Parallelism.plot_parallelism_by_host(@sh_table,@base)
+      fimg2 = Parallelism.plot_parallelism_by_host(@sh_table,@base,@img_fmt)
       html << "<img src='./#{File.basename(fimg2)}' align='top'/></br>\n"
 
       html << "<h2>Command statistics</h2>\n"
@@ -285,11 +287,11 @@ EOL
           command_list << cmd
         end
       end
-      hist_image = @base+"/hist.svg"
+      hist_image = @base+"/hist."+@img_fmt
       if system("which gnuplot >/dev/null 2>&1")
       IO.popen("gnuplot","r+") do |f|
         f.puts "
-set terminal svg # size 480,360
+set terminal #{@img_fmt} # size 480,360
 set output '#{hist_image}'
 set ylabel 'histogram'
 set xlabel 'Execution time (sec)'
