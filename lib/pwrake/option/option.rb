@@ -112,8 +112,6 @@ module Pwrake
         'FILESYSTEM',
         'SSH_OPTION',
         'PASS_ENV',
-        ['SHELL_COMMAND', proc{|v| v||ENV['SHELL']}],
-        ['SHELL_RC','SHELLRC'],
         'GFARM2FS_OPTION',
         'GFARM2FS_DEBUG',
         ['GFARM2FS_DEBUG_WAIT', proc{|v| v ? v.to_i : 1}],

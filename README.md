@@ -115,8 +115,6 @@ In this case, you need the rehash of command paths:
         WORK_DIR          default=$PWD
         FILESYSTEM        default(autodetect)|gfarm
         SSH_OPTION        SSH option
-        SHELL_COMMAND     default=$SHELL
-        SHELL_RC          Run-Command when shell starts
         PASS_ENV          (Array) Environment variables passed to SSH
         HEARTBEAT         default=240 - Hearbeat interval in seconds
         RETRY             default=1 - The number of retry

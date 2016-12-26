@@ -70,8 +70,6 @@ module Pwrake
     def setup_option
       @log.info @option.inspect
       @out.heartbeat = @option[:heartbeat]
-      @shell_cmd = @option[:shell_command]
-      @shell_rc = @option[:shell_rc] || []
       (@option[:pass_env]||{}).each do |k,v|
         ENV[k] = v
       end

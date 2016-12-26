@@ -26,8 +26,6 @@ module Pwrake
         :log_dir   => self['LOG_DIR'],
         :pass_env  => self['PASS_ENV'],
         :ssh_option => self['SSH_OPTION'],
-        :shell_command => self['SHELL_COMMAND'],
-        :shell_rc  => self['SHELL_RC'],
         :heartbeat => self['HEARTBEAT']
       }
 
