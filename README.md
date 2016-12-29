@@ -187,13 +187,14 @@ Properties (The leftmost item is default):
 
 ## Current version
 
-* Pwrake version 2.0.0
+* Pwrake version 2.1.3
 
 ## Tested Platform
 
-* Ruby 2.2.2
-* Rake 10.4.2
-* CentOS 6.7
+
+* Ruby 2.4.0
+* Rake 12.0.0
+* CentOS 7.3
 
 ## Acknowledgment
 
