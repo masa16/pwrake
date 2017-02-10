@@ -251,7 +251,13 @@ module NBIO
 
     # call from Reader#_read and FiberReaderQueue#deq
     def select_io
-      @selector.add_reader(self) if @waiter.empty?
+      if @waiter.empty?
+        @selector.add_reader(self)
+      else
+        if @selector.reader[@io] != self
+          raise RuntimeError, "access from multiple Fiber"
+        end
+      end
       @waiter.push(Fiber.current)
       Fiber.yield
     ensure
@@ -443,7 +449,7 @@ module NBIO
 
     def put_kill(sig="INT")
       #@writer.put_line("kill:#{sig}")
-      @writer.io.puts("kill:#{sig}")
+      @writer.io.write("kill:#{sig}\n")
       @writer.io.flush
     end
 
