@@ -30,3 +30,5 @@ tmp
 rhosts
 spec/*/*.dat
 spec/*/*.csv
+spec/*/hoge*
+spec/*/Pwrake*
