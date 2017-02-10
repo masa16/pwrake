@@ -16,8 +16,8 @@ module Pwrake
       @dir_class = dir_class
       @option = option
       @ex_list = {}
-      @selector = Selector.new
-      @rd = Reader.new($stdin,@selector)
+      @selector = NBIO::Selector.new
+      @rd = NBIO::Reader.new(@selector,$stdin)
       @out = Writer.instance # firstly replace $stderr
       @out.out = $stdout
       @log = LogExecutor.instance
@@ -59,9 +59,10 @@ module Pwrake
 
     def run
       setup_option
-      setup_loop
-      @selector.add_reader(@rd.io){command_callback}
-      @selector.loop
+      Fiber.new{setup_loop}.resume
+      @selector.run
+      Fiber.new{command_callback}.resume
+      @selector.run
     rescue => exc
       @log.error(([exc.to_s]+exc.backtrace).join("\n"))
     ensure
@@ -86,15 +87,12 @@ module Pwrake
           end
         when "setup_end"
           return
-        when nil
-          # through : will be fixed later
         else
           if common_line(line)
             raise RuntimeError,"exit during setup_loop"
           end
         end
       end
-      raise RuntimeError,"incomplete setup_loop"
     end
 
     def command_callback
@@ -116,7 +114,6 @@ module Pwrake
     def common_line(line)
       case line
       when /^exit$/o
-        @selector.delete_reader(@rd.io)
         return true
         #
       when /^kill:(.*)$/o

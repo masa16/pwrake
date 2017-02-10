@@ -13,7 +13,8 @@ module Pwrake
 
       @worker_progs = %w[
         parallel/processor_count.rb
-        pwrake/worker/reader
+        pwrake/nbio
+        pwrake/branch/fiber_queue
         pwrake/worker/writer
         pwrake/worker/log_executor
         pwrake/worker/executor

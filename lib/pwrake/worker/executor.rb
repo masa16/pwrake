@@ -7,17 +7,37 @@ module Pwrake
       @id = id
       @out = Writer.instance
       @log = LogExecutor.instance
-      @queue = []
+      @queue = FiberQueue.new
       @rd_list = []
       @dir = dir_class.new
       @dir.open
       @dir.open_messages.each{|m| @log.info(m)}
       @out.puts "#{@id}:open"
+
+      r,w = IO.pipe
+      @command_pipe_r = NBIO::Reader.new(@selector,r)
+      @command_pipe_w = NBIO::Writer.new(@selector,w)
+      @start_process_fiber = Fiber.new do
+        while line = @queue.deq
+          cmd = line
+          while /\\$/ =~ line  # line continues
+            line = @queue.deq
+            break if !line
+            cmd += line
+          end
+          break if @stopped
+          cmd.chomp!
+          if !cmd.empty?
+            start_process(cmd)
+          end
+          Fiber.yield
+        end
+      end
     end
 
     def stop
       @stopped = true
-      @queue.clear
+      @queue.finish
     end
 
     def close
@@ -43,13 +63,12 @@ module Pwrake
 
     def execute(cmd)
       return if @stopped
-      @queue.push(cmd)
-      start_process
+      @queue.enq(cmd)
+      @start_process_fiber.resume
     end
 
-    def start_process
+    def start_process(command)
       return if @thread      # running
-      command = @queue.shift
       return if !command     # empty queue
       @spawn_in, @sh_in = IO.pipe
       @sh_out, @spawn_out = IO.pipe
@@ -71,20 +90,19 @@ module Pwrake
         @spawn_err.close
       end
 
-      @rd_out = Reader.new(@sh_out,"o")
-      @rd_err = Reader.new(@sh_err,"e")
+      @rd_out = NBIO::Reader.new(@selector,@sh_out)
+      @rd_err = NBIO::Reader.new(@selector,@sh_err)
       @rd_list = [@rd_out,@rd_err]
 
-      @selector.add_reader(@sh_out){callback(@rd_out)}
-      @selector.add_reader(@sh_err){callback(@rd_err)}
+      Fiber.new{callback(@rd_err,"e")}.resume
+      Fiber.new{callback(@rd_out,"o")}.resume
     end
 
-    def callback(rd)
+    def callback(rd,mode)
       while s = rd.gets
-        @out.puts "#{@id}:#{rd.mode}:#{s.chomp}"
+        @out.puts "#{@id}:#{mode}:#{s.chomp}"
       end
       if rd.eof?
-        @selector.delete_reader(rd.io)
         @rd_list.delete(rd)
         if @rd_list.empty?  # process_end
           @thread = @pid = nil
@@ -93,7 +111,7 @@ module Pwrake
           @sh_in.close
           @sh_out.close
           @sh_err.close
-          start_process     # next process
+          @start_process_fiber.resume # next process
         end
       end
     rescue => exc
