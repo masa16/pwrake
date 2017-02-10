@@ -15,9 +15,11 @@ module Pwrake
     def initialize(dir_class, ncore, option)
       @dir_class = dir_class
       @option = option
-      @selector = Selector.new
       @ex_list = {}
+      @selector = Selector.new
+      @rd = Reader.new($stdin,@selector)
       @out = Writer.instance # firstly replace $stderr
+      @out.out = $stdout
       @log = LogExecutor.instance
       @log.init(@option)
       @log.open(@dir_class)
@@ -58,8 +60,7 @@ module Pwrake
     def run
       setup_option
       setup_loop
-      @rd = Reader.new($stdin)
-      @selector.add_reader($stdin){command_callback(@rd)}
+      @selector.add_reader(@rd.io){command_callback}
       @selector.loop
     rescue => exc
       @log.error(([exc.to_s]+exc.backtrace).join("\n"))
@@ -76,7 +77,8 @@ module Pwrake
     end
 
     def setup_loop
-      while line = get_line($stdin)
+      loop do
+        line = get_line(@rd)
         case line
         when /^(\d+):open$/o
           $1.split.each do |id|
@@ -84,6 +86,8 @@ module Pwrake
           end
         when "setup_end"
           return
+        when nil
+          # through : will be fixed later
         else
           if common_line(line)
             raise RuntimeError,"exit during setup_loop"
@@ -93,8 +97,8 @@ module Pwrake
       raise RuntimeError,"incomplete setup_loop"
     end
 
-    def command_callback(rd)
-      while line = get_line(rd) # rd returns nil if line is incomplete
+    def command_callback
+      while line = get_line(@rd) # rd returns nil if line is incomplete
         case line
         when /^(\d+):(.*)$/o
           id,cmd = $1,$2
@@ -103,7 +107,7 @@ module Pwrake
           break if common_line(line)
         end
       end
-      if rd.eof?
+      if @rd.eof?
         # connection lost
         raise RuntimeError,"lost connection to master"
       end
@@ -112,7 +116,7 @@ module Pwrake
     def common_line(line)
       case line
       when /^exit$/o
-        @selector.delete_reader($stdin)
+        @selector.delete_reader(@rd.io)
         return true
         #
       when /^kill:(.*)$/o
@@ -127,7 +131,7 @@ module Pwrake
         return false
         #
       else
-        msg = "invalid line: #{line}"
+        msg = "invalid line: #{line.inspect}"
         @log.fatal msg
         raise RuntimeError,msg
       end

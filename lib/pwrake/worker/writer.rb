@@ -26,6 +26,8 @@ module Pwrake
       end
     end
 
+    attr_accessor :out
+
     def heartbeat=(heartbeat)
       @heartbeat = heartbeat
       @queue.enq(nil)
