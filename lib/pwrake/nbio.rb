@@ -8,10 +8,11 @@ module NBIO
 
   class Selector
 
-    def initialize
+    def initialize(io_class=IO)
       @reader = {}
       @writer = {}
       @running = false
+      @io_class = io_class
     end
 
     attr_reader :reader, :writer
@@ -67,7 +68,7 @@ module NBIO
     private
     def run_select(timeout)
       to = (timeout) ? timeout*0.75 : nil
-      r, w, = IO.select(@reader.keys,@writer.keys,[],to)
+      r, w, = @io_class.select(@reader.keys,@writer.keys,[],to)
       check_heartbeat(r,timeout) if timeout
       r.each{|io| @reader[io].call} if r
       w.each{|io| @writer[io].call} if w
@@ -169,6 +170,12 @@ module NBIO
       flush unless buffered
     end
 
+    alias print :write
+
+    def puts(s)
+      write(s+"\n")
+    end
+
     def flush
       until @pool.empty?
         len = _write(@pool[0])
@@ -221,6 +228,7 @@ module NBIO
       @io = io
       @waiter = []
       @buf = ''
+      @eof = false
       @sep = "\n"
       @chunk_size = 8192
     end
@@ -277,11 +285,16 @@ module NBIO
       @halting = false
     end
 
+    def eof?
+      @eof && @buf.empty?
+    end
+
     # from Bartender
 
     def _read(sz)
       @io.read_nonblock(sz)
     rescue EOFError
+      @eof = true
       nil
     rescue IO::WaitReadable
       return nil if @halting
@@ -319,6 +332,7 @@ module NBIO
     end
 
     alias get_line :readln
+    alias gets :readln
 
   end
 
