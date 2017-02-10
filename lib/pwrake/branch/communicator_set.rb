@@ -11,6 +11,7 @@ class CommunicatorSet
     @selector = selector
     @option = option
     @communicators = {}
+    @error_host = []
     @initial_communicators = []
     if hb = @option[:heartbeat]
       @heartbeat_timeout = hb + 15

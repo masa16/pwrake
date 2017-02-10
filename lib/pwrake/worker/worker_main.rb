@@ -2,9 +2,10 @@ require "thread"
 require "fileutils"
 require "timeout"
 
-ncore = Marshal.load($stdin)
-opts = Marshal.load($stdin)
 begin
+  io = $stdin
+  ncore,len = io.read(8).unpack("V2")
+  opts = Marshal.load(io.read(len))
   dc = Pwrake.const_get(opts[:shared_directory])
   dc.init(opts)
   Pwrake::Invoker.new(dc, ncore, opts).run

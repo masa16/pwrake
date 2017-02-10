@@ -81,8 +81,11 @@ class Communicator
     @handler = NBIO::Handler.new(@reader,@writer,@host)
     #
     @writer.write(worker_code)
-    @writer.write(Marshal.dump(@ncore))
-    @writer.write(Marshal.dump(@option))
+    opts = Marshal.dump(@option)
+    s = [@ncore,opts.size].pack("V2")
+    @writer.write(s)
+    @writer.write(opts)
+
     # read ncore
     while s = @reader.get_line
       if /^ncore:(.*)$/ =~ s
@@ -134,7 +137,7 @@ class Communicator
     err_out = []
     begin
       finish_shells
-      @handler.exit
+      @handler.exit if @handler
       while s = @rd_err.get_line
         err_out << s
       end
