@@ -83,13 +83,14 @@ module Pwrake
       case @killed
       when 0
         # log writing failed. can't be called from trap context
+        $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid} ##{@killed})"
         if Rake.application.options.debug
-          $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid}"+
-            " thread=#{Thread.current} ##{@killed})"
+          $stderr.puts "in master thread #{Thread.current}:"
           $stderr.puts caller
-        else
-          $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid}"+
-            " ##{@killed})"
+          if @thread
+            $stderr.puts "in branch thread #{@thread}:"
+            $stderr.puts @thread.backtrace.join("\n")
+          end
         end
         $stderr.puts "Exiting..."
         @no_more_run = true
