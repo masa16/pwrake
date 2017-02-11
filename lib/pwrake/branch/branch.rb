@@ -9,6 +9,12 @@ module Pwrake
 
   class Branch
 
+    @@io_class = IO
+
+    def self.io_class=(io_class)
+      @@io_class = io_class
+    end
+
     def initialize(opts,r,w)
       Thread.abort_on_exception = true
       @option = opts
@@ -16,7 +22,7 @@ module Pwrake
       @shells = []
       @ior = r
       @iow = w
-      @selector = NBIO::Selector.new
+      @selector = NBIO::Selector.new(@@io_class)
       @master_rd = NBIO::Reader.new(@selector,@ior)
       @master_wt = NBIO::Writer.new(@selector,@iow)
       @shell_start_interval = @option['SHELL_START_INTERVAL']
