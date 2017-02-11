@@ -12,14 +12,18 @@ module Pwrake
       end
     end
 
+    def setup_pipe
+      @selector = NBIO::Selector.new(IO)
+      @rd = NBIO::Reader.new(@selector,$stdin)
+      @out = Writer.instance # firstly replace $stderr
+      @out.out = $stdout
+    end
+
     def initialize(dir_class, ncore, option)
       @dir_class = dir_class
       @option = option
       @ex_list = {}
-      @selector = NBIO::Selector.new
-      @rd = NBIO::Reader.new(@selector,$stdin)
-      @out = Writer.instance # firstly replace $stderr
-      @out.out = $stdout
+      setup_pipe
       @log = LogExecutor.instance
       @log.init(@option)
       @log.open(@dir_class)
@@ -144,8 +148,8 @@ module Pwrake
       begin
         Timeout.timeout(20){@log.close}
       rescue => e
-        $stdout.puts e
-        $stdout.puts e.backtrace.join("\n")
+        $stderr.puts e
+        $stderr.puts e.backtrace.join("\n")
       end
     ensure
       @out.puts "exited"
