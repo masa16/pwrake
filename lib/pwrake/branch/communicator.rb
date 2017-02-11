@@ -58,7 +58,7 @@ class Communicator
     CommChannel.new(@host,i,q,@writer,[@ior,@iow,@ioe])
   end
 
-  def connect(worker_code)
+  def setup_pipe(worker_code)
     rb_cmd = "ruby -e 'eval ARGF.read(#{worker_code.size})'"
     if ['localhost','localhost.localdomain','127.0.0.1'].include? @host
     #if /^localhost/ =~ @host
@@ -81,6 +81,10 @@ class Communicator
     @handler = NBIO::Handler.new(@reader,@writer,@host)
     #
     @writer.write(worker_code)
+  end
+
+  def connect(worker_code)
+    setup_pipe(worker_code)
     opts = Marshal.dump(@option)
     s = [@ncore,opts.size].pack("V2")
     @writer.write(s)
