@@ -1,5 +1,7 @@
 require "fiber"
 
+$debug=false
+
 module Pwrake
 module NBIO
 
@@ -53,9 +55,10 @@ module NBIO
       @running = true
       init_heartbeat if timeout
       while @running && !empty?
-        if $debug
-          Log.debug "Selector#run: "+caller[0..1].join(", ")+
-            " @reader.size=#{@reader.size} @writer.size=#{@writer.size}"
+        if $debug && defined? Log
+          rd_insp = @reader.map{|k,v| "%s=>%s,%s"%[k.inspect,v.class.inspect,v.waiter.inspect]}.join(",")
+          Log.debug "Selector#run:\n "+caller[0..1].join("\n ")+
+            "\n @reader={#{rd_insp}}\n @writer.size=#{@writer.size}"
           $stderr.puts "Selector#run: "+caller[0]
         end
         run_select(timeout)
@@ -77,7 +80,7 @@ module NBIO
       @reader.keys.each do |io|
         if io.closed?
           m = "#{em} io=#{io}"
-          Log.error(m)
+          Log.error(m) if defined? Log
           $stderr.puts m
           hdl = @reader.delete(io)
           hdl.error(e)
@@ -86,7 +89,7 @@ module NBIO
       @writer.keys.each do |io|
         if io.closed?
           m = "#{em} io=#{io}"
-          Log.error(m)
+          Log.error(m) if defined? Log
           $stderr.puts m
           hdl = @writer.delete(io)
           hdl.error(e)
@@ -232,7 +235,7 @@ module NBIO
       @sep = "\n"
       @chunk_size = 8192
     end
-    attr_reader :io
+    attr_reader :io, :waiter
     attr_accessor :check_timeout
 
     # call from Selector#run
@@ -267,6 +270,9 @@ module NBIO
         end
       end
       @waiter.push(Fiber.current)
+      if $debug && defined? Log
+        Log.debug("Reader#select_io: #{Fiber.current.inspect}\n "+caller.join("\n "))
+      end
       Fiber.yield
     ensure
       @waiter.delete(Fiber.current)
@@ -398,6 +404,7 @@ module NBIO
     end
 
     def halt
+      Log.debug("Handler.halt") if defined? Log
       @queue.each{|q| q.halt}
       @default_queue.halt
     end
@@ -474,14 +481,18 @@ module NBIO
     def exit
       exit_msg = "exited"
       iow = @writer.io
-      Log.debug "Handler#exit iow=#{iow.inspect}"
+      Log.debug "Handler#exit iow=#{iow.inspect}" if defined? Log
       return if iow.closed?
       @writer.put_line "exit"
-      while line = @reader.get_line
-        # here might receive "retire:0" from branch...
-        line.chomp!
-        Log.debug "Handler#exit: #{line} host=#{@host}"
-        return if line == exit_msg
+      Log.debug "Handler#exit: end: @writer.put_line \"exit\"" if defined? Log
+      #
+      if @reader.class == Reader # MultiReader not work
+        while line = @reader.get_line  # <- stop here
+          # here might receive "retire:0" from branch...
+          line.chomp!
+          Log.debug "Handler#exit: #{line} host=#{@host}" if defined? Log
+          return if line == exit_msg
+        end
       end
     rescue Errno::EPIPE => e
       if Rake.application.options.debug
@@ -489,7 +500,7 @@ module NBIO
         #$stderr.puts e.backtrace.join("\n")
       end
       Log.error "Errno::EPIPE in #{self.class}.exit iow=#{iow.inspect}\n"+
-        e.backtrace.join("\n")
+        e.backtrace.join("\n") if defined? Log
     end
 
     def halt
