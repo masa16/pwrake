@@ -1,5 +1,4 @@
 require "singleton"
-require "timeout"
 
 module Pwrake
 
@@ -9,28 +8,29 @@ module Pwrake
     def initialize
       @out = $stdout
       @mutex = Mutex.new
-      @queue = Queue.new
-      @heartbeat = 0
-      @thread = Thread.new do
-        loop do
-          begin
-            Timeout.timeout(@heartbeat) do
-              if s = @queue.deq
-                _puts s
-              end
-            end
-          rescue Timeout::Error
-            _puts "heartbeat"
-          end
-        end
-      end
+      @mutex_hb = Mutex.new
+      @cond_hb = true
+      @heartbeat = nil
+      @thread = Thread.new{ heartbeat_loop }
     end
 
     attr_accessor :out
 
-    def heartbeat=(heartbeat)
-      @heartbeat = heartbeat
-      @queue.enq(nil)
+    def heartbeat=(t)
+      @heartbeat = t.to_i
+      @thread.run
+    end
+
+    def heartbeat_loop
+      loop do
+        @heartbeat ? sleep(@heartbeat) : sleep
+        @mutex_hb.synchronize do
+          if @cond_hb
+            _puts "heartbeat"
+          end
+          @cond_hb = true
+        end
+      end
     end
 
     def add_logger(log)
@@ -38,7 +38,11 @@ module Pwrake
     end
 
     def puts(s)
-      @queue.enq(s)
+      @mutex_hb.synchronize do
+        @cond_hb = false
+        @thread.run
+      end
+      _puts(s)
     end
 
     def _puts(s)
@@ -47,7 +51,8 @@ module Pwrake
           @out.print s+"\n"
         end
         @out.flush
-      rescue Errno::EPIPE
+      rescue Errno::EPIPE => e
+        @log.info "<#{e.inspect}" if @log
       end
       @log.info "<#{s}" if @log
     end
