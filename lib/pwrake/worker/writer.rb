@@ -6,7 +6,7 @@ module Pwrake
     include Singleton
 
     def initialize
-      @out = $stdout
+      @out = $stderr
       @mutex = Mutex.new
       @mutex_hb = Mutex.new
       @cond_hb = true
