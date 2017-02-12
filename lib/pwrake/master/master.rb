@@ -44,6 +44,8 @@ module Pwrake
       else
         @logger.level = Logger::INFO
       end
+
+      at_exit{@logger.close}
     end
 
     def init(hosts=nil)

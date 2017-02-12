@@ -52,6 +52,7 @@ module Pwrake
           @logger = Logger.new(File::NULL)
         end
       end
+      at_exit{@logger.close}
 
       if @option['DEBUG']
         @logger.level = Logger::DEBUG
