@@ -1,3 +1,5 @@
+require "socket"
+
 module Pwrake
 
   class Invoker
@@ -12,37 +14,49 @@ module Pwrake
       end
     end
 
-    def setup_pipe
-      @selector = NBIO::Selector.new(IO)
-      @rd = NBIO::Reader.new(@selector,$stdin)
-      @out = Writer.instance # firstly replace $stderr
-      @out.out = $stdout
+    def get_io
+      [IO, $stdin, $stdout]
     end
 
-    def initialize(dir_class, ncore, option)
-      @dir_class = dir_class
-      @option = option
+    def setup_connection
+      ioc, ior, iow = get_io()
+      # write hostname
+      hostname = Socket.gethostname
+      iow.write([hostname.size].pack("V"))
+      iow.write(hostname)
+      iow.flush
+      # read @ncore and @option
+      @ncore,len = ior.read(8).unpack("V2")
+      @option = Marshal.load(ior.read(len))
+      # set pipe to branch-master
+      @selector = NBIO::Selector.new(ioc)
+      @rd = NBIO::Reader.new(@selector,ior)
+      @out = Writer.instance
+      @out.out = iow
+    end
+
+    def initialize
+      setup_connection
+      @dir_class = Pwrake.const_get(@option[:shared_directory])
+      @dir_class.init(@option)
       @ex_list = {}
-      setup_pipe
       @log = LogExecutor.instance
       @log.init(@option)
       @log.open(@dir_class)
       @out.add_logger(@log)
-      if ncore.kind_of?(Integer)
-        if ncore > 0
-          @ncore = ncore
-        else
-          @ncore = processor_count() + ncore
+      if @ncore.kind_of?(Integer)
+        if @ncore <= 0
+          @ncore += processor_count()
         end
         if @ncore <= 0
-          m = "Out of range: ncore=#{ncore.inspect}"
+          m = "Out of range: ncore=#{@ncore.inspect}"
           @out.puts "ncore:"+m
           raise ArgumentError,m
         end
-      elsif ncore.nil?
+      elsif @ncore.nil?
         @ncore = processor_count()
       else
-        m = "Invalid argument: ncore=#{ncore.inspect}"
+        m = "Invalid argument: ncore=#{@ncore.inspect}"
         @out.puts "ncore:"+m
         raise ArgumentError,m
       end
@@ -102,6 +116,11 @@ module Pwrake
     def command_callback
       while line = get_line(@rd) # rd returns nil if line is incomplete
         case line
+        when /^(\d+):exit$/o
+          id = $1
+          ex = @ex_list.delete(id)
+          ex.close
+          ex.join
         when /^(\d+):(.*)$/o
           id,cmd = $1,$2
           @ex_list[id].execute(cmd.chomp)
@@ -145,12 +164,7 @@ module Pwrake
       @ex_list.each_value{|ex| ex.close}
       @ex_list.each_value{|ex| ex.join}
       @log.info "worker:end:#{@ex_list.keys.inspect}"
-      begin
-        Timeout.timeout(20){@log.close}
-      rescue => e
-        $stderr.puts e
-        $stderr.puts e.backtrace.join("\n")
-      end
+      Timeout.timeout(20){@log.close}
     ensure
       @out.puts "exited"
     end
