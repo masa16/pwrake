@@ -56,7 +56,9 @@ module NBIO
       init_heartbeat if timeout
       while @running && !empty?
         if $debug && defined? Log
-          rd_insp = @reader.map{|k,v| "%s=>%s,%s"%[k.inspect,v.class.inspect,v.waiter.inspect]}.join(",")
+          rd_insp = @reader.map{|k,v|
+            "%s=>%s,%s" % [k.inspect,v.class.inspect,v.waiter.inspect]
+          }.join(",")
           Log.debug "Selector#run:\n "+caller[0..1].join("\n ")+
             "\n @reader={#{rd_insp}}\n @writer.size=#{@writer.size}"
           $stderr.puts "Selector#run: "+caller[0]
@@ -534,39 +536,5 @@ module NBIO
 
   end
 
-end
-
-#------------------------------------------------------------------
-
-if __FILE__ == $0
-  iosel = NBIO::Selector.new
-
-  io = 5.times.map do
-    IO.pipe
-  end
-
-  io.each do |ior,iow|
-    rd = NBIO::MultiReader.new(iosel,ior,1)
-    Fiber.new do
-      while s = rd.get_line(0)
-        puts s
-      end
-      puts "fiber end"
-    end.resume
-  end
-
-  io.each do |ior,iow|
-    wr = NBIO::Writer.new(iosel,iow)
-    Fiber.new do
-      2000.times do |i|
-        wr.put_line("test str#{i}"+"-"*80,0)
-        #iow.puts "0:test str#{i}"+"-"*80
-      end
-      #iow.print "hage"
-      iow.close
-    end.resume
-  end
-
-  iosel.run
 end
 end

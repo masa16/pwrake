@@ -114,7 +114,7 @@ module Pwrake
     end
 
     def command_callback
-      while line = get_line(@rd) # rd returns nil if line is incomplete
+      while line = get_line(@rd)
         case line
         when /^(\d+):exit$/o
           id = $1
