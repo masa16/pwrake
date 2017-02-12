@@ -3,14 +3,13 @@ require "fileutils"
 require "timeout"
 
 begin
-  io = $stdin
-  ncore,len = io.read(8).unpack("V2")
-  opts = Marshal.load(io.read(len))
-  dc = Pwrake.const_get(opts[:shared_directory])
-  dc.init(opts)
-  Pwrake::Invoker.new(dc, ncore, opts).run
+  Pwrake::Invoker.new.run
 rescue => exc
   log = Pwrake::LogExecutor.instance
   log.error exc
   log.error exc.backtrace.join("\n")
+  open("pwrake_worker_err-#{ENV['USER']}-#{Process.pid}","w") do |f|
+    f.puts exc
+    f.puts exc.backtrace.join("\n")
+  end
 end
