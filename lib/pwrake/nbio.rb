@@ -457,6 +457,7 @@ module NBIO
       @writer = writer
       @reader = reader
       @host = hostname
+      @exited = false
     end
     attr_reader :reader, :writer, :host
 
@@ -479,10 +480,17 @@ module NBIO
     end
 
     def exit
-      exit_msg = "exited"
       iow = @writer.io
       Log.debug "Handler#exit iow=#{iow.inspect}" if defined? Log
-      return if iow.closed?
+      if @exited
+        Log.debug "Handler<##{object_id}#exit multiple called" if defined? Log
+        bt = caller.join("\n ")
+        Log.debug "Handler#exit bt=\n #{bt}" if defined? Log
+        return
+      end
+      @exited = true
+      exit_msg = "exited"
+      #return if iow.closed?
       @writer.put_line "exit"
       Log.debug "Handler#exit: end: @writer.put_line \"exit\"" if defined? Log
       #
