@@ -39,6 +39,10 @@ module Pwrake
         rescue Exception => e
           # Exit with error message
           m = Log.bt(e)
+          if @master.thread
+            m += "\nIn branch thread #{@master.thread}:\n "
+            m += @master.thread.backtrace.join("\n ")
+          end
           Log.fatal m
           $stderr.puts m
           @master.signal_trap("INT")

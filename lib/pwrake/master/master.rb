@@ -25,6 +25,7 @@ module Pwrake
     attr_reader :task_queue
     attr_reader :option
     attr_reader :logger
+    attr_reader :thread
 
     def init_logger
       if logdir = @option['LOG_DIR']
