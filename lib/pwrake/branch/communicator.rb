@@ -74,21 +74,28 @@ class Communicator
     w0.close
     w1.close
     r2.close
+    # send worker_code
+    @iow.write(worker_code)
+  end
+
+  def connect(worker_code)
+    setup_pipe(worker_code)
+
+    # read hostname
+    len, = @ior.read(4).unpack("V")
+    @host = @ior.read(len)
+
+    # send ncore and options
+    opts = Marshal.dump(@option)
+    s = [@ncore||0, opts.size].pack("V2")
+    @iow.write(s)
+    @iow.write(opts)
+
     sel = @set.selector
     @reader = NBIO::MultiReader.new(sel,@ior)
     @rd_err = NBIO::Reader.new(sel,@ioe)
     @writer = NBIO::Writer.new(sel,@iow)
     @handler = NBIO::Handler.new(@reader,@writer,@host)
-    #
-    @writer.write(worker_code)
-  end
-
-  def connect(worker_code)
-    setup_pipe(worker_code)
-    opts = Marshal.dump(@option)
-    s = [@ncore,opts.size].pack("V2")
-    @writer.write(s)
-    @writer.write(opts)
 
     # read ncore
     while s = @reader.get_line
@@ -141,9 +148,14 @@ class Communicator
     err_out = []
     begin
       finish_shells
-      @handler.exit if @handler
-      while s = @rd_err.get_line
-        err_out << s
+      if @handler
+        @handler.exit
+        @handler = nil
+      end
+      if @rd_err
+        while s = @rd_err.get_line
+          err_out << s
+        end
       end
     rescue => e
       m = Log.bt(e)
