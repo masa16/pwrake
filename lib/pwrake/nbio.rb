@@ -97,7 +97,6 @@ module NBIO
           hdl.error(e)
         end
       end
-      #raise e
     end
 
     def init_heartbeat
@@ -253,13 +252,11 @@ module NBIO
       @buf.slice!(0, index+@sep.bytesize)
     rescue EOFError => e
       if @buf.empty?
-        #return nil
         raise e
       else
         buf = @buf; @buf = ''
         return buf
       end
-    #rescue IO::WaitReadable
     end
 
     # call from Reader#_read and FiberReaderQueue#deq
@@ -396,7 +393,6 @@ module NBIO
     rescue EOFError
       halt
     rescue IO::WaitReadable
-      #p IO::WaitReadable
     end
 
     def error(e)
@@ -472,7 +468,6 @@ module NBIO
     end
 
     def put_kill(sig="INT")
-      #@writer.put_line("kill:#{sig}")
       @writer.io.write("kill:#{sig}\n")
       @writer.io.flush
     end
@@ -497,7 +492,7 @@ module NBIO
       Log.debug "Handler#exit: end: @writer.put_line \"exit\"" if defined? Log
       #
       if @reader.class == Reader # MultiReader not work
-        while line = @reader.get_line  # <- stop here
+        while line = @reader.get_line
           # here might receive "retire:0" from branch...
           line.chomp!
           Log.debug "Handler#exit: #{line} host=#{@host}" if defined? Log
@@ -505,10 +500,6 @@ module NBIO
         end
       end
     rescue Errno::EPIPE => e
-      if Rake.application.options.debug
-        #$stderr.puts "Errno::EPIPE in #{self.class}#exit iow=#{iow.inspect}"
-        #$stderr.puts e.backtrace.join("\n")
-      end
       Log.error "Errno::EPIPE in #{self.class}.exit iow=#{iow.inspect}\n"+
         e.backtrace.join("\n") if defined? Log
     end
