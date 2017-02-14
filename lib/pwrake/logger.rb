@@ -7,7 +7,9 @@ module Pwrake
     module_function
 
     def method_missing(meth_id,*args)
-      Rake.application.logger.send(meth_id,*args)
+      if Rake.application.logger
+        Rake.application.logger.send(meth_id,*args)
+      end
     end
 
     def bt(e)
