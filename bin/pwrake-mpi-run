@@ -1,0 +1,17 @@
+#!/usr/bin/env ruby
+
+libpath = File.absolute_path(File.dirname(__FILE__))+"/../lib"
+$LOAD_PATH.unshift libpath
+
+require "mpipe"
+MPipe.init
+#puts "#{`hostname`} rank=#{MPipe::Comm.rank} size=#{MPipe::Comm.size}"
+
+wdir = ARGV.shift
+
+if MPipe::Comm.rank == 0
+  Dir.chdir(wdir)
+  require "pwrake/mpi/branch"
+else
+  require "pwrake/mpi/worker"
+end

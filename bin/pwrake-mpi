@@ -1,0 +1,51 @@
+#!/usr/bin/env ruby
+
+begin
+  require 'rake'
+rescue LoadError
+  require 'rubygems'
+  require 'rake'
+end
+
+libpath = File.absolute_path(File.dirname(__FILE__))+"/../lib"
+$LOAD_PATH.unshift libpath
+
+require "pwrake/version"
+require "pwrake/master/master_application"
+require "pwrake/task/task_manager"
+require "pwrake/task/task_algorithm"
+require "pwrake/branch/branch_application"
+
+module Pwrake
+module MasterApplication
+  def run
+    standard_exception_handling do
+      init("pwrake")  # <- parse options here
+      @role = Master.new # dummy
+      #@master.init(opts=Option.new)
+      opts = Option.new
+      opts.init
+      hosts = opts.host_map.map{|k,a| a.map{|h| h.name}}.flatten.join(",")
+      ["localhost",*hosts]
+    end
+  end
+end;end
+
+class Rake::Application
+  include Pwrake::BranchApplication
+  prepend Pwrake::MasterApplication
+  prepend Pwrake::TaskManager
+end
+class Rake::Task
+  include Pwrake::TaskAlgorithm
+end
+
+# does NOT exit when writing to broken pipe
+Signal.trap(:PIPE, "IGNORE")
+
+hosts = Rake.application.run
+
+require "shellwords"
+args = ARGV.map{|x| Shellwords.escape(x)}.join(" ")
+
+exec "mpirun -wdir #{ENV['HOME']} -host #{hosts.join(',')} pwrake-mpi-run #{ENV['PWD']} #{args}"
