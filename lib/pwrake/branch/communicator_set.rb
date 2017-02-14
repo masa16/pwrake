@@ -16,6 +16,11 @@ class CommunicatorSet
     if hb = @option[:heartbeat]
       @heartbeat_timeout = hb + 15
     end
+    init_hosts
+  end
+
+  def init_hosts
+    # for pwrake-mpi
   end
 
   attr_reader :selector

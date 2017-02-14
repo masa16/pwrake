@@ -81,10 +81,6 @@ class Communicator
   def connect(worker_code)
     setup_pipe(worker_code)
 
-    # read hostname
-    len, = @ior.read(4).unpack("V")
-    @host = @ior.read(len)
-
     # send ncore and options
     opts = Marshal.dump(@option)
     s = [@ncore||0, opts.size].pack("V2")

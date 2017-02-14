@@ -20,11 +20,6 @@ module Pwrake
 
     def setup_connection
       ioc, ior, iow = get_io()
-      # write hostname
-      hostname = Socket.gethostname
-      iow.write([hostname.size].pack("V"))
-      iow.write(hostname)
-      iow.flush
       # read @ncore and @option
       @ncore,len = ior.read(8).unpack("V2")
       @option = Marshal.load(ior.read(len))
