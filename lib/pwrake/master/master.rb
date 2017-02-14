@@ -13,13 +13,10 @@ module Pwrake
     def initialize
       @selector = NBIO::Selector.new
       @hostinfo_by_taskname = {}
-      @option = Option.new
       @hdl_set = []
       @channel_by_hostid = {}
       @channels = []
       @hostinfo_by_id = {}
-      @n_retry = @option["RETRY"]
-      init_logger
     end
 
     attr_reader :task_queue
@@ -49,8 +46,11 @@ module Pwrake
       at_exit{@logger.close}
     end
 
-    def init(hosts=nil)
+    def init(option)
+      @option = option
+      init_logger
       @option.init
+      @n_retry = @option["RETRY"]
       TaskWrapper.init_task_logger(@option)
     end
 

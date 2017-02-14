@@ -27,7 +27,7 @@ module Pwrake
         init("pwrake")  # <- parse options here
         @role = @master = Master.new
         t = Time.now
-        @master.init
+        @master.init(Option.new)
         @master.setup_branches
         load_rakefile
         begin
