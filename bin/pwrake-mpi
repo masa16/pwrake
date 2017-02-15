@@ -32,7 +32,7 @@ module MasterApplication
 end;end
 
 class Rake::Application
-  include Pwrake::BranchApplication
+  prepend Pwrake::MasterApplication
 end
 
 hosts = Rake.application.run.join(',')
