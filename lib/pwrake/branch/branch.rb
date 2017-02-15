@@ -26,6 +26,13 @@ module Pwrake
       @master_rd = NBIO::Reader.new(@selector,@ior)
       @master_wt = NBIO::Writer.new(@selector,@iow)
       @shell_start_interval = @option['SHELL_START_INTERVAL']
+
+      # init_logger
+      Log.set_logger(@option)
+      if dir = @option['LOG_DIR']
+        fn = File.join(dir,@option["COMMAND_CSV_FILE"])
+        Shell.profiler.open(fn,@option['GNU_TIME'],@option['PLOT_PARALLELISM'])
+      end
     end
 
     # Rakefile is loaded after 'init' before 'run'
@@ -37,35 +44,6 @@ module Pwrake
       setup_master_channel
       @cs.run("task execution")
       Log.debug "Branch#run end"
-    end
-
-    attr_reader :logger
-
-    def init_logger
-      if dir = @option['LOG_DIR']
-        logfile = File.join(dir,@option['LOG_FILE'])
-        @logger = Logger.new(logfile)
-      else
-        if @option['DEBUG']
-          @logger = Logger.new($stderr)
-        else
-          @logger = Logger.new(File::NULL)
-        end
-      end
-      at_exit{@logger.close}
-
-      if @option['DEBUG']
-        @logger.level = Logger::DEBUG
-      elsif @option['TRACE']
-        @logger.level = Logger::INFO
-      else
-        @logger.level = Logger::WARN
-      end
-
-      if dir = @option['LOG_DIR']
-        fn = File.join(dir,@option["COMMAND_CSV_FILE"])
-        Shell.profiler.open(fn,@option['GNU_TIME'],@option['PLOT_PARALLELISM'])
-      end
     end
 
     def setup_worker

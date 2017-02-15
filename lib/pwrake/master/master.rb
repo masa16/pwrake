@@ -17,42 +17,16 @@ module Pwrake
       @channel_by_hostid = {}
       @channels = []
       @hostinfo_by_id = {}
+      # init
+      @option = Option.new
+      Log.set_logger(@option)
+      @option.init
+      TaskWrapper.init_task_logger(@option)
     end
 
     attr_reader :task_queue
     attr_reader :option
-    attr_reader :logger
     attr_reader :thread
-
-    def init_logger
-      if logdir = @option['LOG_DIR']
-        ::FileUtils.mkdir_p(logdir)
-        logfile = File.join(logdir,@option['LOG_FILE'])
-        @logger = Logger.new(logfile)
-      else
-        if @option['DEBUG']
-          @logger = Logger.new($stderr)
-        else
-          @logger = Logger.new(File::NULL)
-        end
-      end
-
-      if @option['DEBUG']
-        @logger.level = Logger::DEBUG
-      else
-        @logger.level = Logger::INFO
-      end
-
-      at_exit{@logger.close}
-    end
-
-    def init(option)
-      @option = option
-      init_logger
-      @option.init
-      @n_retry = @option["RETRY"]
-      TaskWrapper.init_task_logger(@option)
-    end
 
     def setup_branch_handler(sub_host)
       ior,w0 = IO.pipe
@@ -230,6 +204,7 @@ module Pwrake
       @branch_setup_thread.join
       send_task_to_idle_core
       #
+      n_retry = @option["RETRY"]
       create_fiber(@hdl_set) do |hdl|
         while s = hdl.get_line
           Log.debug "Master:recv #{s.inspect} from branch[#{hdl.host}]"
@@ -253,7 +228,7 @@ module Pwrake
               if host_info
                 continuous_fail = host_info.task_result(tw.status)
                 Log.debug "task=#{tw.name} continuous_fail=#{continuous_fail}"
-                if continuous_fail > @n_retry && @hostinfo_by_id.size > 1
+                if continuous_fail > n_retry && @hostinfo_by_id.size > 1
                   # retire this host
                   drop_host(host_info)
                   Log.warn("retired host:#{host_info.name} due to continuous fail")

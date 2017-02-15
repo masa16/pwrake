@@ -9,14 +9,6 @@ module Pwrake
       @role.option
     end
 
-    def logger
-      @role.logger
-    end
-
-    def task_logger
-      @role.task_logger
-    end
-
     def task_queue
       @role.task_queue
     end
@@ -27,7 +19,6 @@ module Pwrake
         init("pwrake")  # <- parse options here
         @role = @master = Master.new
         t = Time.now
-        @master.init(Option.new)
         @master.setup_branches
         load_rakefile
         begin

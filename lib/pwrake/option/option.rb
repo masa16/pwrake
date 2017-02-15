@@ -28,7 +28,7 @@ module Pwrake
       self.each do |k,v|
 	Log.info " #{k} = #{v.inspect}"
       end
-      #@counter = Counter.new
+      #
       setup_hosts
       setup_filesystem # require 'option_filesystem.rb'
       #
@@ -38,7 +38,6 @@ module Pwrake
     end
 
     attr_reader :counter
-    attr_reader :logger
     attr_accessor :total_cores
 
     DEFAULT_CONFFILES = ["pwrake_conf.yaml","PwrakeConf.yaml"]
@@ -59,7 +58,6 @@ module Pwrake
       if pwrake_conf.nil?
         @yaml = {}
       else
-        #Log.debug "load pwrake_conf=#{pwrake_conf}"
         require "yaml"
         @yaml = open(pwrake_conf){|f| YAML.load(f) }
       end
@@ -312,6 +310,7 @@ module Pwrake
       end
     end
 
+    # ------------------------------------------------------------------------
 
     def setup_hosts
       if @hostfile && @num_threads
@@ -350,12 +349,6 @@ done
         end
       end
       threads.each{|t| t.join}
-    end
-
-    # ----- finish -----
-
-    def finish_option
-      Log.close
     end
 
   end
