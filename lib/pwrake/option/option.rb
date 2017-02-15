@@ -1,6 +1,7 @@
 require "pathname"
 require "yaml"
 require "pwrake/option/host_map"
+require "pwrake/option/option_filesystem"
 
 module Pwrake
 
@@ -353,5 +354,3 @@ done
 
   end
 end
-
-require "pwrake/option/option_filesystem"
