@@ -33,7 +33,7 @@ module Pwrake
         v   = s.split('|')
         v.each{|a| @ipaddr_to_rank[a] = rank}
       end
-      Log.info "@ipaddr_to_rank="+@ipaddr_to_rank.inspect
+      Log.debug "@ipaddr_to_rank="+@ipaddr_to_rank.inspect
     end
     attr_reader :ipaddr_to_rank
   end
