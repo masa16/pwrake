@@ -25,7 +25,7 @@ module MasterApplication
       #@master.init(opts=Option.new)
       opts = Option.new
       opts.init
-      hosts = opts.host_map.map{|b,a| a.map{|h| h.given_name}}.flatten
+      hosts = opts.host_map.map{|b,a| a.map{|h| h.name}}.flatten
       if opts['MASTER_IS_FIRST_HOST']
         [hosts[0],*hosts]
       else
