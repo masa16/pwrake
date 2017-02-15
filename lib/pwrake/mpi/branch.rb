@@ -40,11 +40,11 @@ module Pwrake
 
   class Communicator
     def setup_pipe(worker_code)
-      ia = IPSocket.getaddress(@host)
-      if %w[127.0.0.1 ::1].include?(ia)
-        ia = IPSocket.getaddress(Socket.gethostname)
+      ipa = IPSocket.getaddress(@host)
+      if %w[127.0.0.1 ::1].include?(ipa)
+        ipa = IPSocket.getaddress(Socket.gethostname)
       end
-      @rank = @set.ipaddr_to_rank[ia]
+      @rank = @set.ipaddr_to_rank[ipa]
       if @rank.nil?
         raise RuntimeError,"no rank for #{@host}"
       end
