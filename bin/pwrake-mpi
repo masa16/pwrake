@@ -25,7 +25,7 @@ module MasterApplication
       #@master.init(opts=Option.new)
       opts = Option.new
       opts.init
-      hosts = opts.host_map.map{|k,a| a.map{|h| h.name}}.flatten
+      hosts = opts.host_map.map{|b,a| a.map{|h| h.given_name}}.flatten
       if opts['MASTER_IS_FIRST_HOST']
         [hosts[0],*hosts]
       else
@@ -54,4 +54,3 @@ args = ARGV.map{|x| Shellwords.escape(x)}.join(" ")
 
 cmd="mpirun -wdir \"$HOME\" -host #{hosts} pwrake-mpi-run \"$PWD\" #{args}"
 exec cmd
-
