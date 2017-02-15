@@ -1,6 +1,7 @@
 require "pathname"
 require "yaml"
 require "pwrake/option/host_map"
+module Pwrake; class Option < Hash; end; end
 require "pwrake/option/option_filesystem"
 
 module Pwrake
