@@ -25,8 +25,12 @@ module MasterApplication
       #@master.init(opts=Option.new)
       opts = Option.new
       opts.init
-      hosts = opts.host_map.map{|k,a| a.map{|h| h.name}}.flatten.join(",")
-      ["localhost",*hosts]
+      hosts = opts.host_map.map{|k,a| a.map{|h| h.name}}.flatten
+      if opts['MASTER_IS_FIRST_HOST']
+        [hosts[0],*hosts]
+      else
+        [Socket.gethostname,*hosts]
+      end
     end
   end
 end;end
@@ -43,9 +47,11 @@ end
 # does NOT exit when writing to broken pipe
 Signal.trap(:PIPE, "IGNORE")
 
-hosts = Rake.application.run
+hosts = Rake.application.run.join(',')
 
 require "shellwords"
 args = ARGV.map{|x| Shellwords.escape(x)}.join(" ")
 
-exec "mpirun -wdir #{ENV['HOME']} -host #{hosts.join(',')} pwrake-mpi-run #{ENV['PWD']} #{args}"
+cmd="mpirun -wdir \"$HOME\" -host #{hosts} pwrake-mpi-run \"$PWD\" #{args}"
+exec cmd
+
