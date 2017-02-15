@@ -2,8 +2,9 @@ module Pwrake
 
   class HostInfo
 
-    def initialize(name,id,ncore,weight,group=nil)
+    def initialize(name,given,id,ncore,weight,group=nil)
       @name = name
+      @given_name = given
       @ncore = ncore
       @weight = weight || 1.0
       @group = group || 0
@@ -13,7 +14,7 @@ module Pwrake
       @count_task = 0
     end
 
-    attr_reader :name, :ncore, :weight, :group, :id, :steal_flag
+    attr_reader :name, :given_name, :ncore, :weight, :group, :id, :steal_flag
     attr_accessor :idle_cores
 
     def set_ncore(n)
@@ -167,9 +168,10 @@ module Pwrake
         end
         hosts.each do |host|
           begin
-            host = Socket.gethostbyname(host)[0]
+            fqdn = Socket.gethostbyname(host)[0]
           rescue
-            Log.warn "FQDN not resoved : #{host}"
+            Log.warn "not resolved by Socket.gethostbyname: #{host}"
+            fqdn = host
           end
           ncore  &&= ncore.to_i
           weitht &&= weight.to_i
@@ -179,7 +181,7 @@ module Pwrake
             raise RuntimeError,"duplicated hostname: #{host}"
           else
             id = @by_id.size
-            host_info = HostInfo.new(host,id,ncore,weight,group)
+            host_info = HostInfo.new(fqdn,host,id,ncore,weight,group)
             @by_name[host] = host_info
             info_list << host_info
             @by_id << host_info

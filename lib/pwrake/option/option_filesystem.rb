@@ -1,4 +1,3 @@
-require "pwrake/option/option_filesystem"
 require "parallel"
 
 module Pwrake
