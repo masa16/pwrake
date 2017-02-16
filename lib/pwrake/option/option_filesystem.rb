@@ -36,8 +36,6 @@ module Pwrake
         end
       end
 
-      #n_noaction_th = self['NUM_NOACTION_THREADS']
-
       case @filesystem
       when 'gfarm'
         require "pwrake/queue/locality_aware_queue"
@@ -63,15 +61,12 @@ module Pwrake
 	else
 	  @queue_class = "LocalityAwareQueue"
 	end
-        #@num_noaction_threads = (n_noaction_th || [8,@host_map.num_threads].max).to_i
       else
         @filesystem  = 'nfs'
         @queue_class = "TaskQueue"
-        #@num_noaction_threads = (n_noaction_th || 1).to_i
         @worker_option[:shared_directory] = "SharedDirectory"
       end
       @worker_progs.push "pwrake/worker/worker_main"
-      Log.debug "@queue_class=#{@queue_class}"
     end
 
     def max_postprocess_pool

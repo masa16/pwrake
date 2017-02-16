@@ -20,8 +20,12 @@ module Pwrake
       # init
       @option = Option.new
       Log.set_logger(@option)
-      @option.init
       TaskWrapper.init_task_logger(@option)
+      # moved from Option#init
+      @option.put_log
+      if @option['LOG_DIR'] && @option['GC_LOG_FILE']
+        GC::Profiler.enable
+      end
     end
 
     attr_reader :task_queue

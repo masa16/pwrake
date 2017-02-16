@@ -20,7 +20,6 @@ module MasterApplication
     standard_exception_handling do
       init("pwrake")  # <- parse options here
       opts = Option.new
-      opts.init
       hosts = opts.host_map.map{|b,a| a.map{|h| h.name}}.flatten
       if opts['MASTER_IS_FIRST_HOST']
         [hosts[0],*hosts]

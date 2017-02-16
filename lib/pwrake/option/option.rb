@@ -1,7 +1,10 @@
 require "pathname"
 require "yaml"
 require "pwrake/option/host_map"
-module Pwrake; class Option < Hash; end; end
+
+module Pwrake
+  class Option < Hash; end
+end
 require "pwrake/option/option_filesystem"
 
 module Pwrake
@@ -23,20 +26,8 @@ module Pwrake
         Report.new(self,[]).report_html
         exit
       end
-    end
-
-    def init
-      Log.info "Options:"
-      self.each do |k,v|
-	Log.info " #{k} = #{v.inspect}"
-      end
-      #
       setup_hosts
       setup_filesystem # require 'option_filesystem.rb'
-      #
-      if self['LOG_DIR'] && self['GC_LOG_FILE']
-        GC::Profiler.enable
-      end
     end
 
     attr_reader :counter
@@ -322,6 +313,17 @@ module Pwrake
     end
     attr_reader :host_map
 
+    # ------------------------------------------------------------------------
+
+    def put_log
+      Log.info "Options:"
+      self.each do |k,v|
+        Log.info " #{k} = #{v.inspect}"
+      end
+      Log.debug "@queue_class=#{@queue_class}"
+    end
+
+    # ------------------------------------------------------------------------
 
     def clear_gfarm2fs
       setup_hosts
