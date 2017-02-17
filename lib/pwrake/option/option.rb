@@ -210,7 +210,7 @@ module Pwrake
         ['MASTER_HOSTNAME', proc{|v| (v || begin;`hostname -f`;rescue;end || '').chomp}],
         ['WORK_DIR', proc{|v|
            v ||= '%CWD_RELATIVE_TO_HOME'
-           v.sub('%CWD_RELATIVE_TO_HOME',cwd_relative_to_home)
+           v.sub('%CWD_RELATIVE_TO_HOME',cwd_relative_if_under_home)
          }],
       ].concat(option_data_filesystem)
     end
