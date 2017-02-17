@@ -1,6 +1,15 @@
+require "socket"
+
 module Pwrake
 
   class HostInfo
+
+    @@local_ip = nil
+
+    def self.local_ip
+      @@local_ip ||=
+        Socket.getifaddrs.select{|a| a.addr.ip?}.map{|a| a.addr.ip_address}
+    end
 
     def initialize(name,id,ncore,weight,group=nil)
       @name = name
@@ -15,6 +24,11 @@ module Pwrake
 
     attr_reader :name, :ncore, :weight, :group, :id, :steal_flag
     attr_accessor :idle_cores
+
+    def local?
+      ipa = IPSocket.getaddress(@name)
+      HostInfo.local_ip.include?(ipa)
+    end
 
     def set_ncore(n)
       @retire = 0
@@ -74,7 +88,7 @@ module Pwrake
       @host_map = {}
       @by_id = []
       @by_name = {}
-      require "socket"
+      @is_local = false
       case arg
       when /\.yaml$/
         read_yaml(arg)
@@ -86,11 +100,20 @@ module Pwrake
         parse_hosts(["localhost 1"])
       else
         raise ArgumentError, "arg=#{arg.inspect}"
-        #@num_threads = 1 if !@num_threads
-        #@core_list = ['localhost'] * @num_threads
+      end
+
+      # local check
+      if @by_id.size == 1
+        if @by_id[0].local?
+          @is_local = true
+        end
       end
     end
     attr_reader :by_id, :by_name
+
+    def local?
+      @is_local
+    end
 
     def host_count
       @by_id.size
@@ -137,7 +160,6 @@ module Pwrake
     end
 
     def parse_hosts(hosts)
-      #p hosts
       if hosts.kind_of? Array
         hosts = {"localhost"=>hosts}
       end
