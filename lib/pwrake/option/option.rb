@@ -1,11 +1,7 @@
 require "pathname"
 require "yaml"
+require "parallel"
 require "pwrake/option/host_map"
-
-module Pwrake
-  class Option < Hash; end
-end
-require "pwrake/option/option_filesystem"
 
 module Pwrake
 
@@ -15,6 +11,7 @@ module Pwrake
 
     def initialize
       load_pwrake_conf
+      init_filesystem
       init_options
       init_pass_env
       if self['SHOW_CONF']
@@ -27,7 +24,7 @@ module Pwrake
         exit
       end
       setup_hosts
-      setup_filesystem # require 'option_filesystem.rb'
+      set_filesystem_option
     end
 
     attr_reader :counter
@@ -55,6 +52,47 @@ module Pwrake
         @yaml = open(pwrake_conf){|f| YAML.load(f) }
       end
     end
+
+    # ----------------------------------------------------------
+
+    def init_filesystem
+      @filesystem = Rake.application.options.filesystem
+      @filesystem ||= mount_type.sub(/fuse\./,"")
+      begin
+        require "pwrake/option/option_#{@filesystem}"
+      rescue LoadError
+        require "pwrake/option/option_default_filesystem"
+      end
+    end
+    attr_reader :worker_progs
+    attr_reader :worker_option
+    attr_reader :queue_class
+
+    def mount_type(d=nil)
+      mtab = '/etc/mtab'
+      if File.exist?(mtab)
+        d ||= mountpoint_of_cwd
+        open(mtab,'r') do |f|
+          f.each_line do |l|
+            a = l.split
+            if a[1] == d
+              return a[2]
+            end
+          end
+        end
+      end
+      nil
+    end
+
+    def mountpoint_of_cwd
+      d = Pathname.pwd
+      while !d.mountpoint?
+        d = d.parent
+      end
+      d.to_s
+    end
+
+    # ----------------------------------------------------------
 
     def init_options
       option_data.each do |a|
@@ -100,12 +138,8 @@ module Pwrake
         'TRACE_OUTPUT',
         'TRACE_RULES',
 
-        'FILESYSTEM',
         'SSH_OPTION',
         'PASS_ENV',
-        'GFARM2FS_OPTION',
-        'GFARM2FS_DEBUG',
-        ['GFARM2FS_DEBUG_WAIT', proc{|v| v ? v.to_i : 1}],
         'GNU_TIME',
         'DEBUG',
         'PLOT_PARALLELISM',
@@ -116,7 +150,6 @@ module Pwrake
         'FAILURE_TERMINATION', # wait, kill, continue
         'QUEUE_PRIORITY', # RANK(default), FIFO, LIFO, DFS
         'NOACTION_QUEUE_PRIORITY', # FIFO(default), LIFO, RAND
-        #'NUM_NOACTION_THREADS', # default=4 when gfarm, else 1
         'GRAPH_PARTITION',
         'PLOT_PARTITION',
 
@@ -174,18 +207,12 @@ module Pwrake
         ['SHELL_START_INTERVAL', proc{|v| (v || 0.012).to_f}],
         ['HEARTBEAT', proc{|v| (v || 240).to_i}],
         ['RETRY', proc{|v| (v || 1).to_i}],
-        ['DISABLE_AFFINITY', proc{|v| v || ENV['AFFINITY']=='off'}],
-        ['DISABLE_STEAL', proc{|v| v || ENV['STEAL']=='off'}],
-        ['GFARM_BASEDIR', proc{|v| v || '/tmp'}],
-        ['GFARM_PREFIX', proc{|v| v || "pwrake_#{ENV['USER']}"}],
-        ['GFARM_SUBDIR', proc{|v| v || '/'}],
-        ['MAX_GFWHERE_WORKER', proc{|v| (v || 8).to_i}],
         ['MASTER_HOSTNAME', proc{|v| (v || begin;`hostname -f`;rescue;end || '').chomp}],
         ['WORK_DIR', proc{|v|
            v ||= '%CWD_RELATIVE_TO_HOME'
            v.sub('%CWD_RELATIVE_TO_HOME',cwd_relative_to_home)
          }],
-      ]
+      ].concat(option_data_filesystem)
     end
 
     def format_time_pid(v)
@@ -270,7 +297,7 @@ module Pwrake
       return pwd.relative_path_from(home).to_s
     end
 
-    # ------------------------------------------------------------------------
+    # ----------------------------------------------------------
 
     def init_pass_env
       if envs = self['PASS_ENV']
@@ -303,7 +330,7 @@ module Pwrake
       end
     end
 
-    # ------------------------------------------------------------------------
+    # ----------------------------------------------------------
 
     def setup_hosts
       if @hostfile && @num_threads
@@ -313,7 +340,7 @@ module Pwrake
     end
     attr_reader :host_map
 
-    # ------------------------------------------------------------------------
+    # ----------------------------------------------------------
 
     def put_log
       Log.info "Options:"
@@ -321,38 +348,7 @@ module Pwrake
         Log.info " #{k} = #{v.inspect}"
       end
       Log.debug "@queue_class=#{@queue_class}"
-    end
-
-    # ------------------------------------------------------------------------
-
-    def clear_gfarm2fs
-      setup_hosts
-      d = File.join(self['GFARM_BASEDIR'],self['GFARM_PREFIX'])
-      rcmd = "
-for i in #{d}*; do
-  if [ -d \"$i\" ]; then
-    case \"$i\" in
-      *_000) ;;
-      *) fusermount -u $i; rmdir $i ;;
-    esac
-  fi
-done
-sleep 1
-for i in #{d}*_000; do
-  if [ -d \"$i\" ]; then
-    fusermount -u $i; rmdir $i
-  fi
-done
-"
-      threads = []
-      @host_map.each do |k,hosts|
-        hosts.each do |info|
-          threads << Thread.new do
-            system "ssh #{info.name} '#{rcmd}'"
-          end
-        end
-      end
-      threads.each{|t| t.join}
+      Log.debug "@filesystem=#{@filesystem}"
     end
 
   end
