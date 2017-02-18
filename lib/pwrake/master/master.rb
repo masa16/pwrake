@@ -113,6 +113,10 @@ module Pwrake
               Log.debug "worker_id=#{id} ncore=#{ncore}"
               @hostinfo_by_id[id].set_ncore(ncore)
               sum_ncore += ncore
+            when /^ip:(\d+):(\S+)$/
+              id, ipa = $1.to_i, $2
+              Log.debug "worker_id=#{id} ip=#{ipa}"
+              @hostinfo_by_id[id].set_ip(ipa)
             when /^exited$/
               raise RuntimeError,"Unexpected branch exit"
             else

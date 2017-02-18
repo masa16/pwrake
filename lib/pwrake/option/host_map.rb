@@ -20,9 +20,11 @@ module Pwrake
       @continuous_fail = 0
       @total_fail = 0
       @count_task = 0
+      @ipaddr = []
     end
 
     attr_reader :name, :ncore, :weight, :group, :id, :steal_flag
+    attr_reader :ipaddr
     attr_accessor :idle_cores
 
     def local?
@@ -34,6 +36,10 @@ module Pwrake
       @retire = 0
       @busy_cores = 0
       @ncore = @idle_cores = n
+    end
+
+    def set_ip(ipa)
+      @ipaddr.push(ipa)
     end
 
     def idle(n)

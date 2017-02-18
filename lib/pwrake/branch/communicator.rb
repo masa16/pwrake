@@ -38,6 +38,7 @@ class Communicator
   attr_reader :id, :host, :ncore, :channel
   attr_reader :reader, :writer, :handler
   attr_reader :shells
+  attr_reader :ipaddr
 
   def initialize(set,id,host,ncore,selector,option)
     @set = set
@@ -47,6 +48,7 @@ class Communicator
     @selector = selector
     @option = option
     @shells = {}
+    @ipaddr = []
   end
 
   def inspect
@@ -95,7 +97,12 @@ class Communicator
 
     # read ncore
     while s = @reader.get_line
-      if /^ncore:(.*)$/ =~ s
+      case s
+      when /^ip:(.*)$/
+        a = $1
+        @ipaddr.push(a)
+        Log.debug "ip=#{a} @#{@host}"
+      when /^ncore:(.*)$/
         a = $1
         Log.debug "ncore=#{a} @#{@host}"
         if /^(\d+)$/ =~ a

@@ -61,6 +61,9 @@ module Pwrake
         @cs.each_value do |comm|
           # set WorkerChannel#ncore at Master
           @master_wt.put_line "ncore:#{comm.id}:#{comm.ncore}"
+          comm.ipaddr.each do |ipa|
+            @master_wt.put_line "ip:#{comm.id}:#{ipa}"
+          end
         end
         @master_wt.put_line "ncore:done"
       end.resume

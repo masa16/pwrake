@@ -39,6 +39,23 @@ module Pwrake
       @log.init(@option)
       @log.open(@dir_class)
       @out.add_logger(@log)
+      send_ipaddr
+      send_ncore
+      # does NOT exit when writing to broken pipe
+      Signal.trap("PIPE", "SIG_IGN")
+    end
+
+    def send_ipaddr
+      # get IP addresses
+      v = Socket.getifaddrs.
+        select{|a| a.addr.ip? && (a.flags & Socket::IFF_MULTICAST != 0)}
+      # write IP addresses
+      v.each do |a|
+        @out.puts "ip:#{a.addr.ip_address}"
+      end
+    end
+
+    def send_ncore
       if @ncore.kind_of?(Integer)
         if @ncore <= 0
           @ncore += processor_count()
@@ -56,8 +73,6 @@ module Pwrake
         raise ArgumentError,m
       end
       @out.puts "ncore:#{@ncore}"
-      # does NOT exit when writing to broken pipe
-      Signal.trap("PIPE", "SIG_IGN")
     end
 
     def get_line(io)

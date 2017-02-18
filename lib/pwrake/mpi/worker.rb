@@ -14,7 +14,9 @@ require "timeout"
 require "socket"
 
 module Pwrake
+
   class Invoker
+
     def get_io
       # get IP addresses
       v = Socket.getifaddrs
@@ -29,6 +31,11 @@ module Pwrake
       # returns IO, $stdin, $stdout
       [MPipe, MPipe.new(0), MPipe.new(0)]
     end
+
+    def send_ipaddr
+      # do nothing
+    end
+
   end
 end
 
