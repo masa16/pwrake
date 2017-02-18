@@ -93,33 +93,33 @@ module Pwrake
       @option.host_map.each do |sub_host, wk_hosts|
         @hdl_set << hdl = setup_branch_handler(sub_host)
         Fiber.new do
-        hdl.put_line "host_list_begin"
-        wk_hosts.each do |host_info|
-          name = host_info.name
-          ncore = host_info.ncore
-          host_id = host_info.id
-          Log.debug "connecting #{name} ncore=#{ncore} id=#{host_id}"
-          hdl.put_line "host:#{host_id} #{name} #{ncore}"
-          @channel_by_hostid[host_id] = hdl
-          @hostinfo_by_id[host_id] = host_info
-        end
-        hdl.put_line "host_list_end"
-        while s = hdl.get_line
-          case s
-          when /^ncore:done$/
-            break
-          when /^ncore:(\d+):(\d+)$/
-            id, ncore = $1.to_i, $2.to_i
-            Log.debug "worker_id=#{id} ncore=#{ncore}"
-            @hostinfo_by_id[id].set_ncore(ncore)
-            sum_ncore += ncore
-          when /^exited$/
-            raise RuntimeError,"Unexpected branch exit"
-          else
-            msg = "#{hdl.host}:#{s.inspect}"
-            raise RuntimeError,"invalid return: #{msg}"
+          hdl.put_line "host_list_begin"
+          wk_hosts.each do |host_info|
+            name = host_info.name
+            ncore = host_info.ncore
+            host_id = host_info.id
+            Log.debug "connecting #{name} ncore=#{ncore} id=#{host_id}"
+            hdl.put_line "host:#{host_id} #{name} #{ncore}"
+            @channel_by_hostid[host_id] = hdl
+            @hostinfo_by_id[host_id] = host_info
           end
-        end
+          hdl.put_line "host_list_end"
+          while s = hdl.get_line
+            case s
+            when /^ncore:done$/
+              break
+            when /^ncore:(\d+):(\d+)$/
+              id, ncore = $1.to_i, $2.to_i
+              Log.debug "worker_id=#{id} ncore=#{ncore}"
+              @hostinfo_by_id[id].set_ncore(ncore)
+              sum_ncore += ncore
+            when /^exited$/
+              raise RuntimeError,"Unexpected branch exit"
+            else
+              msg = "#{hdl.host}:#{s.inspect}"
+              raise RuntimeError,"invalid return: #{msg}"
+            end
+          end
         end.resume
       end
       @selector.run
