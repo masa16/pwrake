@@ -6,9 +6,7 @@ module Pwrake
       # group_map = {gid1=>[hid1,hid2,...], ...}
       @size_q = 0
       @q = {}
-      @hostinfo_by_name = {}
       @hostinfo_by_id.each do |id,h|
-        @hostinfo_by_name[h.name] = h
         @q[id] = @array_class.new(h.ncore)
       end
       @q_group = {}
@@ -24,8 +22,20 @@ module Pwrake
       @disable_steal = Rake.application.pwrake_options['DISABLE_STEAL']
       @last_enq_time = Time.now
       @n_turn = @disable_steal ? 1 : 2
+      @ids_for_filenode = {}
     end
 
+    def ids_for_filenode(node)
+      unless a = @ids_for_filenode[node]
+        @ids_for_filenode[node] = a = []
+        ip = IPSocket.getaddress(node)
+        @hostinfo_by_id.each do |id,h|
+          a << id if h.ipaddr.include?(ip)
+        end
+        Log.debug "filenode:#{node} host_ids:#{a.inspect}"
+      end
+      a
+    end
 
     def enq_impl(t)
       hints = t && t.suggest_location
@@ -33,16 +43,15 @@ module Pwrake
       if hints.nil? || hints.empty?
         @q_remote.push(t)
       else
-        stored = false
+        kv = {}
         hints.each do |h|
-          host_info = @hostinfo_by_name[h]
-          if host_info && q = @q[host_info.id]
-            t.assigned.push(host_info.id)
-            q.push(t)
-            stored = true
-          end
+          ids_for_filenode(h).each{|id| kv[id] = true}
         end
-        if stored
+        if !kv.empty?
+          kv.each do |id,|
+            t.assigned.push(id)
+            @q[id].push(t)
+          end
           @size_q += 1
         else
           @q_remote.push(t)
