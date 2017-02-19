@@ -326,8 +326,7 @@ module Pwrake
           j = i
           while tw = pool.deq()
             Log.debug "postproc##{j} deq=#{tw.name}"
-            loc = postproc.run(tw)
-            tw.postprocess(loc)
+            tw.postprocess(postproc)
             pool.count_down
             @hostinfo_by_taskname.delete(tw.name)
             tw.retry_or_subsequent unless @exited

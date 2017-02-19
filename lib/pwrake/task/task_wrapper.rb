@@ -78,14 +78,14 @@ module Pwrake
       @n_retry == 0
     end
 
-    def postprocess(location)
+    def postprocess(postproc)
       @executed = true if !@task.actions.empty?
       #tm_taskend = Time.now
       if is_file_task?
         #t = Time.now
         if File.exist?(name)
           @file_stat = File::Stat.new(name)
-          @location = location
+          @location = postproc.run(self)
         end
       end
       #Log.debug "postprocess time=#{Time.now-tm_taskend}"
