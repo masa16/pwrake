@@ -39,12 +39,10 @@ module Pwrake
 
     def task_locality
       file_size = {}
-      file_host = {}
       h = {}
       @task_table.each do |row|
         name            = row['task_name']
         file_size[name] = row['file_size'].to_i
-        file_host[name] = (row['file_host']||'').split('|')
         exec_host = row['exec_host'] || ""
         h[exec_host] = true
       end
@@ -54,15 +52,16 @@ module Pwrake
         if row['executed']=='1'
           name      = row['task_name']
           exec_host = row['exec_host']
-          loc = file_host[name].include?(exec_host)
+          loc = (row['write_loc'] == "L")
           count(exec_host, loc, :out_num, 1)
           count(exec_host, loc, :out_size, file_size[name])
 
           preq_files = (row['preq']||'').split('|')
-          preq_files.each do |preq|
+          preq_loc = row['preq_loc']||''
+          preq_files.each_with_index do |preq,i|
             sz = file_size[preq]
             if sz && sz > 0
-              loc = file_host[preq].include?(exec_host)
+              loc = (preq_loc[i] == "L")
               count(exec_host, loc, :in_num, 1)
               count(exec_host, loc, :in_size, sz)
             end
