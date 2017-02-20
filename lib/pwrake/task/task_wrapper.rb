@@ -55,7 +55,7 @@ module Pwrake
         @@task_logger = CSV.open(fn,'w')
         @@task_logger.puts %w[
           task_id task_name start_time end_time elap_time preq preq_host preq_loc
-          exec_host shell_id has_action executed file_size file_mtime file_host
+          exec_host shell_id has_action executed file_size file_mtime file_host write_loc
         ]
       end
     end
@@ -128,38 +128,34 @@ module Pwrake
         RANK_STAT.add_sample(rank,elap)
       end
       #
-      if @file_stat
-        fstat = [@file_stat.size, @file_stat.mtime, self.location.join('|')]
-      else
-        fstat = [nil]*3
+      # locality check
+      preq_loc = nil
+      write_loc = nil
+      queue = Rake.application.task_queue
+      if queue.respond_to?(:ids_for_filenode)
+        if !prerequisites.empty?
+          preq_loc = prerequisites.map do |preq|
+            locs = Rake.application[preq].wrapper.location
+            file_locality(locs,queue) || "n"
+          end.join("")
+        end
+        write_loc = file_locality(@location,queue)
       end
       #
-      # locality check
-      task_queue = Rake.application.task_queue
-      if !prerequisites.empty? && task_queue.respond_to?(:ids_for_filenode)
-        preq_loc = prerequisites.map do |preq|
-          nodes = Rake.application[preq].wrapper.location
-          if nodes.empty?
-            "x"  # not available
-          elsif nodes.any?{|node|
-              task_queue.ids_for_filenode(node).include?(@exec_host_id)}
-            "L"  # Local
-          else
-            "R"  # Remote
-          end
-        end.join("")
+      if @file_stat
+        fstat = [@file_stat.size, @file_stat.mtime, self.location.join('|'), write_loc]
       else
-        preq_loc = nil
+        fstat = [nil]*4
       end
       #
       # task_id task_name start_time end_time elap_time preq preq_host preq_loc
-      # exec_host shell_id has_action executed file_size file_mtime file_host
+      # exec_host shell_id has_action executed file_size file_mtime file_host write_loc
       #
       row = [ @task_id, name, @time_start, @time_end, elap,
               prerequisites, sug_host, preq_loc, @exec_host, @shell_id,
               (actions.empty?) ? 0 : 1,
               (@executed) ? 1 : 0,
-              *fstat ]
+            ] + fstat
       row.map!{|x|
         if x.kind_of?(Time)
           TaskWrapper.format_time(x)
@@ -182,6 +178,17 @@ module Pwrake
         Log.info msg
       else
         Log.error msg
+      end
+    end
+
+    def file_locality(nodes,queue)
+      if nodes.empty? || !@exec_host_id
+        nil  # not available
+      elsif nodes.any?{|node|
+          queue.ids_for_filenode(node).include?(@exec_host_id)}
+        "L"  # Local
+      else
+        "R"  # Remote
       end
     end
 
