@@ -3,9 +3,9 @@
 Parallel Workflow extension for Rake, runs on multicores, clusters, clouds.
 * Author: Masahiro Tanaka
 
-([README in Japanese](https://github.com/masa16/pwrake/wiki/Pwrakeとは)),
-([GitHub Repository](https://github.com/masa16/pwrake)),
-([RubyGems](https://rubygems.org/gems/pwrake))
+[README in Japanese](https://github.com/masa16/pwrake/wiki/Pwrakeとは),
+[GitHub Repository](https://github.com/masa16/pwrake),
+[RubyGems](https://rubygems.org/gems/pwrake)
 
 ## Features
 
@@ -14,7 +14,7 @@ Parallel Workflow extension for Rake, runs on multicores, clusters, clouds.
   * The tasks which do not have mutual dependencies are automatically executed in parallel.
   * The `multitask` which is a parallel task definition of Rake is no more necessary.
 * Parallel and distributed execution is possible using a computer cluster which consists of multiple compute nodes.
-  * Cluster settings: SSH login, and the directory sharing using a shared filesystem, e.g., NFS, Gfarm.
+  * Cluster settings: SSH login (or MPI), and the directory sharing using a shared filesystem, e.g., NFS, Gfarm.
   * Pwrake automatically connects to remote hosts using SSH. You do not need to start a daemon.
   * Remote host names and the number of cores to use are provided in a hostfile.
 * [Gfarm file system](http://sourceforge.net/projects/gfarm/) utilizes storage of compute nodes. It provides the high-performance parallel I/O.
@@ -69,6 +69,14 @@ In this case, you need the rehash of command paths:
 4. Run `pwrake` with an option `--hostfile` or `-F`:
 
         $ pwrake --hostfile=hosts
+
+### Use MPI to start remote worker
+
+1. Setup MPI on your cluster.
+2. Install [MPipe gem](https://rubygems.org/gems/mpipe). (requires `mpicc`)
+3. Run `pwrake-mpi` command.
+
+        $ pwrake-mpi
 
 ## Options
 
@@ -175,7 +183,7 @@ Properties (The leftmost item is default):
 
         gem install ffi
 
-## For Graph Partitioning
+## Scheduling with Graph Partitioning
 
 * Compile and Install METIS 5.1.0 (http://www.cs.umn.edu/~metis/). This requires CMake.
 
@@ -185,9 +193,15 @@ Properties (The leftmost item is default):
          --with-metis-include=/usr/local/include \
          --with-metis-lib=/usr/local/lib
 
+* Option (`pwrake_conf.yaml`):
+
+        GRAPH_PARTITION: true
+
+* See publication: [M. Tanaka and O. Tatebe, “Workflow Scheduling to Minimize Data Movement Using Multi-constraint Graph Partitioning,” in CCGrid 2012](http://ieeexplore.ieee.org/abstract/document/6217406/)
+
 ## Current version
 
-* Pwrake version 2.1.3
+* Pwrake version 2.2.0
 
 ## Tested Platform
 
