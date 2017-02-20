@@ -29,6 +29,7 @@ module Pwrake
       @executed = false
       @assigned = []
       @exec_host = nil
+      @exec_host_id = nil
       @tried_hosts = []
       @n_retry = @property.retry || Rake.application.pwrake_options["RETRY"] || 1
     end
@@ -41,7 +42,7 @@ module Pwrake
     attr_reader :assigned
     attr_reader :tried_hosts
     attr_accessor :executed
-    attr_accessor :exec_host
+    attr_accessor :exec_host, :exec_host_id
     attr_accessor :shell_id, :status
 
     def self.format_time(t)
@@ -53,7 +54,7 @@ module Pwrake
         fn = File.join(dir,option['TASK_CSV_FILE'])
         @@task_logger = CSV.open(fn,'w')
         @@task_logger.puts %w[
-          task_id task_name start_time end_time elap_time preq preq_host
+          task_id task_name start_time end_time elap_time preq preq_host preq_loc
           exec_host shell_id has_action executed file_size file_mtime file_host
         ]
       end
@@ -114,11 +115,11 @@ module Pwrake
     def log_task
       @time_end = Time.now
       #
-      loc = suggest_location()
+      sug_host = suggest_location()
       shell = Pwrake::Shell.current
       #
-      if loc && !loc.empty? && shell && !actions.empty?
-        Rake.application.count( loc, shell.host )
+      if sug_host && !sug_host.empty? && shell && !actions.empty?
+        Rake.application.count( sug_host, shell.host )
       end
       return if !@@task_logger
       #
@@ -133,11 +134,29 @@ module Pwrake
         fstat = [nil]*3
       end
       #
-      # task_id task_name start_time end_time elap_time preq preq_host
+      # locality check
+      task_queue = Rake.application.task_queue
+      if !prerequisites.empty? && task_queue.respond_to?(:ids_for_filenode)
+        preq_loc = prerequisites.map do |preq|
+          nodes = Rake.application[preq].wrapper.location
+          if nodes.empty?
+            "x"  # not available
+          elsif nodes.any?{|node|
+              task_queue.ids_for_filenode(node).include?(@exec_host_id)}
+            "L"  # Local
+          else
+            "R"  # Remote
+          end
+        end.join("")
+      else
+        preq_loc = nil
+      end
+      #
+      # task_id task_name start_time end_time elap_time preq preq_host preq_loc
       # exec_host shell_id has_action executed file_size file_mtime file_host
       #
       row = [ @task_id, name, @time_start, @time_end, elap,
-              prerequisites, loc, @exec_host, @shell_id,
+              prerequisites, sug_host, preq_loc, @exec_host, @shell_id,
               (actions.empty?) ? 0 : 1,
               (@executed) ? 1 : 0,
               *fstat ]

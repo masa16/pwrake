@@ -300,6 +300,7 @@ module Pwrake
           s = "#{hid}:#{tw.task_id}:#{tw.name}"
           @channel_by_hostid[hid].put_line(s)
           tw.exec_host = host_info.name
+          tw.exec_host_id = hid
         else
           tw.status = "end"
           task_end(tw,host_info) # @idle_cores.increase(..
