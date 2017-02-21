@@ -129,18 +129,18 @@ module Pwrake
       end
       #
       # locality check
-      preq_loc = nil
-      write_loc = nil
-      queue = Rake.application.task_queue
-      if queue.respond_to?(:ids_for_filenode)
-        if !prerequisites.empty?
-          preq_loc = prerequisites.map do |preq|
-            locs = Rake.application[preq].wrapper.location
-            file_locality(locs,queue) || "n"
-          end.join("")
+      loc_na = true
+      preq_loc = prerequisites.map do |preq|
+        locs = Rake.application[preq].wrapper.location
+        if loc = file_locality(locs)
+          loc_na = false
+          loc
+        else
+          "n"
         end
-        write_loc = file_locality(@location,queue)
-      end
+      end.join("")
+      preq_loc = nil if loc_na
+      write_loc = file_locality(@location)
       #
       if @file_stat
         fstat = [@file_stat.size, @file_stat.mtime, self.location.join('|'), write_loc]
@@ -181,11 +181,11 @@ module Pwrake
       end
     end
 
-    def file_locality(nodes,queue)
+    def file_locality(nodes)
       if nodes.empty? || !@exec_host_id
         nil  # not available
       elsif nodes.any?{|node|
-          queue.ids_for_filenode(node).include?(@exec_host_id)}
+          HostMap.ipmatch_for_name(node).include?(@exec_host_id)}
         "L"  # Local
       else
         "R"  # Remote

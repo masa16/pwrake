@@ -22,19 +22,6 @@ module Pwrake
       @disable_steal = Rake.application.pwrake_options['DISABLE_STEAL']
       @last_enq_time = Time.now
       @n_turn = @disable_steal ? 1 : 2
-      @ids_for_filenode = {}
-    end
-
-    def ids_for_filenode(node)
-      unless a = @ids_for_filenode[node]
-        @ids_for_filenode[node] = a = []
-        ip = IPSocket.getaddress(node)
-        @hostinfo_by_id.each do |id,h|
-          a << id if h.ipaddr.include?(ip)
-        end
-        Log.debug "filenode:#{node} host_ids:#{a.inspect}"
-      end
-      a
     end
 
     def enq_impl(t)
@@ -45,10 +32,10 @@ module Pwrake
       else
         kv = {}
         hints.each do |h|
-          ids_for_filenode(h).each{|id| kv[id] = true}
+          HostMap.ipmatch_for_name(h).each{|id| kv[id] = true}
         end
         if !kv.empty?
-          kv.each do |id,|
+          kv.each_key do |id|
             t.assigned.push(id)
             @q[id].push(t)
           end

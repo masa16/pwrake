@@ -90,11 +90,17 @@ module Pwrake
 
   class HostMap < Hash
 
+    def self.ipmatch_for_name(name)
+      @@hostmap.ipmatch_for_name(name)
+    end
+
     def initialize(arg=nil)
       @host_map = {}
       @by_id = []
       @by_name = {}
       @is_local = false
+      @ipmatch_for_name = {}
+      @@hostmap = self
       case arg
       when /\.yaml$/
         read_yaml(arg)
@@ -145,6 +151,18 @@ module Pwrake
       a = []
       self.each do |sub,list|
         list.each{|h| a[h.group] = (a[h.group]||0) + h.weight}
+      end
+      a
+    end
+
+    def ipmatch_for_name(node)
+      unless a = @ipmatch_for_name[node]
+        @ipmatch_for_name[node] = a = []
+        ip = IPSocket.getaddress(node)
+        @by_id.each_with_index do |h,id|
+          a << id if h.ipaddr.include?(ip)
+        end
+        Log.debug "node:#{node} hosts:#{a.map{|id|@by_id[id].name}.inspect}"
       end
       a
     end
