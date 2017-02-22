@@ -212,11 +212,6 @@ module Pwrake
           hosts = [host]
         end
         hosts.each do |host|
-          #begin
-          #  host = Socket.gethostbyname(host)[0]
-          #rescue
-          #  Log.warn "not resolved by Socket.gethostbyname: #{host}"
-          #end
           ncore  &&= ncore.to_i
           weitht &&= weight.to_i
           #weight = (weight || 1).to_f

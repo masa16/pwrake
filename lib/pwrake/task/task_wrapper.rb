@@ -25,7 +25,6 @@ module Pwrake
       @input_file_mtime = nil
       @rank = nil
       @priority = nil
-      @lock_rank = Monitor.new
       @executed = false
       @assigned = []
       @exec_host = nil
@@ -249,28 +248,26 @@ module Pwrake
     end
 
     def rank
-      #@lock_rank.synchronize do
-        if @rank.nil?
-          if subsequents.nil? || subsequents.empty?
-            @rank = 0
-          else
-            max_rank = 0
-            subsequents.each do |subsq|
-              r = subsq.wrapper.rank
-              if max_rank < r
-                max_rank = r
-              end
+      if @rank.nil?
+        if subsequents.nil? || subsequents.empty?
+          @rank = 0
+        else
+          max_rank = 0
+          subsequents.each do |subsq|
+            r = subsq.wrapper.rank
+            if max_rank < r
+              max_rank = r
             end
-            if has_output_file?
-              step = 1
-            else
-              step = 0
-            end
-            @rank = max_rank + step
           end
-          Log.debug "Task[#{name}] rank=#{@rank.inspect}"
+          if has_output_file?
+            step = 1
+          else
+            step = 0
+          end
+          @rank = max_rank + step
         end
-      #end
+        Log.debug "Task[#{name}] rank=#{@rank.inspect}"
+      end
       @rank
     end
 
