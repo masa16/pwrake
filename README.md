@@ -68,7 +68,7 @@ In this case, you need the rehash of command paths:
 
 4. Run `pwrake` with an option `--hostfile` or `-F`:
 
-        $ pwrake --hostfile=hosts
+        $ pwrake -F hosts
 
 ### Use MPI to start remote worker
 
@@ -76,7 +76,7 @@ In this case, you need the rehash of command paths:
 2. Install [MPipe gem](https://rubygems.org/gems/mpipe). (requires `mpicc`)
 3. Run `pwrake-mpi` command.
 
-        $ pwrake-mpi
+        $ pwrake-mpi -F hosts
 
 ## Options
 
