@@ -5,7 +5,6 @@ $LOAD_PATH.unshift libpath
 
 require "mpipe"
 MPipe.init
-#puts "#{`hostname`} rank=#{MPipe::Comm.rank} size=#{MPipe::Comm.size}"
 
 wdir = ARGV.shift
 
