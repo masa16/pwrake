@@ -62,8 +62,7 @@ class Communicator
 
   def setup_pipe(worker_code)
     rb_cmd = "ruby -e 'eval ARGF.read(#{worker_code.size})'"
-    if ['localhost','localhost.localdomain','127.0.0.1'].include? @host
-    #if /^localhost/ =~ @host
+    if %w[127.0.0.1 ::1].include?(IPSocket.getaddress(@host))
       cmd = rb_cmd
     else
       cmd = "ssh -x -T #{@option[:ssh_option]} #{@host} \"#{rb_cmd}\""
