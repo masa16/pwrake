@@ -1,0 +1,8 @@
+title: Pwrake
+description: "Pwrake: Parallel Workflow extension for Rake, runs on multicores, clusters, clouds. "
+google_analytics: 
+show_downloads: true
+theme: jekyll-theme-slate
+
+gems:
+  - jekyll-mentions
