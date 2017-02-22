@@ -3,9 +3,9 @@
 Parallel Workflow extension for Rake, runs on multicores, clusters, clouds.
 * Author: Masahiro Tanaka
 
-([README in Japanese](https://github.com/masa16/pwrake/wiki/Pwrakeとは)),
-([GitHub Repository](https://github.com/masa16/pwrake)),
-([RubyGems](https://rubygems.org/gems/pwrake))
+[README in Japanese](https://github.com/masa16/pwrake/wiki/Pwrakeとは),
+[GitHub Repository](https://github.com/masa16/pwrake),
+[RubyGems](https://rubygems.org/gems/pwrake)
 
 ## Features
 
@@ -14,24 +14,35 @@ Parallel Workflow extension for Rake, runs on multicores, clusters, clouds.
   * The tasks which do not have mutual dependencies are automatically executed in parallel.
   * The `multitask` which is a parallel task definition of Rake is no more necessary.
 * Parallel and distributed execution is possible using a computer cluster which consists of multiple compute nodes.
-  * Cluster settings: SSH login, and the directory sharing using a shared filesystem, e.g., NFS, Gfarm.
+  * Cluster settings: SSH login (or MPI), and the directory sharing using a shared filesystem, e.g., NFS, Gfarm.
   * Pwrake automatically connects to remote hosts using SSH. You do not need to start a daemon.
   * Remote host names and the number of cores to use are provided in a hostfile.
 * [Gfarm file system](http://sourceforge.net/projects/gfarm/) utilizes storage of compute nodes. It provides the high-performance parallel I/O.
-  * Parallel I/O access to local stroage of compute nodes enables scalable increase in the I/O performance.
+  * Parallel I/O access to local storage of compute nodes enables scalable increase in the I/O performance.
   * Gfarm schedules a compute node to store an output file, to local storage.
   * Pwrake schedules a compute node to execute a task, to a node where input files are stored.
   * Other supports for Gfarm: Automatic mount of the Gfarm file system, etc.
 
 ## Installation
 
-Download source tgz/zip and expand, cd to subdirectory and install:
+Install with RubyGems:
+
+    $ gem install pwrake
+
+Or download source tgz/zip and expand, cd to subdirectory and install:
 
     $ ruby setup.rb
 
-Or, gem install:
+In the latter case, you need install [Parallel](https://github.com/grosser/parallel) manually. It is required by Pwrake for processor count.
 
-    $ gem install pwrake
+If you use rbenv, your system may fail to find pwrake command after installation:
+
+    -bash: pwrake: command not found
+
+In this case, you need the rehash of command paths:
+
+    $ rbenv rehash
+
 
 ## Usage
 
@@ -57,7 +68,15 @@ Or, gem install:
 
 4. Run `pwrake` with an option `--hostfile` or `-F`:
 
-        $ pwrake --hostfile=hosts
+        $ pwrake -F hosts
+
+### Use MPI to start remote worker
+
+1. Setup MPI on your cluster.
+2. Install [MPipe gem](https://rubygems.org/gems/mpipe). (requires `mpicc`)
+3. Run `pwrake-mpi` command.
+
+        $ pwrake-mpi -F hosts
 
 ## Options
 
@@ -73,9 +92,10 @@ Or, gem install:
     -A, --disable-affinity           [Pw] Turn OFF affinity (AFFINITY=off)
     -S, --disable-steal              [Pw] Turn OFF task steal
     -d, --debug                      [Pw] Output Debug messages
-        --pwrake-conf [FILE]         [Pw] Pwrake configuation file in YAML
+        --pwrake-conf [FILE]         [Pw] Pwrake configuration file in YAML
         --show-conf, --show-config   [Pw] Show Pwrake configuration options
-        --report LOGDIR              [Pw] Report workflow statistics from LOGDIR to HTML and exit.
+        --report LOGDIR              [Pw] Generate `report.html' (Report of workflow statistics) in LOGDIR and exit.
+        --report-image IMAGE_TYPE    [Pw] Gnuplot output format (png,jpg,svg etc.) in report.html.
         --clear-gfarm2fs             [Pw] Clear gfarm2fs mountpoints left after failure.
 
 ### pwrake_conf.yaml
@@ -103,16 +123,16 @@ Or, gem install:
         WORK_DIR          default=$PWD
         FILESYSTEM        default(autodetect)|gfarm
         SSH_OPTION        SSH option
-        SHELL_COMMAND     default=$SHELL
-        SHELL_RC          Run-Command when shell starts
         PASS_ENV          (Array) Environment variables passed to SSH
-        HEARTBEAT         defulat=240 - Hearbeat interval in seconds 
+        HEARTBEAT         default=240 - Hearbeat interval in seconds
+        RETRY             default=1 - The number of retry
         FAILED_TARGET     rename(default)|delete|leave - Treatment of failed target files
         FAILURE_TERMINATION wait(default)|kill|continue - Behavior of other tasks when a task is failed
         QUEUE_PRIORITY          LIHR(default)|FIFO|LIFO|RANK
         NOACTION_QUEUE_PRIORITY FIFO(default)|LIFO|RAND
         SHELL_START_INTERVAL    default=0.012 (sec)
         GRAPH_PARTITION         false(default)|true
+        REPORT_IMAGE            default=png
 
 * Options for Gfarm system:
 
@@ -154,6 +174,7 @@ Properties (The leftmost item is default):
     deny=hostname     - Deny this host to execute this task. (accepts wild card)
     order=deny,allow|allow,deny - The order of evaluation.
     steal=yes|no      - Allow task stealing for this task.
+    retry=integer     - The number of retry for this task.
 
 ## Note for Gfarm
 
@@ -162,7 +183,7 @@ Properties (The leftmost item is default):
 
         gem install ffi
 
-## For Graph Partitioning
+## Scheduling with Graph Partitioning
 
 * Compile and Install METIS 5.1.0 (http://www.cs.umn.edu/~metis/). This requires CMake.
 
@@ -172,18 +193,27 @@ Properties (The leftmost item is default):
          --with-metis-include=/usr/local/include \
          --with-metis-lib=/usr/local/lib
 
+* Option (`pwrake_conf.yaml`):
+
+        GRAPH_PARTITION: true
+
+* See publication: [M. Tanaka and O. Tatebe, “Workflow Scheduling to Minimize Data Movement Using Multi-constraint Graph Partitioning,” in CCGrid 2012](http://ieeexplore.ieee.org/abstract/document/6217406/)
+
 ## Current version
 
-* Pwrake version 2.0.0
+* Pwrake version 2.2.0
 
 ## Tested Platform
 
-* Ruby 2.2.2
-* Rake 10.4.2
-* CentOS 6.7
+
+* Ruby 2.4.0
+* Rake 12.0.0
+* CentOS 7.3
 
 ## Acknowledgment
 
-This work is supported by
-* JST CREST, research area: "Development of System Software Technologies for Post-Peta Scale High Performance Computing," and
+This work is supported by:
+* JST CREST, research themes:
+  * ["Statistical Computational Cosmology with Big Astronomical Imaging Data,"](http://www.jst.go.jp/kisoken/crest/en/project/44/14532369.html)
+  * ["System Software for Post Petascale Data Intensive Science,"](http://postpeta.jst.go.jp/en/researchers/tatebe22.html)
 * MEXT Promotion of Research for Next Generation IT Infrastructure "Resources Linkage for e-Science (RENKEI)."
