@@ -2,6 +2,43 @@ module Pwrake
 
   class Executor
 
+    ENV = {
+"OMPI_APP_CTX_NUM_PROCS" => nil,
+"OMPI_COMM_WORLD_LOCAL_RANK" => nil,
+"OMPI_COMM_WORLD_LOCAL_SIZE" => nil,
+"OMPI_COMM_WORLD_NODE_RANK" => nil,
+"OMPI_COMM_WORLD_RANK" => nil,
+"OMPI_COMM_WORLD_SIZE" => nil,
+"OMPI_FILE_LOCATION" => nil,
+"OMPI_FIRST_RANKS" => nil,
+"OMPI_MCA_db" => nil,
+"OMPI_MCA_ess" => nil,
+"OMPI_MCA_ess_base_jobid" => nil,
+"OMPI_MCA_ess_base_vpid" => nil,
+"OMPI_MCA_grpcomm" => nil,
+"OMPI_MCA_initial_wdir" => nil,
+"OMPI_MCA_mpi_yield_when_idle" => nil,
+"OMPI_MCA_orte_app_num" => nil,
+"OMPI_MCA_orte_bound_at_launch" => nil,
+"OMPI_MCA_orte_ess_jobid" => nil,
+"OMPI_MCA_orte_ess_node_rank" => nil,
+"OMPI_MCA_orte_ess_num_procs" => nil,
+"OMPI_MCA_orte_ess_vpid" => nil,
+"OMPI_MCA_orte_hnp_uri" => nil,
+"OMPI_MCA_orte_local_daemon_uri" => nil,
+"OMPI_MCA_orte_num_nodes" => nil,
+"OMPI_MCA_orte_num_restarts" => nil,
+"OMPI_MCA_orte_tmpdir_base" => nil,
+"OMPI_MCA_plm" => nil,
+"OMPI_MCA_pubsub" => nil,
+"OMPI_MCA_shmem_RUNTIME_QUERY_hint" => nil,
+"OMPI_NUM_APP_CTX" => nil,
+"OMPI_UNIVERSE_SIZE" => nil,
+"PMI_RANK" => nil,
+"PMI_FD" => nil,
+"PMI_SIZE" => nil,
+}
+
     def initialize(selector,dir_class,id)
       @selector = selector
       @id = id
@@ -74,7 +111,7 @@ module Pwrake
       @sh_out, @spawn_out = IO.pipe
       @sh_err, @spawn_err = IO.pipe
 
-      @pid = Kernel.spawn(command,
+      @pid = Kernel.spawn(ENV, command,
                           :in=>@spawn_in,
                           :out=>@spawn_out,
                           :err=>@spawn_err,
