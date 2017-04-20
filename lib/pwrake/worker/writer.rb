@@ -8,9 +8,8 @@ module Pwrake
     def initialize
       @out = $stderr
       @mutex = Mutex.new
-      @mutex_hb = Mutex.new
       @cond_hb = true
-      @heartbeat = nil
+      @heartbeat = 120
       @thread = Thread.new{ heartbeat_loop }
     end
 
@@ -22,14 +21,13 @@ module Pwrake
     end
 
     def heartbeat_loop
+      sleep
       loop do
-        @heartbeat ? sleep(@heartbeat) : sleep
-        @mutex_hb.synchronize do
-          if @cond_hb
-            _puts "heartbeat"
-          end
-          @cond_hb = true
+        sleep(@heartbeat)
+        if @cond_hb
+          _puts "heartbeat"
         end
+        @cond_hb = true
       end
     end
 
@@ -38,23 +36,9 @@ module Pwrake
     end
 
     def puts(s)
-      @mutex_hb.synchronize do
-        @cond_hb = false
-        @thread.run
-      end
+      @cond_hb = false
+      @thread.run
       _puts(s)
-    end
-
-    def _puts(s)
-      begin
-        @mutex.synchronize do
-          @out.print s+"\n"
-        end
-        @out.flush
-      rescue Errno::EPIPE => e
-        @log.info "<#{e.inspect}" if @log
-      end
-      @log.info "<#{s}" if @log
     end
 
     def flush
@@ -68,5 +52,17 @@ module Pwrake
       puts(s) if $DEBUG
     end
 
+    private
+    def _puts(s)
+      begin
+        @mutex.synchronize do
+          @out.print s+"\n"
+        end
+        @out.flush
+      rescue Errno::EPIPE => e
+        @log.info "<#{e.inspect}" if @log
+      end
+      @log.info "<#{s}" if @log
+    end
   end
 end
