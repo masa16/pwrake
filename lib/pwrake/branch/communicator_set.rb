@@ -14,7 +14,7 @@ class CommunicatorSet
     @error_host = []
     @initial_communicators = []
     if hb = @option[:heartbeat]
-      @heartbeat_timeout = hb + 15
+      @heartbeat_timeout = hb + 30
     end
     init_hosts
   end
