@@ -86,15 +86,18 @@ module Pwrake
     end
 
     def run
+      run_setup
+      run_command
+    ensure
+      close_all
+    end
+
+    def run_setup
       setup_option
       Fiber.new{setup_loop}.resume
       @selector.run
-      Fiber.new{command_callback}.resume
-      @selector.run
     rescue => exc
       @log.error(([exc.to_s]+exc.backtrace).join("\n"))
-    ensure
-      close_all
     end
 
     def setup_option
@@ -121,6 +124,14 @@ module Pwrake
           end
         end
       end
+    end
+
+    def run_command
+      Fiber.new{command_callback}.resume
+      @selector.run
+    rescue => exc
+      @log.error(([exc.to_s]+exc.backtrace).join("\n"))
+      kill_all("TERM")
     end
 
     def command_callback
@@ -152,8 +163,7 @@ module Pwrake
       when /^kill:(.*)$/o
         sig = $1
         sig = sig.to_i if /^\d+$/o =~ sig
-        @log.warn "killing worker, signal=#{sig}"
-        @ex_list.each{|id,ex| ex.kill(sig)}
+        kill_all(sig)
         return false
         #
       when /^p$/o
@@ -165,6 +175,11 @@ module Pwrake
         @log.fatal msg
         raise RuntimeError,msg
       end
+    end
+
+    def kill_all(sig)
+      @log.warn "killing worker, signal=#{sig}"
+      @ex_list.each{|id,ex| ex.kill(sig)}
     end
 
     def close_all
