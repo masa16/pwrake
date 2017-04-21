@@ -135,18 +135,42 @@ EOL
     end
 
     def get_command(s)
-      if /\(([^()]+)\)/ =~ s
-        s = $1
-      end
-      a = s.split(/;/)
-      a.each do |x|
-        if /^\s*(\S+)/ =~ x
-          k = $1
-          next if k=='cd'
-          return k
+      case s
+      when /^\s*\((.*)$/
+        get_command($1)
+      when /^\s*([\w.,~^\/=+-]+)(.*)$/
+        cmd, rest = $1, $2
+        case cmd
+        when "cd"
+          if /[^;]*;(.*)$/ =~ rest
+            return get_command($1)
+          end
+        when /^ruby[\d.]*$/
+          case rest
+          when /([\w.,~^\/=+-]+\.rb)\b/
+            return "#{cmd} #{$1}"
+          when /\s+-e\s+("[^"]*"|'[^']*'|\S+)/
+            return "#{cmd} -e #{$1}"
+          end
+        when /^python[\d.]*$/
+          case rest
+          when /([\w.,~^\/=+-]+\.py)\b/
+            return "#{cmd} #{$1}"
+          when /\s+-c\s+("[^"]*"|'[^']*'|\S+)/
+            return "python -c #{$1}"
+          end
+        when /^perl[\d.]*$/
+          case rest
+          when /([\w.,~^\/=+-]+\.pl)\b/
+            return "#{cmd} #{$1}"
+          when /\s+-e\s+("[^"]*"|'[^']*'|\S+)/
+            return "#{cmd} -e #{$1}"
+          end
         end
+        cmd
+      else
+        s[0..15]
       end
-      nil
     end
 
     def make_cmd_stat
@@ -299,9 +323,9 @@ set logscale x
 set title 'histogram of elapsed time'"
         a = []
 
-        command_list.each_with_index do |n,i|
+        command_list.each_with_index do |cmd,i|
           a << "'-' w histeps ls #{i+1} title ''"
-          a << "'-' w lines ls #{i+1} title '#{n}'"
+          a << "'-' w lines ls #{i+1} title #{cmd.inspect}"
         end
         f.puts "plot "+ a.join(',')
 

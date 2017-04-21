@@ -210,24 +210,25 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
     end
 
 
-    def get_command_key(s, pattern)
+    def get_command_key(s, pattern=[])
       pattern.each do |cmd,regex|
         if regex =~ s
           return cmd
         end
       end
-      if /\(([^()]+)\)/ =~ s
-        s = $1
-      end
-      a = s.split(/;/)
-      a.each do |x|
-        if /^\s*(\S+)/ =~ x
-          k = $1
-          next if k=='cd'
-          return k
+      case s
+      when /^\s*\((.*)$/
+        get_command_key($1)
+      when /^\s*([\w.,~^\/=+-]+)(.*)$/
+        cmd, rest = $1, $2
+        if cmd == "cd" && /[^;]*;(.*)$/ =~ rest
+          return get_command_key($1)
+        else
+          cmd
         end
+      else
+        s[0..15]
       end
-      nil
     end
 
     def count_start_end_by_pattern(csvtable, pattern)
@@ -303,7 +304,7 @@ set xlabel 'time (sec)'
 set ylabel 'parallelism'
 "
         f.print "plot "
-        f.puts para.map{|cmd,re| "'-' w l title '#{cmd}'"}.join(",")
+        f.puts para.map{|cmd,re| "'-' w l title #{cmd.inspect}"}.join(",")
         para.each do |cmd,dat|
           dat.each do |x|
             f.puts x
