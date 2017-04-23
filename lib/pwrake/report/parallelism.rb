@@ -48,11 +48,10 @@ module Pwrake
     def exec_density(a)
       reso = 0.1
       delta = 1/reso
-      t_end = (a.last)[0]
-      n = (t_end/reso).to_i + 1
-      i = 0
-      t_next = reso
+      t_end = a.last[0]
+      n = (t_end/reso).round + 1
       d = (n+1).times.map{|i| [reso*i,0]}
+      i = 0
       a.each do |x|
         while d[i+1][0] <= x[0]
           i += 1
@@ -68,21 +67,21 @@ module Pwrake
       a = count_start_end_from_csv(file)
       return if a.size < 4
 
-      density = exec_density(a)
+      #density = exec_density(a)
 
       base = file.sub(/\.csv$/,"")
       fpara = base+"_para.dat"
 
       n = a.size
-      i = 0
       y = 0
       y_max = 0
 
       File.open(fpara,"w") do |f|
+        i = 0
+        t = 0
+        y_pre = 0
         begin
-          t = 0
-          y_pre = 0
-          n.times do |i|
+          while i < n
             if a[i][0]-t > 0.001
               f.printf "%.3f %d\n", t, y_pre
               t = a[i][0]
@@ -91,6 +90,7 @@ module Pwrake
             y += a[i][1]
             y_pre = y
             y_max = y if y > y_max
+            i += 1
           end
         rescue
           p a[i]
@@ -136,7 +136,7 @@ plot '#{fpara}' w l axis x1y1 title 'parallelism'
       begin
         t = 0
         y_pre = 0
-        n.times do |i|
+        while i < n
           if a[i][0]-t > 0.001
             para.push "%.3f %d" % [t, y_pre]
             t = a[i][0]
@@ -145,6 +145,7 @@ plot '#{fpara}' w l axis x1y1 title 'parallelism'
           y += a[i][1]
           y_pre = y
           y_max = y if y > y_max
+          i += 1
         end
       rescue
         p a[i]
@@ -273,7 +274,7 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
         begin
           t = 0
           y_pre = 0
-          n.times do |i|
+          while i < n
             if a[i][0]-t > 0.001
               dat.push "%.3f %d" % [t, y_pre]
               t = a[i][0]
@@ -282,6 +283,7 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
             y += a[i][1]
             y_pre = y
             y_max = y if y > y_max
+            i += 1
           end
         rescue
           p a[i]
@@ -322,9 +324,8 @@ set ylabel 'parallelism'
       resolution = Rational(1,10)
 
       a = a.sort{|x,y| x[0]<=>y[0]}
-      t_end = (a.last)[0]
-
-      ngrid = (t_end/resolution).floor
+      #t_end = (a.last)[0]
+      #ngrid = (t_end/resolution).floor
       grid = [[0,0]]
 
       j = 0
