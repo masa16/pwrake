@@ -72,11 +72,6 @@ module Pwrake
       false
     end
 
-    def set_current_task(task_id,task_name)
-      @task_id = task_id
-      @task_name = task_name
-    end
-
     def backquote(*command)
       command = command.join(' ')
       @lock.synchronize do

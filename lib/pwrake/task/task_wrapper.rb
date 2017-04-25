@@ -53,8 +53,9 @@ module Pwrake
         fn = File.join(dir,option['TASK_CSV_FILE'])
         @@task_logger = CSV.open(fn,'w')
         @@task_logger.puts %w[
-          task_id task_name start_time end_time elap_time preq preq_host preq_loc
-          exec_host shell_id has_action executed file_size file_mtime file_host write_loc
+          task_id task_name start_time end_time elap_time preq
+          preq_host preq_loc exec_host shell_id has_action executed
+          file_size file_mtime file_host write_loc
         ]
       end
     end
@@ -64,9 +65,6 @@ module Pwrake
     end
 
     def preprocess
-      if @shell = Pwrake::Shell.current
-        @shell.current_task = self
-      end
       @time_start = Time.now
     end
 
@@ -90,7 +88,6 @@ module Pwrake
       end
       #Log.debug "postprocess time=#{Time.now-tm_taskend}"
       log_task
-      @shell.current_task = nil if @shell
     end
 
     def retry_or_subsequent
