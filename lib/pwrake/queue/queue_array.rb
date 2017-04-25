@@ -68,18 +68,18 @@ module Pwrake
 
     def shift(host_info=nil)
       return super() unless host_info
-      tw_found = nil
+      i_found = nil
       (size-1).downto(0) do |i|
         tw = at(i)
         if tw.acceptable_for(host_info)
           if tw.untried_host?(host_info)
             return delete_at(i)
           else
-            tw_found ||= tw
+            i_found ||= i
           end
         end
       end
-      tw_found
+      (i_found) ? delete_at(i_found) : nil
     end
   end
 
@@ -90,18 +90,18 @@ module Pwrake
 
     def shift(host_info=nil)
       return super() unless host_info
-      tw_found = nil
+      i_found = nil
       size.times do |i|
         tw = at(i)
         if tw.acceptable_for(host_info)
           if tw.untried_host?(host_info)
             return delete_at(i)
           else
-            tw_found ||= tw
+            i_found ||= i
           end
         end
       end
-      tw_found
+      (i_found) ? delete_at(i_found) : nil
     end
   end
 
@@ -172,18 +172,18 @@ module Pwrake
     end
 
     def pop_last_rank(r,host_info)
-      tw_found = nil
+      i_found = nil
       (size-1).downto(0) do |i|
         tw = at(i)
         if tw.rank == r && tw.acceptable_for(host_info)
           if tw.untried_host?(host_info)
             return delete_at(i)
           else
-            tw_found ||= tw
+            i_found ||= i
           end
         end
       end
-      tw_found
+      (i_found) ? delete_at(i_found) : nil
     end
 
     def hrf_delete(t)
