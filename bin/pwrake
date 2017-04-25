@@ -22,6 +22,7 @@ class Rake::Application
 end
 class Rake::Task
   include Pwrake::TaskAlgorithm
+  prepend Pwrake::TaskInvoke
 end
 
 # does NOT exit when writing to broken pipe

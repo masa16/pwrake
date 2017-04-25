@@ -52,6 +52,10 @@ module Pwrake
       @master.invoke(t,args)
     end
 
+    def invoke(t,*args)
+      @master.invoke(t,args)
+    end
+
     def standard_rake_options
       opts = super
       opts.each_with_index do |a,i|

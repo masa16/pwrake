@@ -5,11 +5,17 @@ module Pwrake
 
   module TaskAlgorithm
 
-    attr_reader :wrapper
     attr_reader :subsequents
     attr_reader :arguments
     attr_reader :property
     attr_reader :unfinished_prereq
+
+    def wrapper
+      if @wrapper.nil?
+        raise "TaskWrapper is not defined for #{self.class}[#{name}]"
+      end
+      @wrapper
+    end
 
     def pw_search_tasks(args)
       Log.debug "#{self.class}#pw_search_tasks start, args=#{args.inspect}"
@@ -48,7 +54,7 @@ module Pwrake
             search_prerequisites(task_args, new_chain)
           end
           #check_and_enq
-          if @unfinished_prereq.empty?
+          if !@already_finished && @unfinished_prereq.empty?
             application.task_queue.enq(@wrapper)
           end
         end
@@ -87,7 +93,6 @@ module Pwrake
       #application.task_queue.synchronize(h) do
         @subsequents.each do |t|        # <<--- competition !!!
           #u = t.unfinished_prereq.keys
-          #Log.debug "enq_subseq: self=#{self.name} subseq=#{t.name} @unfin_preq=#{u.inspect}"
           if t && t.check_prereq_finished(self.name)
             application.task_queue.enq(t.wrapper)
           end
@@ -98,7 +103,7 @@ module Pwrake
 
     def check_prereq_finished(preq_name=nil)
       @unfinished_prereq.delete(preq_name)
-      @unfinished_prereq.empty?
+      !@already_finished && @unfinished_prereq.empty?
     end
 
     def pw_set_property(property)
@@ -106,5 +111,15 @@ module Pwrake
       self
     end
 
+  end # TaskAlgorithm
+
+  module TaskInvoke
+    def invoke(*args)
+      Rake.application.invoke(self,*args)
+    end
+    def reenable
+      @already_invoked = false
+      @already_searched = false
+    end
   end
 end
