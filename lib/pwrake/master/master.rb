@@ -211,7 +211,14 @@ module Pwrake
       setup_postprocess1
       @branch_setup_thread.join
       send_task_to_idle_core
-      #
+      unless @running
+        @running = true
+        setup_fiber(t)
+        @running = false
+      end
+    end
+
+    def setup_fiber(t)
       n_retry = @option["RETRY"]
       create_fiber(@hdl_set) do |hdl|
         while s = hdl.get_line
