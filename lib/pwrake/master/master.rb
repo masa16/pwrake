@@ -144,7 +144,6 @@ module Pwrake
       @task_queue = queue_class.new(@hostinfo_by_id)
 
       @branch_setup_thread = Thread.new do
-        #@channels.each do |chan|
         create_fiber(@hdl_set) do |hdl|
           while s = hdl.get_line
             case s
@@ -158,12 +157,6 @@ module Pwrake
           end
         end
         @selector.run
-        @killed = 0
-        [:TERM,:INT].each do |sig|
-          Signal.trap(sig) do
-            signal_trap(sig)
-          end
-        end
       end
 
     end
@@ -213,6 +206,12 @@ module Pwrake
 
       setup_postprocess1
       @branch_setup_thread.join
+      @killed = 0
+      [:TERM,:INT].each do |sig|
+        Signal.trap(sig) do
+          signal_trap(sig)
+        end
+      end
       send_task_to_idle_core
       setup_fiber(t)
     end
