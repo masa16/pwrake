@@ -3,22 +3,28 @@ module Pwrake
   module Parallelism
     module_function
 
+    def push_time_event(a, row, start_time)
+      command = row['command']
+      if command == 'pwrake_profile_start'
+        start_time[0] = Time.parse(row['start_time'])
+      elsif command == 'pwrake_profile_end'
+        t = Time.parse(row['start_time']) - start_time[0]
+        a << [t,0]
+      elsif start_time[0]
+        n = begin Integer(row['ncore']) rescue 1 end
+        t = Time.parse(row['start_time']) - start_time[0]
+        a << [t,+n]
+        t = Time.parse(row['end_time']) - start_time[0]
+        a << [t,-n]
+      end
+    end
+
     def count_start_end_from_csv(file)
       a = []
-      start_time = nil
+      start_time = []
 
       CSV.foreach(file,:headers=>true) do |row|
-        if row['command'] == 'pwrake_profile_start'
-          start_time = Time.parse(row['start_time'])
-        elsif row['command'] == 'pwrake_profile_end'
-          t = Time.parse(row['start_time']) - start_time
-          a << [t,0]
-        elsif start_time
-          t = Time.parse(row['start_time']) - start_time
-          a << [t,+1]
-          t = Time.parse(row['end_time']) - start_time
-          a << [t,-1]
-        end
+        push_time_event(a, row, start_time)
       end
 
       a.sort{|x,y| x[0]<=>y[0]}
@@ -26,20 +32,10 @@ module Pwrake
 
     def count_start_end_from_csv_table(csvtable)
       a = []
-      start_time = nil
+      start_time = []
 
       csvtable.each do |row|
-        if row['command'] == 'pwrake_profile_start'
-          start_time = Time.parse(row['start_time'])
-        elsif row['command'] == 'pwrake_profile_end'
-          t = Time.parse(row['start_time']) - start_time
-          a << [t,0]
-        elsif start_time
-          t = Time.parse(row['start_time']) - start_time
-          a << [t,+1]
-          t = Time.parse(row['end_time']) - start_time
-          a << [t,-1]
-        end
+        push_time_event(a, row, start_time)
       end
 
       a.sort{|x,y| x[0]<=>y[0]}
@@ -56,7 +52,7 @@ module Pwrake
         while d[i+1][0] <= x[0]
           i += 1
         end
-        if x[1] == 1
+        if x[1] > 0
           d[i][1] += delta
         end
       end
@@ -186,26 +182,32 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
       fimg
     end
 
+
+    def push_time_by_key(h, row, key, start_time)
+      command = row['command']
+      if command == 'pwrake_profile_start'
+        start_time[0] = Time.parse(row['start_time'])
+      elsif command == 'pwrake_profile_end'
+        t = Time.parse(row['start_time']) - start_time[0]
+        h.each_value do |v|
+          v << [t,0]
+        end
+      elsif start_time[0]
+        a = (h[key] ||= [])
+        n = begin Integer(row['ncore']) rescue 1 end
+        t = Time.parse(row['start_time']) - start_time[0]
+        a << [t,+n]
+        t = Time.parse(row['end_time']) - start_time[0]
+        a << [t,-n]
+      end
+    end
+
     def read_time_by_host_from_csv(csvtable)
       a = {}
-      start_time = nil
+      start_time = []
 
       csvtable.each do |row|
-        host = row['host']
-        if row['command'] == 'pwrake_profile_start'
-          start_time = Time.parse(row['start_time'])
-        elsif row['command'] == 'pwrake_profile_end'
-          t = Time.parse(row['start_time']) - start_time
-          a.each do |h,v|
-            v << [t,0]
-          end
-        elsif start_time
-          a[host] ||= []
-          t = Time.parse(row['start_time']) - start_time
-          a[host] << [t,+1]
-          t = Time.parse(row['end_time']) - start_time
-          a[host] << [t,-1]
-        end
+        push_time_by_key(a, row, row['host'], start_time)
       end
       a
     end
@@ -234,25 +236,11 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
 
     def count_start_end_by_pattern(csvtable, pattern)
       h = Hash.new
-      start_time = nil
+      start_time = []
 
       csvtable.each do |row|
-        command = row['command']
-        if command == 'pwrake_profile_start'
-          start_time = Time.parse(row['start_time'])
-        elsif command == 'pwrake_profile_end'
-          t = Time.parse(row['start_time']) - start_time
-          h.values.each do |a|
-            a << [t,0]
-          end
-        elsif start_time
-          cmd = get_command_key(command, pattern)
-          h[cmd] ||= []
-          t = Time.parse(row['start_time']) - start_time
-          h[cmd] << [t,+1]
-          t = Time.parse(row['end_time']) - start_time
-          h[cmd] << [t,-1]
-        end
+        cmd = get_command_key(row['command'], pattern)
+        push_time_by_key(h, row, cmd, start_time)
       end
 
       h.each do |k,a|
