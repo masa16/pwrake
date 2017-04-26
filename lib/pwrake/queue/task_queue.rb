@@ -88,22 +88,22 @@ module Pwrake
         @hostinfo_by_id.each_value do |host_info|
           #Log.debug "TaskQueue#deq_turn host_info=#{host_info.name}"
           if (n = host_info.idle_cores) && n > 0
-          if turn_empty?(turn)
-            return queued
-          elsif tw = deq_impl(host_info,turn)
-            n_task_cores = tw.n_used_cores(host_info)
-            Log.debug "deq: #{tw.name} n_task_cores=#{n_task_cores}"
-            if host_info.idle_cores < n_task_cores
-              m = "task.n_used_cores=#{n_task_cores} must be "+
-                "<= host_info.idle_cores=#{host_info.idle_cores}"
-              Log.fatal m
-              raise RuntimeError,m
-            else
-              yield(tw,host_info,n_task_cores)
-              count += 1
-              queued += 1
+            if turn_empty?(turn)
+              return queued
+            elsif tw = deq_impl(host_info,turn)
+              n_task_cores = tw.n_used_cores(host_info)
+              Log.debug "deq: #{tw.name} n_task_cores=#{n_task_cores}"
+              if host_info.idle_cores < n_task_cores
+                m = "task.n_used_cores=#{n_task_cores} must be "+
+                  "<= host_info.idle_cores=#{host_info.idle_cores}"
+                Log.fatal m
+                raise RuntimeError,m
+              else
+                yield(tw,host_info,n_task_cores)
+                count += 1
+                queued += 1
+              end
             end
-          end
           end
         end
         break if count == 0
