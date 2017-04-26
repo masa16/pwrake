@@ -19,6 +19,7 @@ end
 
 class Rake::Task
   include Pwrake::TaskAlgorithm
+  prepend Pwrake::TaskInvoke
 end
 
 module Pwrake
