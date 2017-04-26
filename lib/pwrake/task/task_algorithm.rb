@@ -18,15 +18,12 @@ module Pwrake
     end
 
     def pw_search_tasks(args)
-      Log.debug "#{self.class}#pw_search_tasks start, args=#{args.inspect}"
+      Log.debug "#{self.class}#pw_search_tasks start, task=#{name} args=#{args.inspect}"
       tm = Time.now
       task_args = TaskArguments.new(arg_names, args)
-      #timer = Timer.new("search_task")
-      #h = application.pwrake_options['HALT_QUEUE_WHILE_SEARCH']
-      #application.task_queue.synchronize(h) do
-	search_with_call_chain(nil, task_args, InvocationChain::EMPTY)
-      #end
-      #timer.finish
+      # not synchronize owing to fiber
+      search_with_call_chain(nil, task_args, InvocationChain::EMPTY)
+      #
       Log.debug "#{self.class}#pw_search_tasks end #{Time.now-tm}"
     end
 
@@ -36,7 +33,7 @@ module Pwrake
       new_chain = InvocationChain.append(self, invocation_chain)
       @lock.synchronize do
         if application.options.trace
-          #Log.info "** Search #{name} #{format_search_flags}"
+          #Log.debug "** Search #{name} #{format_search_flags}"
           application.trace "** Search #{name} #{format_search_flags}"
         end
 
@@ -88,16 +85,12 @@ module Pwrake
     private :format_search_flags
 
     def pw_enq_subsequents
-      #t = Time.now
-      #h = application.pwrake_options['HALT_QUEUE_WHILE_SEARCH']
-      #application.task_queue.synchronize(h) do
-        @subsequents.each do |t|        # <<--- competition !!!
-          #u = t.unfinished_prereq.keys
-          if t && t.check_prereq_finished(self.name)
-            application.task_queue.enq(t.wrapper)
-          end
+      # not synchronize owing to fiber
+      @subsequents.each do |t|        # <<--- competition !!!
+        if t && t.check_prereq_finished(self.name)
+          application.task_queue.enq(t.wrapper)
         end
-      #end
+      end
       @already_finished = true        # <<--- competition !!!
     end
 
@@ -113,10 +106,13 @@ module Pwrake
 
   end # TaskAlgorithm
 
+
   module TaskInvoke
+
     def invoke(*args)
       Rake.application.invoke(self,*args)
     end
+
     def reenable
       @already_invoked = false
       @already_searched = false

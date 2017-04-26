@@ -15,6 +15,7 @@ require "pwrake/master/master_application"
 require "pwrake/task/task_manager"
 require "pwrake/task/task_algorithm"
 require "pwrake/branch/branch_application"
+
 class Rake::Application
   include Pwrake::BranchApplication
   prepend Pwrake::MasterApplication
