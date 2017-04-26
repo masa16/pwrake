@@ -54,7 +54,7 @@ module Pwrake
         @@task_logger = CSV.open(fn,'w')
         @@task_logger.puts %w[
           task_id task_name start_time end_time elap_time preq
-          preq_host preq_loc exec_host shell_id has_action executed
+          preq_host preq_loc exec_host shell_id has_action executed ncore
           file_size file_mtime file_host write_loc
         ]
       end
@@ -139,18 +139,21 @@ module Pwrake
       write_loc = file_locality(@location)
       #
       if @file_stat
-        fstat = [@file_stat.size, @file_stat.mtime, self.location.join('|'), write_loc]
+        fstat = [ @file_stat.size, @file_stat.mtime,
+                  self.location.join('|'), write_loc ]
       else
         fstat = [nil]*4
       end
       #
-      # task_id task_name start_time end_time elap_time preq preq_host preq_loc
-      # exec_host shell_id has_action executed file_size file_mtime file_host write_loc
+      # task_id task_name start_time end_time elap_time preq preq_host
+      # preq_loc exec_host shell_id has_action executed ncore
+      # file_size file_mtime file_host write_loc
       #
       row = [ @task_id, name, @time_start, @time_end, elap,
               prerequisites, sug_host, preq_loc, @exec_host, @shell_id,
               (actions.empty?) ? 0 : 1,
               (@executed) ? 1 : 0,
+              @n_used_cores,
             ] + fstat
       row.map!{|x|
         if x.kind_of?(Time)

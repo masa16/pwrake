@@ -151,7 +151,7 @@ module Pwrake
       ensure
         end_time = Time.now
         @status = @@profiler.profile(@task_id, @task_name, cmd,
-                                     start_time, end_time, host, @status)
+                     start_time, end_time, host, @ncore, @status)
       end
     end
 
@@ -227,6 +227,7 @@ module Pwrake
             @task_id = task_id
             @task_name = task_name
             task = Rake.application[task_name]
+            @ncore = task.wrapper.n_used_cores
             begin
               task.execute(task.arguments) if task.needed?
               result = "taskend:#{@id}:#{task.name}"

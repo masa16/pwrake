@@ -6,7 +6,7 @@ module Pwrake
 
     HEADER_FOR_PROFILE =
       %w[exec_id task_id task_name command
-         start_time end_time elap_time host status]
+         start_time end_time elap_time host ncore status]
 
     HEADER_FOR_GNU_TIME =
       %w[realtime systime usrtime maxrss averss memsz
@@ -85,7 +85,8 @@ module Pwrake
       t.strftime("%F %T.%L")
     end
 
-    def profile(task_id, task_name, cmd, start_time, end_time, host=nil, status=nil)
+    def profile(task_id, task_name, cmd, start_time, end_time,
+                host=nil, ncore=nil, status=nil)
       id = @lock.synchronize do
         id = @id
         @id += 1
@@ -96,7 +97,7 @@ module Pwrake
                format_time(start_time),
                format_time(end_time),
                "%.3f" % (end_time-start_time),
-               host, status ]
+               host, ncore, status ]
       end
       case status
       when ""
