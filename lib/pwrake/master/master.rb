@@ -190,8 +190,11 @@ module Pwrake
     end
 
     def invoke(t, args)
+      Log.debug "Master#invoke start: #{t.class}[#{t.name}]"
       @failed = false
       t.pw_search_tasks(args)
+      return if @running
+      @running = true
 
       if @option['GRAPH_PARTITION']
         setup_postprocess0
@@ -211,11 +214,7 @@ module Pwrake
       setup_postprocess1
       @branch_setup_thread.join
       send_task_to_idle_core
-      unless @running
-        @running = true
-        setup_fiber(t)
-        @running = false
-      end
+      setup_fiber(t)
     end
 
     def setup_fiber(t)
