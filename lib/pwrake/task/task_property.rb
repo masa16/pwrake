@@ -48,18 +48,19 @@ module Pwrake
       @disable_steal = prop.disable_steal if prop.disable_steal
     end
 
-    def acceptable_for(host_info)
+    def use_cores(host_info)
+      nc = (@exclusive) ? 0 : (@ncore || 1)
+      if nc < 1
+        nc += host_info.ncore
+      end
+      return nc
+    end
+
+    def accept_host(host_info)
       return true unless host_info
       if @disable_steal && host_info.steal_flag
         #Log.debug("@disable_steal && host_info.steal_flag")
         return false
-      end
-      ncore = (@exclusive) ? 0 : (@ncore || 1)
-      if ncore > 0
-        return false if ncore > host_info.idle_cores
-      else
-        n = host_info.ncore + ncore
-        return false if n < 1 || n > host_info.idle_cores
       end
       hn = host_info.name
       if @allow

@@ -34,7 +34,6 @@ module Pwrake
     end
 
     def_delegators :@task, :name, :actions, :prerequisites, :subsequents
-    def_delegators :@property, :acceptable_for
 
     attr_reader :task, :task_id, :group, :group_id, :file_stat
     attr_reader :location
@@ -341,6 +340,23 @@ module Pwrake
 
     def n_used_cores(host_info=nil)
       @n_used_cores ||= @property.n_used_cores(host_info)
+    end
+
+    def acceptable_for(host_info)
+      unless @property.accept_host(host_info)
+        return false
+      end
+      use_cores = @property.use_cores(host_info)
+      if @reserved_host.nil? || @reserved_host == host_info
+        case host_info.accept_core(name,use_cores)
+        when :ok
+          @reserved_host = nil
+          return true
+        when :reserve
+          @reserved_host = host_info
+        end
+      end
+      false
     end
 
     def untried_host?(host_info)

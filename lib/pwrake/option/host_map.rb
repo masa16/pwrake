@@ -86,6 +86,27 @@ module Pwrake
       end
       @continuous_fail
     end
+
+    def accept_core(task_name, use_cores)
+      if @reserved_task
+        if @reserved_task == task_name
+          if use_cores <= @idle_cores
+            Log.info "use reserved: #{@name} for #{task_name} (#{use_cores} cores)"
+            @reserved_task = nil
+            return :ok
+          end
+        end
+      else
+        if use_cores <= @idle_cores
+          return :ok
+        elsif use_cores > [1,@ncore/2].max
+          @reserved_task = task_name
+          Log.info "reserve host: #{@name} for #{task_name} (#{use_cores} cores)"
+          return :reserve
+        end
+      end
+      :busy
+    end
   end
 
   class HostMap < Hash
