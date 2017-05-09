@@ -38,6 +38,16 @@ module Pwrake
       end
     end
 
+    def merge(prop)
+      @ncore = prop.ncore if prop.ncore
+      @exclusive = prop.exclusive if prop.exclusive
+      @allow = prop.allow if prop.allow
+      @deny = prop.deny if prop.deny
+      @order_allow_deny = prop.order_allow_deny if prop.order_allow_deny
+      @retry = prop.retry if prop.retry
+      @disable_steal = prop.disable_steal if prop.disable_steal
+    end
+
     def acceptable_for(host_info)
       return true unless host_info
       if @disable_steal && host_info.steal_flag

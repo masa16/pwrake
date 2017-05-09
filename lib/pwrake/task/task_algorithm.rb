@@ -100,7 +100,11 @@ module Pwrake
     end
 
     def pw_set_property(property)
-      @property = property
+      if @property
+        @property.merge(property)
+      else
+        @property = property
+      end
       self
     end
 
