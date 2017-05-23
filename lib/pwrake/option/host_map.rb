@@ -99,7 +99,7 @@ module Pwrake
       else
         if use_cores <= @idle_cores
           return :ok
-        elsif use_cores > [1,@ncore/2].max
+        elsif use_cores > 1
           @reserved_task = task_name
           Log.info "reserve host: #{@name} for #{task_name} (#{use_cores} cores)"
           return :reserve
