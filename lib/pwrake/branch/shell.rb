@@ -229,6 +229,7 @@ module Pwrake
             task = Rake.application[task_name]
             @ncore = task.wrapper.n_used_cores
             begin
+              Rake.application.current_flow[Fiber.current] = task.property.subflow
               task.execute(task.arguments) if task.needed?
               result = "taskend:#{@id}:#{task.name}"
             rescue Exception=>e
@@ -237,6 +238,7 @@ module Pwrake
               result = "taskfail:#{@id}:#{task.name}"
               break if @exited
             ensure
+              Rake.application.current_flow[Fiber.current] = nil
               master_w.put_line result
             end
           end

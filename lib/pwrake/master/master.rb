@@ -17,6 +17,7 @@ module Pwrake
       @channel_by_hostid = {}
       @channels = []
       @hostinfo_by_id = {}
+      @current_flow = {}
       # init
       @option = Option.new
       Log.set_logger(@option)
@@ -31,6 +32,7 @@ module Pwrake
     attr_reader :task_queue
     attr_reader :option
     attr_reader :thread
+    attr_reader :current_flow # current_flow[Fiber.current] = task.property.subflow
 
     def setup_branch_handler(sub_host)
       ior,w0 = IO.pipe

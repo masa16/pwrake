@@ -144,6 +144,19 @@ module Pwrake
         'DEBUG',
         'PLOT_PARALLELISM',
         'SHOW_CONF',
+        ['SUBDIR','SUBDIRS',
+          proc{|v|
+            if Array===v
+              v.each do |d|
+                if !File.directory?(d)
+                  raise "directory #{d.inspect} does not exist"
+                end
+              end
+            elsif !v.nil?
+              raise "invalid argument for SUBDIR: #{v.inspect}"
+            end
+          }
+        ],
         ['REPORT_DIR','REPORT'],
         'REPORT_IMAGE',
         'FAILED_TARGET', # rename(default), delete, leave

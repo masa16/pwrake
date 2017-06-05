@@ -13,6 +13,10 @@ module Pwrake
       @role.task_queue
     end
 
+    def current_flow
+      @role.current_flow
+    end
+
     # Run the Pwrake application.
     def run
       standard_exception_handling do
@@ -46,10 +50,33 @@ module Pwrake
       end
     end
 
-    def invoke_task(task_string)
-      name, args = parse_task_string(task_string)
-      t = self[name]
-      @master.invoke(t,args)
+    # Find the rakefile and then load it and any pending imports.
+    def load_rakefile
+      if subdirs = pwrake_options['SUBDIR']
+        subdirs.each do |x|
+          begin
+            Rake.application.current_flow[Fiber.current] = x
+            super
+          ensure
+            Rake.application.current_flow[Fiber.current] = nil
+          end
+        end
+      else
+        super
+      end
+    end
+
+    def find_rakefile_location # :nodoc:
+      if subdir = Rake.application.current_flow[Fiber.current]
+        Dir.chdir(subdir)
+        if fn = have_rakefile
+          [File.join(subdir,fn), Rake.original_dir]
+        end
+      else
+        super
+      end
+    ensure
+      Dir.chdir(Rake.original_dir)
     end
 
     def invoke(t,*args)
@@ -137,6 +164,12 @@ module Pwrake
        ['--pwrake-conf [FILE]',
         "[Pw] Pwrake configuation file in YAML",
         lambda {|value| options.pwrake_conf = value}
+       ],
+       ['--subdir "dir1 dir2 ..."',
+        "[Pw] Join workflows in subdirectories",
+        lambda { |value|
+          options.subdir = value.split(/[\s,;:]+/)
+        }
        ],
        ['--show-conf','--show-config',
         "[Pw] Show Pwrake configuration options",

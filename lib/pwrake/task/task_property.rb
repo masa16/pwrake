@@ -4,6 +4,7 @@ module Pwrake
 
     attr_reader :ncore, :exclusive, :allow, :deny, :order_allow_deny,
       :retry, :disable_steal
+    attr_accessor :subflow
 
     def parse_description(description)
       if /\bn_?cores?[=:]\s*([+-]?\d+)/i =~ description
@@ -46,6 +47,7 @@ module Pwrake
       @order_allow_deny = prop.order_allow_deny if prop.order_allow_deny
       @retry = prop.retry if prop.retry
       @disable_steal = prop.disable_steal if prop.disable_steal
+      @subflow = prop.subflow if prop.subflow
     end
 
     def use_cores(host_info)
