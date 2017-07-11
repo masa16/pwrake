@@ -114,7 +114,7 @@ class Communicator
         return false if !common_line(s)
       end
     end
-    raise ConnectError, "fail to connect #{cmd.inspect}"
+    raise ConnectError, "lost connection to #{@host} during setup"
   rescue => e
     dropout(e)
   end
