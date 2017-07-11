@@ -1,6 +1,7 @@
 require "singleton"
 require "forwardable"
 require "logger"
+require "socket"
 
 module Pwrake
 
@@ -46,7 +47,7 @@ module Pwrake
         @dir = dir_class.new
         @dir.open
         @path = @dir.log_path
-        fn = "worker-#{`hostname`.chomp}-#{Process.pid}.log"
+        fn = "worker-#{Socket.gethostname}-#{Process.pid}.log"
         @logfile = (@path + fn).to_s
         ::FileUtils.mkdir_p(@path.to_s)
         @logger = @logger_file = ::Logger.new(@logfile)

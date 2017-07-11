@@ -1,3 +1,5 @@
+require "socket"
+
 module Pwrake
 
   class GfarmDirectory < SharedDirectory
@@ -8,7 +10,7 @@ module Pwrake
     @@gfarm2fs_debug = nil
     @@gfarm2fs_debug_wait = 1
     @@current_id = 0
-    @@hostname = `hostname`.chomp
+    @@hostname = Socket.gethostname
 
     def self.init(opts)
       @@prefix   = opts[:base_dir]
@@ -57,7 +59,7 @@ module Pwrake
       path = @log.path
       begin
         if @@gfarm2fs_debug && path
-          f = path+("gfarm2fs-"+`hostname`.chomp+"-"+@suffix)
+          f = path+("gfarm2fs-"+@@hostname+"-"+@suffix)
           spawn_cmd "gfarm2fs #{@@gfarm2fs_option} -d #{@gfarm_mountpoint} > #{f} 2>&1 & sleep #{@@gfarm2fs_debug_wait}"
         else
           spawn_cmd "gfarm2fs #{@@gfarm2fs_option} #{@gfarm_mountpoint}"
