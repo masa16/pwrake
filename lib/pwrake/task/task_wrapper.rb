@@ -29,7 +29,7 @@ module Pwrake
       @assigned = []
       @exec_host = nil
       @exec_host_id = nil
-      @tried_hosts = []
+      @tried_hosts = {}
       @n_retry = @property.retry || Rake.application.pwrake_options["RETRY"] || 1
     end
 
@@ -90,7 +90,7 @@ module Pwrake
     end
 
     def retry_or_subsequent
-      @tried_hosts << @exec_host
+      @tried_hosts[@exec_host] = true
       if @status=="end"
         @task.pw_enq_subsequents
       elsif @n_retry > 0
@@ -101,7 +101,7 @@ module Pwrake
         @n_retry -= 1
         Rake.application.task_queue.enq(self)
       else
-        s="give up retry (retry_count=0): #{name}"
+        s="give up retry (retry_count=#{@n_retry}): #{name}"
         Log.error(s)
         $stderr.puts(s)
       end
@@ -359,9 +359,8 @@ module Pwrake
       false
     end
 
-    def untried_host?(host_info)
-      return true unless host_info
-      !@tried_hosts.include?(host_info.name)
+    def tried_host?(host_info)
+      host_info && @tried_hosts[host_info.name]
     end
 
   end

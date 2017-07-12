@@ -68,18 +68,22 @@ module Pwrake
 
     def shift(host_info=nil)
       return super() unless host_info
-      i_found = nil
+      i_tried = []
       (size-1).downto(0) do |i|
         tw = at(i)
-        if tw.acceptable_for(host_info)
-          if tw.untried_host?(host_info)
-            return delete_at(i)
-          else
-            i_found ||= i
-          end
+        if tw.tried_host?(host_info)
+          i_tried << i
+        elsif tw.acceptable_for(host_info)
+          return delete_at(i)
         end
       end
-      (i_found) ? delete_at(i_found) : nil
+      i_tried.each do |i|
+        tw = at(i)
+        if tw.acceptable_for(host_info)
+          return delete_at(i)
+        end
+      end
+      nil
     end
   end
 
@@ -90,18 +94,22 @@ module Pwrake
 
     def shift(host_info=nil)
       return super() unless host_info
-      i_found = nil
+      i_tried = []
       size.times do |i|
         tw = at(i)
-        if tw.acceptable_for(host_info)
-          if tw.untried_host?(host_info)
-            return delete_at(i)
-          else
-            i_found ||= i
-          end
+        if tw.tried_host?(host_info)
+          i_tried << i
+        elsif tw.acceptable_for(host_info)
+          return delete_at(i)
         end
       end
-      (i_found) ? delete_at(i_found) : nil
+      i_tried.each do |i|
+        tw = at(i)
+        if tw.acceptable_for(host_info)
+          return delete_at(i)
+        end
+      end
+      nil
     end
   end
 
@@ -172,18 +180,24 @@ module Pwrake
     end
 
     def pop_last_rank(r,host_info)
-      i_found = nil
+      i_tried = []
       (size-1).downto(0) do |i|
         tw = at(i)
-        if tw.rank == r && tw.acceptable_for(host_info)
-          if tw.untried_host?(host_info)
+        if tw.rank == r
+          if tw.tried_host?(host_info)
+            i_tried << i
+          elsif tw.acceptable_for(host_info)
             return delete_at(i)
-          else
-            i_found ||= i
           end
         end
       end
-      (i_found) ? delete_at(i_found) : nil
+      i_tried.each do |i|
+        tw = at(i)
+        if tw.acceptable_for(host_info)
+          return delete_at(i)
+        end
+      end
+      nil
     end
 
     def hrf_delete(t)
