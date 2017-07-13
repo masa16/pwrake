@@ -333,7 +333,7 @@ module Pwrake
         Fiber.new do
           j = i
           while tw = pool.deq()
-            Log.debug "postproc##{j} deq=#{tw.name}"
+            #Log.debug "postproc##{j} deq=#{tw.name}"
             tw.postprocess(postproc)
             pool.count_down
             @hostinfo_by_taskname.delete(tw.name)
@@ -341,7 +341,7 @@ module Pwrake
             break if yield(pool,j)
           end
           postproc.close
-          Log.debug "postproc##{j} end"
+          #Log.debug "postproc##{j} end"
         end
       end
     end

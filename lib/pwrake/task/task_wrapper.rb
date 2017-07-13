@@ -170,7 +170,7 @@ module Pwrake
       @@task_logger << row
       #
       clsname = @task.class.to_s.sub(/^(Rake|Pwrake)::/o,"")
-      msg = '%s:"%s" %s: id=%d elap=%.6f exec_host=%s' %
+      msg = '%s[%s] status=%s id=%d elap=%.6f exec_host=%s' %
         [clsname,name,@status,@task_id,elap,@exec_host]
       if @status=="end"
         Log.info msg

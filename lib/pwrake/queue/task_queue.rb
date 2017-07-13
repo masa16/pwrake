@@ -70,14 +70,11 @@ module Pwrake
     end
 
     def deq_task(&block) # locality version
-      Log.debug "deq_task:"+(empty? ? " (empty)" : "\n#{inspect_q}")
+      Log.debug "deq_task from:"+(empty? ? " (empty)" : "\n#{inspect_q}")
       queued = 0
       @n_turn.times do |turn|
         next if turn_empty?(turn)
         queued += deq_turn(turn,&block)
-      end
-      if queued>0
-        Log.debug "deq_task: queued=#{queued}"
       end
     end
 
