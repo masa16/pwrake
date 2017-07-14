@@ -265,7 +265,7 @@ module Pwrake
           end
           @rank = max_rank + step
         end
-        Log.debug "Task[#{name}] rank=#{@rank.inspect}"
+        #Log.debug "Task[#{name}] rank=#{@rank.inspect}"
       end
       @rank
     end
