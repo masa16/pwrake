@@ -343,6 +343,9 @@ module Pwrake
     end
 
     def acceptable_for(host_info)
+      unless host_info
+        return true
+      end
       unless @property.accept_host(host_info)
         return false
       end
