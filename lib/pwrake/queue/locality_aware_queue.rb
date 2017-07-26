@@ -37,7 +37,12 @@ module Pwrake
         if !kv.empty?
           kv.each_key do |id|
             t.assigned.push(id)
-            @q[id].push(t)
+            q = @q[id]
+            if q
+              q.push(t)
+            else
+              Log.warn("@q[id]=#{q.inspect} : @q.keys=#{@q.keys.inspect} id=#{id.inspect}")
+            end
           end
           @size_q += 1
         else
