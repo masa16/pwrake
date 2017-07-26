@@ -374,12 +374,18 @@ module Pwrake
     end
 
     def ending?
-      #Log.debug " @no_more_run=#{@no_more_run.inspect}"
-      #Log.debug " @task_queue.empty?=#{@task_queue.empty?}"
-      #Log.debug " @hostinfo_by_id.empty?=#{@hostinfo_by_id.empty?}"
-      #Log.debug " @hostinfo_by_taskname.keys=#{@hostinfo_by_taskname.keys.inspect}"
-      (@no_more_run || @task_queue.empty? || @hostinfo_by_id.empty?) &&
+      if @no_more_run || @task_queue.empty? || @hostinfo_by_id.empty?
+        case @hostinfo_by_taskname.size
+        when 1..2
+          Log.debug " @no_more_run=#{@no_more_run.inspect}" if @no_more_run
+          Log.debug " @task_queue.empty?=#{@task_queue.empty?}" if @task_queue.empty?
+          Log.debug " @hostinfo_by_id.empty?=#{@hostinfo_by_id.empty?}" if @hostinfo_by_id.empty?
+          Log.debug " @hostinfo_by_taskname.keys=#{@hostinfo_by_taskname.keys.inspect}"
+        end
         @hostinfo_by_taskname.empty?
+      else
+        false
+      end
     end
 
     def handle_failed_target(name)
