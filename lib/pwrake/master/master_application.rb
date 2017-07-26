@@ -183,6 +183,7 @@ module Pwrake
        ],
        ['--clear-gfarm2fs',"[Pw] Clear gfarm2fs mountpoints left after failure.",
          lambda { |value|
+           require "pwrake/option/option_gfarm2fs"
            Option.new.clear_gfarm2fs
            exit
          }
