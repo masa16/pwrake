@@ -101,12 +101,22 @@ module NBIO
 
     def init_heartbeat
       t = Time.now
+      @hb_check_time = t
       @hb_time = {}
       @reader.each_key{|io| @hb_time[io] = t}
     end
 
     def check_heartbeat(ios,timeout)
       t = Time.now
+      if t - @hb_check_time < 3
+        if ios
+          ios.each do |io|
+            @hb_time[io] = t
+          end
+        end
+        return
+      end
+      @hb_check_time = t
       rds = @reader.dup
       if ios
         ios.each do |io|
@@ -119,7 +129,8 @@ module NBIO
           tdif = t - @hb_time[io]
           if tdif > timeout
             m = "Heartbeat Timeout: no response during #{tdif}s "+
-              "> timeout #{timeout}s from host=#{get_host(io)}"
+              "> timeout #{timeout}s from host=#{get_host(io)} " +
+              "@hb_time[io=#{io.inspect}]=#{@hb_time[io].strftime('%FT%T.%6N')}"
             hdl.error(TimeoutError.new(m))
           end
         end
@@ -138,6 +149,7 @@ module NBIO
       @pool = []
     end
     attr_reader :io
+    attr_accessor :host
 
     # call from Selector
     def call
@@ -237,7 +249,7 @@ module NBIO
       @chunk_size = 8192
     end
     attr_reader :io, :waiter
-    attr_accessor :check_timeout
+    attr_accessor :check_timeout, :host
 
     # call from Selector#run
     def call
@@ -455,6 +467,8 @@ module NBIO
       @writer = writer
       @reader = reader
       @host = hostname
+      @reader.host = @host
+      @writer.host = @host
       @exited = false
     end
     attr_reader :reader, :writer, :host
