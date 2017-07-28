@@ -350,7 +350,7 @@ module Pwrake
         return false
       end
       if @reserved_host.nil? || @reserved_host == host_info
-        case host_info.accept_core(name,@property.use_cores)
+        case host_info.accept_core(name,@property)
         when :ok
           @reserved_host = nil
           return true

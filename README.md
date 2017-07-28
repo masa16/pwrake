@@ -170,6 +170,7 @@ Properties (The leftmost item is default):
 
     ncore=integer     - The number of cores used by this task.
     exclusive=no|yes  - Exclusively execute this task in a single node.
+    reserve=no|yes    - Gives higher priority to this task if ncore>1. (reserve a host)
     allow=hostname    - Allow this host to execute this task. (accepts wild card)
     deny=hostname     - Deny this host to execute this task. (accepts wild card)
     order=deny,allow|allow,deny - The order of evaluation.

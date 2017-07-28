@@ -99,8 +99,8 @@ module Pwrake
       use_cores
     end
 
-    def accept_core(task_name, use_cores)
-      use_cores = check_cores(use_cores)
+    def accept_core(task_name, task_property)
+      use_cores = check_cores(task_property.use_cores)
       if @reserved_task
         if @reserved_task == task_name
           if use_cores <= @idle_cores
@@ -112,7 +112,7 @@ module Pwrake
       else
         if use_cores <= @idle_cores
           return :ok
-        elsif use_cores > 1
+        elsif use_cores > 1 && task_property.reserve
           @reserved_task = task_name
           Log.info "reserve host: #{@name} for #{task_name} (#{use_cores} cores)"
           return :reserve

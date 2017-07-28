@@ -3,7 +3,7 @@ module Pwrake
   class TaskProperty
 
     attr_reader :ncore, :exclusive, :allow, :deny, :order_allow_deny,
-      :retry, :disable_steal
+      :retry, :disable_steal, :reserve
     attr_accessor :subflow
 
     def parse_description(description)
@@ -16,6 +16,11 @@ module Pwrake
       if /\bexclusive[=:]\s*(\S+)/i =~ description
         if /^(y|t)/i =~ $1
           @exclusive = true
+        end
+      end
+      if /\breserve[=:]\s*(\S+)/i =~ description
+        if /^(y|t)/i =~ $1
+          @reserve = true
         end
       end
       if /\ballow[=:]\s*(\S+)/i =~ description
@@ -43,6 +48,7 @@ module Pwrake
     def merge(prop)
       @ncore = prop.ncore if prop.ncore
       @exclusive = prop.exclusive if prop.exclusive
+      @reserve = prop.reserve if prop.reserve
       @allow = prop.allow if prop.allow
       @deny = prop.deny if prop.deny
       @order_allow_deny = prop.order_allow_deny if prop.order_allow_deny
