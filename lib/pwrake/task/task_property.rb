@@ -37,6 +37,7 @@ module Pwrake
           @disable_steal = true
         end
       end
+      @use_cores = nil
     end
 
     def merge(prop)
@@ -48,14 +49,11 @@ module Pwrake
       @retry = prop.retry if prop.retry
       @disable_steal = prop.disable_steal if prop.disable_steal
       @subflow = prop.subflow if prop.subflow
+      @use_cores = nil
     end
 
-    def use_cores(host_info)
-      nc = (@exclusive) ? 0 : (@ncore || 1)
-      if nc < 1
-        nc += host_info.ncore
-      end
-      return nc
+    def use_cores
+      @use_cores ||= (@exclusive) ? 0 : (@ncore || 1)
     end
 
     def accept_host(host_info)
@@ -84,31 +82,17 @@ module Pwrake
     end
 
     def n_used_cores(host_info=nil)
-      nc_node = host_info && host_info.ncore
-      if @ncore.nil?
+      n = use_cores
+      if n == 1
         return 1
-      elsif @ncore > 0
-        if nc_node && @ncore > nc_node
-          m = "ncore=#{@ncore} must be <= nc_node=#{nc_node}"
-          Log.fatal m
-          raise RuntimeError,m
-        end
-        return @ncore
-      else
-        if nc_node.nil?
-          m = "host_info.ncore is not set"
-          Log.fatal m
-          raise RuntimeError,m
-        end
-        n = @ncore + nc_node
-        if n > 0
-          return n
-        else
-          m = "ncore+nc_node=#{n} must be > 0"
-          Log.fatal m
-          raise RuntimeError,m
-        end
+      elsif host_info
+        return host_info.check_cores(n)
+      elsif n < 1
+        m = "invalid for use_cores=#{n}"
+        Log.fatal m
+        raise RuntimeError,m
       end
+      return n
     end
 
   end
