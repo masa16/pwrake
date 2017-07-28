@@ -59,11 +59,14 @@ EOL
 
       h = {}
       @elap_sum = 0
+      @elap_core_sum = 0
       @sh_table.each do |row|
         if host = row['host']
           h[host] = true
         end
-        @elap_sum += row['elap_time'].to_f
+        t = row['elap_time'].to_f
+        @elap_sum += t
+        @elap_core_sum += t * row['ncore'].to_f
       end
       @hosts = h.keys.sort
       @start_time = Time.parse(@sh_table[0]["start_time"])
@@ -207,18 +210,18 @@ EOL
       html = HTML_HEAD + "<body><h1>Pwrake Statistics</h1>\n"
       html << "<h2>Workflow</h2>\n"
       html << "<table>\n"
-      html << "<tr><th>log file</th><td>#{@base}</td><tr>\n"
+      html << "<tr><th>log directory</th><td>#{@base}</td><tr>\n"
       html << "<tr><th>ncore</th><td>#{@ncore}</td><tr>\n"
       html << "<tr><th>elapsed time</th><td>%.3f sec</td><tr>\n"%[@elap]
-      html << "<tr><th>cumulative process time</th><td>%.3f sec</td><tr>\n"%[@elap_sum]
-      html << "<tr><th>occupancy</th><td>%.3f %%</td><tr>\n"%[@elap_sum/@elap/@ncore*100]
+      html << "<tr><th>accumulated process time</th><td>%.3f sec</td><tr>\n"%[@elap_sum]
+      html << "<tr><th>occupancy</th><td>%.3f %%</td><tr>\n"%[@elap_core_sum/@elap/@ncore*100]
       html << "<tr><th>start time</th><td>#{@start_time}</td><tr>\n"
       html << "<tr><th>end time</th><td>#{@end_time}</td><tr>\n"
-      html << "</table>\n"
+      html << "</table><br/>\n"
       html << "<table>\n"
-      html << "<tr><th>hosts</th><tr>\n"
-      @hosts.each do |h|
-        html << "<tr><td>#{h}</td><tr>\n"
+      html << "<tr><th colspan=5>#{@hosts.size} hosts &times; #{@ncore.fdiv @hosts.size} cores/host</th><tr>\n"
+      @hosts.each_slice(5) do |a|
+        html << "<tr>"+a.map{|h|"<td>#{h}</td>"}.join("")+"<tr>\n"
       end
       html << "</table>\n"
       html << "<h2>Parallelism</h2>\n"
