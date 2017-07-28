@@ -121,10 +121,13 @@ module Pwrake
         end
         if max_num > 0
           max_info = @hostinfo_by_id[max_host]
-          Log.debug "deq_steal max_host=#{max_info.name} max_num=#{max_num}"
+          #Log.debug "deq_steal max_host=#{max_info.name} max_num=#{max_num}"
           t = host_info.steal_phase{|h| deq_locate(max_info,h)}
           #Log.debug "deq_steal task=#{t.inspect}"
-          return t if t
+          if t
+            Log.debug "deq_steal max_host=#{max_info.name} max_num=#{max_num}"
+            return t
+          end
         end
       end
       nil
