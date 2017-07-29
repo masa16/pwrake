@@ -112,7 +112,7 @@ module Pwrake
       else
         if use_cores <= @idle_cores
           return :ok
-        elsif use_cores > 1 && task_property.reserve
+        elsif use_cores > 1 && !@steal_flag && task_property.reserve
           @reserved_task = task_name
           Log.info "reserve host: #{@name} for #{task_name} (#{use_cores} cores)"
           return :reserve
