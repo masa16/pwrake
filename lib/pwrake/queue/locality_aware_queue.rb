@@ -160,13 +160,16 @@ module Pwrake
 
     def clear
       @q_no_action.clear
+      @q_reserved.clear
       @q.each{|h,q| q.clear}
+      @size_q = 0
       @q_remote.clear
     end
 
     def empty?
       @size_q == 0 &&
         @q_no_action.empty? &&
+        @q_reserved.empty? &&
         @q_remote.empty?
     end
 

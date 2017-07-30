@@ -349,16 +349,10 @@ module Pwrake
       unless @property.accept_host(host_info)
         return false
       end
-      if @reserved_host.nil? || @reserved_host == host_info
-        case host_info.accept_core(name,@property)
-        when :ok
-          @reserved_host = nil
-          return true
-        when :reserve
-          @reserved_host = host_info
-        end
+      if @property.reserve
+        return true
       end
-      false
+      host_info.accept_core(@property.use_cores)
     end
 
     def tried_host?(host_info)

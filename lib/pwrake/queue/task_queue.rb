@@ -8,6 +8,7 @@ module Pwrake
     def initialize(hostinfo_by_id, group_map=nil)
       @enable_steal = true
       @q_no_action = NoActionQueue.new
+      @q_reserved = Hash.new
 
       @hostinfo_by_id = hostinfo_by_id
 
@@ -84,22 +85,29 @@ module Pwrake
         count = 0
         @hostinfo_by_id.each_value do |host_info|
           #Log.debug "TaskQueue#deq_turn host_info=#{host_info.name}"
-          if (n = host_info.idle_cores) && n > 0
-            if turn_empty?(turn)
-              return queued
-            elsif tw = deq_impl(host_info,turn)
-              n_task_cores = tw.n_used_cores(host_info)
-              Log.debug "deq: #{tw.name} n_task_cores=#{n_task_cores}"
-              if host_info.idle_cores < n_task_cores
-                m = "task.n_used_cores=#{n_task_cores} must be "+
-                  "<= host_info.idle_cores=#{host_info.idle_cores}"
-                Log.fatal m
-                raise RuntimeError,m
-              else
-                yield(tw,host_info,n_task_cores)
-                count += 1
-                queued += 1
+          if turn_empty?(turn)
+            return queued
+          elsif (n_idle = host_info.idle_cores) && n_idle > 0
+            if tw = @q_reserved[host_info]
+              n_use = tw.n_used_cores(host_info)
+              if n_idle < n_use
+                next
               end
+              @q_reserved.delete(host_info)
+              Log.debug "deq_reserve: #{tw.name} n_use_cores=#{n_use}"
+            elsif tw = deq_impl(host_info,turn)
+              n_use = tw.n_used_cores(host_info)
+              if n_idle < n_use
+                @q_reserved[host_info] = tw
+                Log.debug "reserve host: #{host_info.name} for #{tw.name} (#{n_use} cores)"
+                next
+              end
+              Log.debug "deq: #{tw.name} n_use_cores=#{n_use}"
+            end
+            if tw
+              yield(tw,host_info,n_use)
+              count += 1
+              queued += 1
             end
           end
         end
@@ -120,12 +128,14 @@ module Pwrake
 
     def clear
       @q_no_action.clear
+      @q_reserved.clear
       @q_input.clear
       @q_no_input.clear
     end
 
     def empty?
       @q_no_action.empty? &&
+        @q_reserved.empty? &&
         @q_input.empty? &&
         @q_no_input.empty?
     end

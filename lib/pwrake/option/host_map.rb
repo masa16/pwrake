@@ -89,7 +89,7 @@ module Pwrake
 
     def check_cores(use_cores)
       unless (1-@ncore..@ncore) === use_cores
-        m = "invalid for use_cores=#{use_cores}"
+        m = "use_cores=#{use_cores} is invalid for @ncore=#{@ncore}"
         Log.fatal m
         raise RuntimeError,m
       end
@@ -99,26 +99,8 @@ module Pwrake
       use_cores
     end
 
-    def accept_core(task_name, task_property)
-      use_cores = check_cores(task_property.use_cores)
-      if @reserved_task
-        if @reserved_task == task_name
-          if use_cores <= @idle_cores
-            Log.info "use reserved: #{@name} for #{task_name} (#{use_cores} cores)"
-            @reserved_task = nil
-            return :ok
-          end
-        end
-      else
-        if use_cores <= @idle_cores
-          return :ok
-        elsif use_cores > 1 && !@steal_flag && task_property.reserve
-          @reserved_task = task_name
-          Log.info "reserve host: #{@name} for #{task_name} (#{use_cores} cores)"
-          return :reserve
-        end
-      end
-      :busy
+    def accept_core(use_cores)
+      check_cores(use_cores) <= @idle_cores
     end
   end
 
