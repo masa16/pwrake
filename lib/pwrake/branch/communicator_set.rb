@@ -95,11 +95,15 @@ class CommunicatorSet
   end
 
   def kill(sig)
+    @selector.clear
     NBIO::Handler.kill(handler_set,sig)
+    @selector.run
   end
 
   def exit
+    @selector.clear
     NBIO::Handler.exit(handler_set)
+    @selector.run
   end
 
 end

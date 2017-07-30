@@ -31,21 +31,25 @@ module Pwrake
           top_level
           Log.debug "main: #{Time.now-t} sec"
           t = Time.now
+          @failed = @master.finish
+          Log.debug "finish: #{Time.now-t} sec"
+        rescue SystemExit => e
+          @failed = true
         rescue Exception => e
           # Exit with error message
           m = Log.bt(e)
           if @master.thread
             m += "\nIn branch thread #{@master.thread}:\n "
-            m += @master.thread.backtrace.join("\n ")
+            if @master.thread.backtrace
+              m += @master.thread.backtrace.join("\n ")
+            end
           end
           Log.fatal m
           $stderr.puts m
-          @master.signal_trap("INT")
-        ensure
-          @failed = @master.finish
-          Log.debug "finish: #{Time.now-t} sec"
-          Log.info "pwrake elapsed time: #{Time.now-START_TIME} sec"
+          @master.kill_end("INT")
+          @failed = true
         end
+        Log.info "pwrake elapsed time: #{Time.now-START_TIME} sec"
         Kernel.exit(false) if @failed
       end
     end

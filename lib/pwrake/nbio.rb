@@ -39,6 +39,11 @@ module NBIO
       @reader.empty? && @writer.empty?
     end
 
+    def clear
+      @reader.clear
+      @writer.clear
+    end
+
     def halt
       @running = false
       @writer.each_value{|w| w.halt}

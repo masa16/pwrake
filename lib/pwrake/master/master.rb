@@ -1,4 +1,5 @@
 require "fileutils"
+require "timeout"
 require "pwrake/logger"
 require "pwrake/nbio"
 require "pwrake/option/option"
@@ -22,6 +23,7 @@ module Pwrake
       @option = Option.new
       Log.set_logger(@option)
       TaskWrapper.init_task_logger(@option)
+      at_exit{TaskWrapper.close_task_logger}
       # moved from Option#init
       @option.put_log
       if @option['LOG_DIR'] && @option['GC_LOG_FILE']
@@ -63,31 +65,33 @@ module Pwrake
     end
 
     def signal_trap(sig)
-      case @killed
-      when 0
-        # log writing failed. can't be called from trap context
-        $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid} ##{@killed})"
-        if Rake.application.options.debug
-          $stderr.puts "in master thread #{Thread.current}:"
-          $stderr.puts caller
-          if @thread
-            $stderr.puts "in branch thread #{@thread}:"
-            $stderr.puts @thread.backtrace.join("\n")
-          end
+      $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid})"
+      if Rake.application.options.debug
+        $stderr.puts "in master thread #{Thread.current}:"
+        $stderr.puts caller
+        if @thread
+          $stderr.puts "in branch thread #{@thread}:"
+          $stderr.puts @thread.backtrace.join("\n")
         end
-        $stderr.puts "Exiting..."
-        @no_more_run = true
-        @failed = true
-        NBIO::Handler.kill(@hdl_set,sig)
-        # @selector.run : not required here
-      when 1
-        $stderr.puts "\nOnce more Ctrl-C (SIGINT) for exit."
-      when 2
-        @thread.kill if @thread
-      else
-        Kernel.exit(false) # must wait for nomral exit
       end
-      @killed += 1
+      kill_end(sig)
+    end
+
+    def kill_end(sig)
+      # log writing failed. can't be called from trap context
+      $stderr.puts "Exiting..."
+      @no_more_run = true
+      @failed = true
+      @selector.clear
+      NBIO::Handler.kill(@hdl_set,sig)
+      begin
+        Timeout.timeout(30) do
+          @selector.run
+          @thread.join if @thread
+        end
+      rescue
+      end
+      Kernel.exit(false)
     end
 
     def setup_branches
@@ -167,12 +171,14 @@ module Pwrake
       host_info = @hostinfo_by_id[hid.to_i]
       if host_info && host_info.decrease(1)
         # all retired
-        m = "retired: host #{host_info.name}"
-        Log.warn(m)
-        $stderr.puts(m)
-        drop_host(host_info) # delete from hostinfo_by_id
-        if @hostinfo_by_id.empty?
-          raise RuntimeError,"no worker host"
+        if !@exited
+          m = "retired: host #{host_info.name}"
+          Log.warn(m)
+          $stderr.puts(m)
+          drop_host(host_info) # delete from hostinfo_by_id
+          if @hostinfo_by_id.empty?
+              raise RuntimeError,"no worker host"
+          end
         end
       end
     end
@@ -208,7 +214,6 @@ module Pwrake
 
       setup_postprocess1
       @branch_setup_thread.join
-      @killed = 0
       [:TERM,:INT].each do |sig|
         Signal.trap(sig) do
           signal_trap(sig)
@@ -433,16 +438,25 @@ module Pwrake
       @branch_setup_thread.join
       # continues running fibers
       Log.debug "Master#finish @selector.run begin"
-      @selector.run(60)
+      begin
+        Timeout.timeout(30){@selector.run}
+      rescue
+      end
       Log.debug "Master#finish @selector.run end"
       if !@exited
         @exited = true
         Log.debug "Master#finish Handler.exit begin"
+        @selector.clear
         NBIO::Handler.exit(@hdl_set)
-        @selector.run(60)
+        begin
+          Timeout.timeout(30) do
+            @selector.run
+            @thread.join if @thread
+          end
+        rescue
+        end
         Log.debug "Master#finish Handler.exit end"
       end
-      TaskWrapper.close_task_logger
       Log.debug "Master#finish end"
       @failed
     end
