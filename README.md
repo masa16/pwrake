@@ -202,12 +202,12 @@ Properties (The leftmost item is default):
 
 ## Current version
 
-* Pwrake version 2.2.0
+* Pwrake version 2.2.3
 
 ## Tested Platform
 
 
-* Ruby 2.4.0
+* Ruby 2.4.1
 * Rake 12.0.0
 * CentOS 7.3
 
