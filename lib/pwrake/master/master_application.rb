@@ -40,8 +40,8 @@ module Pwrake
           m = Log.bt(e)
           if @master.thread
             m += "\nIn branch thread #{@master.thread}:\n "
-            if @master.thread.backtrace
-              m += @master.thread.backtrace.join("\n ")
+            if bt = @master.thread.backtrace
+              m += bt.join("\n ")
             end
           end
           Log.fatal m

@@ -71,7 +71,9 @@ module Pwrake
         $stderr.puts caller
         if @thread
           $stderr.puts "in branch thread #{@thread}:"
-          $stderr.puts @thread.backtrace.join("\n")
+          if bt = @thread.backtrace
+            $stderr.puts bt.join("\n")
+          end
         end
       end
       kill_end(sig)
