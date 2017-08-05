@@ -34,16 +34,20 @@ module Pwrake
         hints.each do |h|
           HostMap.ipmatch_for_name(h).each{|id| kv[id] = true}
         end
+        q_success = false
         if !kv.empty?
           kv.each_key do |id|
-            t.assigned.push(id)
             q = @q[id]
             if q
               q.push(t)
+              q_success = true
+              t.assigned.push(id)
             else
-              Log.warn("@q[id]=#{q.inspect} : @q.keys=#{@q.keys.inspect} id=#{id.inspect}")
+              Log.warn("lost queue for host id=#{id.inspect}: @q.keys=#{@q.keys.inspect}")
             end
           end
+        end
+        if q_success
           @size_q += 1
         else
           @q_remote.push(t)
