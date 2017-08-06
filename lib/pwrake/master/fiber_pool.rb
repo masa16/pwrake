@@ -46,7 +46,7 @@ module Pwrake
       run
       while f = @fibers.shift
         if f.alive?
-          raise RuntimeError,"FiberPool#finish: fiber is still alive."
+          $stderr.puts "FiberPool#finish: fiber is still alive."
         end
       end
     end
@@ -66,4 +66,3 @@ module Pwrake
 
   end
 end
-

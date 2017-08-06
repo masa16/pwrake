@@ -201,6 +201,7 @@ module Pwrake
 
       if @option['GRAPH_PARTITION']
         setup_postprocess0
+        @branch_setup_thread.join
         @task_queue.deq_noaction_task do |tw|
           tw.preprocess
           tw.status = "end"
