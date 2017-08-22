@@ -222,6 +222,8 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
       case s
       when /^\s*\((.*)$/
         get_command_key($1)
+      when /^\s*\w+=\S+\s+(.*)$/
+        get_command_key($1)
       when /^\s*([\w.,~^\/=+-]+)(.*)$/
         cmd, rest = $1, $2
         if cmd == "cd" && /[^;]*;(.*)$/ =~ rest

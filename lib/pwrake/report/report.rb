@@ -141,6 +141,8 @@ EOL
       case s
       when /^\s*\((.*)$/
         get_command($1)
+      when /^\s*\w+=\S+\s+(.*)$/
+        get_command($1)
       when /^\s*([\w.,~^\/=+-]+)(.*)$/
         cmd, rest = $1, $2
         case cmd
