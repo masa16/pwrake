@@ -39,9 +39,11 @@ module Pwrake
 "PMI_SIZE" => nil,
 }
 
-    def initialize(selector,dir_class,id)
+    def initialize(selector,dir_class,id,option)
       @selector = selector
       @id = id
+      @option = option
+      @gnu_time_prefix = 'pwgt'
       @out = Writer.instance
       @log = LogExecutor.instance
       @queue = FiberQueue.new
@@ -111,7 +113,7 @@ module Pwrake
       @sh_out, @spawn_out = IO.pipe
       @sh_err, @spawn_err = IO.pipe
 
-      @pid = Kernel.spawn(ENV, command,
+      @pid = Kernel.spawn(ENV, make_command(command),
                           :in=>@spawn_in,
                           :out=>@spawn_out,
                           :err=>@spawn_err,
@@ -135,15 +137,43 @@ module Pwrake
       Fiber.new{callback(@rd_out,"o")}.resume
     end
 
+    def make_command(cmd)
+      if @option[:gnu_time]
+        if /\[|\]|<|>|\(|\)|\&|\||\\|\$|;|`|\n/ =~ cmd
+          cmd = cmd.gsub(/'/,"'\"'\"'")
+          cmd = "sh -c '#{cmd}'"
+        end
+        f = "%e,%S,%U,%M,%t,%K,%D,%p,%X,%Z,%F,%R,%W,%c,%w,%I,%O,%r,%s,%k"
+        "/usr/bin/time -f 'pwgt:#{f}' #{cmd}"
+      else
+        cmd
+      end
+    end
+
     def callback(rd,mode)
-      while s = rd.gets
-        @out.puts "#{@id}:#{mode}:#{s.chomp}"
+      case mode
+      when "o"
+        while s = rd.gets
+          s.chomp!
+          @out.puts "#{@id}:o:#{s}"
+        end
+      when "e"
+        while s = rd.gets
+          s.chomp!
+          @last_err = s
+          @out.puts "#{@id}:e:#{s}"
+        end
       end
       if rd.eof?
         @rd_list.delete(rd)
         if @rd_list.empty?  # process_end
           @thread = @pid = nil
           @log.info inspect_status
+          if @option[:gnu_time]
+            if /^pwgt:(.*)$/ =~ @last_err
+              @out.puts "#{@id}:t:#{$1}"
+            end
+          end
           @out.puts "#{@id}:z:#{exit_status}"
           @sh_in.close
           @sh_out.close

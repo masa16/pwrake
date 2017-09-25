@@ -151,11 +151,13 @@ module Pwrake
       ensure
         end_time = Time.now
         @status = @@profiler.profile(@task_id, @task_name, cmd,
-                     start_time, end_time, host, @ncore, @status)
+                     start_time, end_time, host, @ncore, @status,
+                     @gnu_time_status)
       end
     end
 
     def io_read_loop
+      @gnu_time_status = nil
       while s = _gets
         case s
         when /^(\w+):(.*)$/
@@ -166,6 +168,9 @@ module Pwrake
             next
           when "e"
             $stderr.print x[1]+"\n"
+            next
+          when "t"
+            @gnu_time_status = x[1].split(',')
             next
           when "z"
             # see Executor#status_to_str

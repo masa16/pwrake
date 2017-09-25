@@ -24,6 +24,7 @@ module Pwrake
         :base_dir  => "",
         :work_dir  => self['WORK_DIR'],
         :log_dir   => self['LOG_DIR'],
+        :gnu_time  => self['GNU_TIME'],
         :pass_env  => self['PASS_ENV'],
         :ssh_option => self['SSH_OPTION'],
         :heartbeat => self['HEARTBEAT'],

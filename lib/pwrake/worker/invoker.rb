@@ -114,7 +114,7 @@ module Pwrake
         case line
         when /^(\d+):open$/o
           $1.split.each do |id|
-            @ex_list[id] = Executor.new(@selector,@dir_class,id)
+            @ex_list[id] = Executor.new(@selector,@dir_class,id,@option)
           end
         when "setup_end"
           return

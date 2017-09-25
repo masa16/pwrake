@@ -86,18 +86,22 @@ module Pwrake
     end
 
     def profile(task_id, task_name, cmd, start_time, end_time,
-                host=nil, ncore=nil, status=nil)
+                host=nil, ncore=nil, status=nil, gnu_time_status=nil)
       id = @lock.synchronize do
         id = @id
         @id += 1
         id
       end
       if @io
-        _puts [ id, task_id, task_name, cmd,
-               format_time(start_time),
-               format_time(end_time),
-               "%.3f" % (end_time-start_time),
-               host, ncore, status ]
+        prof = [ id, task_id, task_name, cmd,
+                format_time(start_time),
+                format_time(end_time),
+                "%.3f" % (end_time-start_time),
+                host, ncore, status ]
+        if @gnu_time && gnu_time_status
+          prof.concat(gnu_time_status)
+        end
+        _puts prof
       end
       case status
       when ""
