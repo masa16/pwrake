@@ -140,7 +140,7 @@ module Pwrake
       if @option[:gnu_time]
         if /\[|\]|<|>|\(|\)|\&|\||\\|\$|;|`|\n/ =~ cmd
           cmd = cmd.gsub(/'/,"'\"'\"'")
-          cmd = "sh -c '#{cmd}'"
+          cmd = (ENV['SHELL']||"sh")+" -c '#{cmd}'"
         end
         f = "%e,%S,%U,%M,%t,%K,%D,%p,%X,%Z,%F,%R,%W,%c,%w,%I,%O,%r,%s,%k"
         "/usr/bin/time -f 'pwgt:#{f}' #{cmd}"
