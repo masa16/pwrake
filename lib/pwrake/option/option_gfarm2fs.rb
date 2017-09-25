@@ -26,6 +26,7 @@ module Pwrake
       @worker_option = {
         :log_dir   => self['LOG_DIR'],
         :pass_env  => self['PASS_ENV'],
+        :gnu_time  => self['GNU_TIME'],
         :ssh_option => self['SSH_OPTION'],
         :heartbeat => self['HEARTBEAT'],
         #

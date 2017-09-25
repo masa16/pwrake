@@ -43,7 +43,6 @@ module Pwrake
       @selector = selector
       @id = id
       @option = option
-      @gnu_time_prefix = 'pwgt'
       @out = Writer.instance
       @log = LogExecutor.instance
       @queue = FiberQueue.new
