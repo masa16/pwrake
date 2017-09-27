@@ -111,22 +111,39 @@ module Pwrake
       @spawn_in, @sh_in = IO.pipe
       @sh_out, @spawn_out = IO.pipe
       @sh_err, @spawn_err = IO.pipe
-
-      @pid = Kernel.spawn(ENV, make_command(command),
-                          :in=>@spawn_in,
-                          :out=>@spawn_out,
-                          :err=>@spawn_err,
-                          :chdir=>@dir.current,
-                          :pgroup=>true
-                         )
-      @log.info "pid=#{@pid} started. command=#{command.inspect}"
-
-      @thread = Thread.new do
-        @pid2,@status = Process.waitpid2(@pid)
-        @spawn_in.close
-        @spawn_out.close
-        @spawn_err.close
+      if @option[:gnu_time]
+        @sh_gtm, @spawn_gtm = IO.pipe
+        @pid = Kernel.spawn(ENV, wrap_gnu_time(command),
+                            in:@spawn_in,
+                            out:@spawn_out,
+                            err:@spawn_err,
+                            3=>@spawn_gtm,
+                            chdir:@dir.current,
+                            pgroup:true,
+                           )
+        @thread = Thread.new do
+          @pid2,@status = Process.waitpid2(@pid)
+          @spawn_in.close
+          @spawn_out.close
+          @spawn_err.close
+          @spawn_gtm.close
+        end
+      else
+        @pid = Kernel.spawn(ENV, command,
+                            in:@spawn_in,
+                            out:@spawn_out,
+                            err:@spawn_err,
+                            chdir:@dir.current,
+                            pgroup:true
+                           )
+        @thread = Thread.new do
+          @pid2,@status = Process.waitpid2(@pid)
+          @spawn_in.close
+          @spawn_out.close
+          @spawn_err.close
+        end
       end
+      @log.info "pid=#{@pid} started. command=#{command.inspect}"
 
       @rd_out = NBIO::Reader.new(@selector,@sh_out)
       @rd_err = NBIO::Reader.new(@selector,@sh_err)
@@ -136,32 +153,19 @@ module Pwrake
       Fiber.new{callback(@rd_out,"o")}.resume
     end
 
-    def make_command(cmd)
-      if @option[:gnu_time]
-        if /\[|\]|<|>|\(|\)|\&|\||\\|\$|;|`|\n/ =~ cmd
-          cmd = cmd.gsub(/'/,"'\"'\"'")
-          cmd = (ENV['SHELL']||"sh")+" -c '#{cmd}'"
-        end
-        f = "%e,%S,%U,%M,%t,%K,%D,%p,%X,%Z,%F,%R,%W,%c,%w,%I,%O,%r,%s,%k"
-        "/usr/bin/time -f 'pwgt:#{f}' #{cmd}"
-      else
-        cmd
+    def wrap_gnu_time(cmd)
+      if /\[|\]|<|>|\(|\)|\&|\||\\|\$|;|`|'|"|\n/ =~ cmd
+        cmd = cmd.gsub(/'/,"'\"'\"'")
+        cmd = (ENV['SHELL']||"sh")+" -c '#{cmd}'"
       end
+      f = "%e,%S,%U,%M,%t,%K,%D,%p,%X,%Z,%F,%R,%W,%c,%w,%I,%O,%r,%s,%k"
+      "/usr/bin/time -o /dev/fd/3 -f '#{f}' #{cmd}"
     end
 
     def callback(rd,mode)
-      case mode
-      when "o"
-        while s = rd.gets
-          s.chomp!
-          @out.puts "#{@id}:o:#{s}"
-        end
-      when "e"
-        while s = rd.gets
-          s.chomp!
-          @last_err = s
-          @out.puts "#{@id}:e:#{s}"
-        end
+      while s = rd.gets
+        s.chomp!
+        @out.puts "#{@id}:#{mode}:#{s}"
       end
       if rd.eof?
         @rd_list.delete(rd)
@@ -169,9 +173,10 @@ module Pwrake
           @thread = @pid = nil
           @log.info inspect_status
           if @option[:gnu_time]
-            if /^pwgt:(.*)$/ =~ @last_err
-              @out.puts "#{@id}:t:#{$1}"
+            if gt = @sh_gtm.gets
+              @out.puts "#{@id}:t:#{gt.chomp}"
             end
+            @sh_gtm.close
           end
           @out.puts "#{@id}:z:#{exit_status}"
           @sh_in.close
