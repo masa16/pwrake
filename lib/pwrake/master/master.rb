@@ -67,12 +67,12 @@ module Pwrake
     def signal_trap(sig)
       $stderr.puts "\nSignal trapped. (sig=#{sig} pid=#{Process.pid})"
       if Rake.application.options.debug
-        $stderr.puts "in master thread #{Thread.current}:"
-        $stderr.puts caller
+        $stderr.print "in master thread #{Thread.current}:\n "
+        $stderr.puts caller.join("\n ")
         if @thread
-          $stderr.puts "in branch thread #{@thread}:"
+          $stderr.print "in branch thread #{@thread}:\n "
           if bt = @thread.backtrace
-            $stderr.puts bt.join("\n")
+            $stderr.puts bt.join("\n ")
           end
         end
       end
