@@ -80,8 +80,8 @@ module NBIO
       to = (timeout) ? timeout*0.75 : nil
       r, w, = @io_class.select(@reader.keys,@writer.keys,[],to)
       check_heartbeat(r,timeout) if timeout
-      r.each{|io| @reader[io].call} if r
-      w.each{|io| @writer[io].call} if w
+      r.each{|io| x = @reader[io]; x.call if x} if r
+      w.each{|io| x = @writer[io]; x.call if x} if w
     rescue IOError => e
       em = "#{e.class.name}: #{e.message}"
       @reader.keys.each do |io|

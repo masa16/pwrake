@@ -182,7 +182,9 @@ module Pwrake
           @sh_in.close
           @sh_out.close
           @sh_err.close
-          @start_process_fiber.resume # next process
+          if @start_process_fiber.alive?
+            @start_process_fiber.resume # next process
+          end
         end
       end
     rescue => exc
