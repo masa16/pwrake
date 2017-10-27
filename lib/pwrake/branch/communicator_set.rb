@@ -25,7 +25,7 @@ class CommunicatorSet
 
   attr_reader :selector
 
-  def_delegators :@communicators, :each, :each_value, :values, :size
+  def_delegators :@communicators, :each, :each_value, :values, :size, :empty?
 
   def create_communicators
     Fiber.new do

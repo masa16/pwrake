@@ -164,7 +164,7 @@ module Pwrake
         sig = $1
         sig = sig.to_i if /^\d+$/o =~ sig
         kill_all(sig)
-        return false
+        return true
         #
       when /^p$/o
         $stderr.puts "@ex_list = #{@ex_list.inspect}"

@@ -178,10 +178,12 @@ module Pwrake
             taskq = @task_q.delete(id)
             Log.debug "drop @task_q[#{id}]=#{taskq.inspect}"
             @cs.drop(id)
+            break if @cs.empty?
             #
           when /^kill:(.*)$/o
             sig = $1
             kill(sig)
+            break
             #
           else
             Log.debug "Branch: invalid line from master: #{s}"
