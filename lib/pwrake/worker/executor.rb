@@ -45,7 +45,7 @@ module Pwrake
       @option = option
       @out = Writer.instance
       @log = LogExecutor.instance
-      @queue = FiberQueue.new
+      @queue = FiberQueue.new(@log)
       @rd_list = []
       @dir = dir_class.new
       @dir.open
@@ -182,9 +182,6 @@ module Pwrake
           @sh_in.close
           @sh_out.close
           @sh_err.close
-          if @start_process_fiber.alive?
-            @start_process_fiber.resume # next process
-          end
         end
       end
     rescue => exc
