@@ -7,10 +7,11 @@ module Pwrake
 
   class FiberQueue
 
-    def initialize
+    def initialize(log=nil)
       @q = []
       @waiter = []
       @finished = false
+      @log = log
     end
 
     def enq(x)
@@ -38,7 +39,13 @@ module Pwrake
     def finish
       @finished = true
       while f = @waiter.shift
-        f.resume
+        begin
+          f.resume
+        rescue => exc
+          if @log
+            @log.error(([exc.to_s]+exc.backtrace).join("\n"))
+          end
+        end
       end
     end
 
