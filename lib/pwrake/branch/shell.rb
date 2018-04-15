@@ -145,14 +145,16 @@ module Pwrake
       end
       @status = nil
       start_time = Time.now
+      start_clock = Pwrake.clock
       begin
         _puts(cmd)
         @status = io_read_loop(&block)
       ensure
         end_time = Time.now
+        end_clock = Pwrake.clock
         @status = @@profiler.profile(@task_id, @task_name, cmd,
-                     start_time, end_time, host, @ncore, @status,
-                     @gnu_time_status)
+                     start_time, end_time, end_clock-start_clock,
+                     host, @ncore, @status, @gnu_time_status)
       end
     end
 

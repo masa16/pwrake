@@ -6,7 +6,12 @@ require "pwrake/option/host_map"
 
 module Pwrake
 
+  def self.clock
+    Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  end
+
   START_TIME = Time.now
+  START_CLOCK = Pwrake.clock
 
   class Option < Hash
 

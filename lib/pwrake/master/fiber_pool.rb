@@ -9,14 +9,14 @@ module Pwrake
       @fibers = []
       @idle_fiber = []
       @q = []
-      @new_fiber_start_time = Time.now-10
+      @new_fiber_start_time = Pwrake.clock-10
     end
 
     def enq(x)
       @q.push(x)
       @count += 1
       if @idle_fiber.empty? and @fibers.size < @max_fiber and
-          Time.now - @new_fiber_start_time > 0.1
+          Pwrake.clock - @new_fiber_start_time > 0.1
         @idle_fiber << new_fiber
       end
       f = @idle_fiber.shift

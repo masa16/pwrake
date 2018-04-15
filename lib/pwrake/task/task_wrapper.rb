@@ -65,6 +65,7 @@ module Pwrake
 
     def preprocess
       @time_start = Time.now
+      @clock_start = Pwrake.clock
     end
 
     def retry?
@@ -77,15 +78,15 @@ module Pwrake
 
     def postprocess(postproc)
       @executed = true if !@task.actions.empty?
-      #tm_taskend = Time.now
+      #tm_taskend = Pwrake.clock
       if is_file_task?
-        #t = Time.now
+        #t = Pwrake.clock
         if File.exist?(name)
           @file_stat = File::Stat.new(name)
           @location = postproc.run(self)
         end
       end
-      #Log.debug "postprocess time=#{Time.now-tm_taskend}"
+      #Log.debug "postprocess time=#{Pwrake.clock-tm_taskend}"
       log_task
     end
 
@@ -109,6 +110,7 @@ module Pwrake
 
     def log_task
       @time_end = Time.now
+      @clock_end = Pwrake.clock
       #
       sug_host = suggest_location()
       shell = Pwrake::Shell.current
@@ -118,7 +120,7 @@ module Pwrake
       end
       return if !@@task_logger
       #
-      elap = @time_end - @time_start
+      elap = @clock_end - @clock_start
       if has_output_file?
         RANK_STAT.add_sample(rank,elap)
       end
@@ -148,7 +150,7 @@ module Pwrake
       # preq_loc exec_host shell_id has_action executed ncore
       # file_size file_mtime file_host write_loc
       #
-      row = [ @task_id, name, @time_start, @time_end, elap,
+      row = [ @task_id, name, @time_start, @time_end, "%.6f"%elap,
               prerequisites, sug_host, preq_loc, @exec_host, @shell_id,
               (actions.empty?) ? 0 : 1,
               (@executed) ? 1 : 0,

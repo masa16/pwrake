@@ -30,12 +30,12 @@ module Pwrake
       end
       _puts table_header
       t = Time.now
-      profile(nil,nil,'pwrake_profile_start',t,t)
+      profile(nil,nil,'pwrake_profile_start',t,t,0)
     end
 
     def close
       t = Time.now
-      profile(nil,nil,'pwrake_profile_end',t,t)
+      profile(nil,nil,'pwrake_profile_end',t,t,0)
       @lock.synchronize do
         @io.close if @io != nil
         @io = nil
@@ -85,7 +85,7 @@ module Pwrake
       t.strftime("%F %T.%L")
     end
 
-    def profile(task_id, task_name, cmd, start_time, end_time,
+    def profile(task_id, task_name, cmd, start_time, end_time, elap_clock,
                 host=nil, ncore=nil, status=nil, gnu_time_status=nil)
       id = @lock.synchronize do
         id = @id
@@ -96,7 +96,7 @@ module Pwrake
         prof = [ id, task_id, task_name, cmd,
                 format_time(start_time),
                 format_time(end_time),
-                "%.3f" % (end_time-start_time),
+                "%.6f" % elap_clock,
                 host, ncore, status ]
         if @gnu_time && gnu_time_status
           prof.concat(gnu_time_status)

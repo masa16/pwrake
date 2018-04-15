@@ -19,12 +19,12 @@ module Pwrake
 
     def pw_search_tasks(args)
       Log.debug "#{self.class}#pw_search_tasks start, task=#{name} args=#{args.inspect}"
-      tm = Time.now
+      cl = Pwrake.clock
       task_args = TaskArguments.new(arg_names, args)
       # not synchronize owing to fiber
       search_with_call_chain(nil, task_args, InvocationChain::EMPTY)
       #
-      Log.debug "#{self.class}#pw_search_tasks end #{Time.now-tm}"
+      Log.debug "#{self.class}#pw_search_tasks end #{Pwrake.clock-cl}"
     end
 
     # Same as search, but explicitly pass a call chain to detect

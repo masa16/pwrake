@@ -23,16 +23,17 @@ module Pwrake
         init("pwrake")  # <- parse options here
         @role = @master = Master.new
         t = Time.now
+        t = Pwrake.clock
         @master.setup_branches
         load_rakefile
         begin
-          Log.debug "init: #{Time.now-t} sec"
-          t = Time.now
+          Log.debug "init: #{Pwrake.clock-t} sec"
+          t = Pwrake.clock
           top_level
-          Log.debug "main: #{Time.now-t} sec"
-          t = Time.now
+          Log.debug "main: #{Pwrake.clock-t} sec"
+          t = Pwrake.clock
           @failed = @master.finish
-          Log.debug "finish: #{Time.now-t} sec"
+          Log.debug "finish: #{Pwrake.clock-t} sec"
         rescue SystemExit => e
           @failed = true
         rescue Exception => e
@@ -49,7 +50,7 @@ module Pwrake
           @master.kill_end("INT")
           @failed = true
         end
-        Log.info "pwrake elapsed time: #{Time.now-START_TIME} sec"
+        Log.info "pwrake elapsed time: %.3f sec"%(Pwrake.clock-START_CLOCK)
         Kernel.exit(false) if @failed
       end
     end

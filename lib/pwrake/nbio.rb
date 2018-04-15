@@ -105,14 +105,14 @@ module NBIO
     end
 
     def init_heartbeat
-      t = Time.now
+      t = Pwrake.clock
       @hb_check_time = t
       @hb_time = {}
       @reader.each_key{|io| @hb_time[io] = t}
     end
 
     def check_heartbeat(ios,timeout)
-      t = Time.now
+      t = Pwrake.clock
       if t - @hb_check_time < 3
         if ios
           ios.each do |io|

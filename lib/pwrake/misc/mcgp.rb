@@ -6,7 +6,7 @@ module Pwrake
   module MCGP
 
     def graph_partition(host_map, target=nil)
-      t1 = Time.now
+      t1 = Pwrake.clock
       wgts = host_map.group_weight_sum
       if wgts.size > 1
         list = wgts.size.times.to_a
@@ -24,7 +24,7 @@ module Pwrake
       g = GraphTracerNode.new(list,wgts)
       trace(g,target)
       g.part_graph
-      t2 = Time.now
+      t2 = Pwrake.clock
       Pwrake::Log.info "Time for TOTAL Graph Partitioning: #{t2-t1} sec"
       #g.write_dot('dag2.dot')
       #exit
@@ -308,7 +308,7 @@ module Pwrake
 
       #  puts "@vertex_id2name[#{i}]=#{@vertex_id2name[i]}, depth=#{depth}, edges="+@edges[i].map{|x| @vertex_id2name[x[0]]}.join("|")
 
-      t1 = Time.now
+      t1 = Pwrake.clock
       if false
         puts "@vertex_id2name.size=#{@vertex_id2name.size}"
         if $debug2
@@ -358,7 +358,7 @@ module Pwrake
         @part = Metis.mc_part_graph_recursive2(
                   c,@xadj,@adjcny,@vwgt,nil,@tpwgts)
       end
-      t2 = Time.now
+      t2 = Pwrake.clock
       Pwrake::Log.info "Time for Graph Partitioning: #{t2-t1} sec"
       count_partition
       if $debug
