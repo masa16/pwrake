@@ -22,7 +22,6 @@ module Pwrake
       standard_exception_handling do
         init("pwrake")  # <- parse options here
         @role = @master = Master.new
-        t = Time.now
         t = Pwrake.clock
         @master.setup_branches
         load_rakefile
