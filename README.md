@@ -179,10 +179,9 @@ Properties (The leftmost item is default):
 
 ## Note for Gfarm
 
-* `gfwhere-pipe` script (included in Pwrake) is used for file-affinity scheduling.
-  This script requires Ruby/FFI (https://github.com/ffi/ffi). Install FFI by
-
-        gem install ffi
+* Gfarm file-affinity scheduling is achieved by `gfwhere-pipe` script included in Pwrake.
+  This script access to `libgfarm.so.1` through Fiddle (a Ruby's standard module) since Pwrake v2.2.7.
+  Please make accessible to `libgfarm.so.1` by setting environment variable `LD_LIBRARY_PATH`.
 
 ## Scheduling with Graph Partitioning
 
