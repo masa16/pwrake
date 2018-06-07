@@ -1,15 +1,18 @@
 #! /usr/bin/env ruby
 
-require 'ffi'
-require 'singleton'
+require 'fiddle'
 
 module Gfarm
 
   class GfarmError < StandardError
   end
+
   GFARM_ERR_NO_ERROR = 0
 
-  module FFI
+  module LibGfarm
+
+    module_function
+
     def find_executable(name)
       path = "/usr/local/bin:/usr/ucb:/usr/bin:/bin"
       begin
@@ -24,171 +27,176 @@ module Gfarm
         begin
           stat = File.stat(file)
         rescue SystemCallError
-      else
+        else
           return file if stat.file? and stat.executable?
         end
       end
       nil
     end
-    module_function :find_executable
 
-    if LIBGFARM_PATH = ENV['LIBGFARM_PATH']
-      dirs = LIBGFARM_PATH.split(":")
-    elsif d = find_executable('gfwhere')
-      d = File.dirname(File.dirname(d))
-      dirs = %w[lib64 lib].map{|l| File.join(d,l)}
-    else
-      raise StandardError, "cannot find libgfarm path"
-    end
-    path = nil
-    dirs.each do |d|
-      f = File.join(d,"libgfarm.so*")
-      g = Dir.glob(f)
-      if !g.empty?
-        path = g[0]
-        break
+    begin
+      HANDLE = Fiddle::Handle.new('libgfarm.so.1')
+    rescue
+      if d = find_executable('gfwhere')
+        d = File.dirname(File.dirname(d))
+        dirs = %w[lib64 lib].map{|l| File.join(d,l)}
+      else
+        raise StandardError, "cannot find libgfarm path"
       end
-    end
-    if !(path && File.exist?(path))
-      raise StandardError, "cannot find libgfarm"
-    end
-    extend ::FFI::Library
-    ffi_lib path
-    attach_function :gfarm_initialize, [:pointer, :pointer], :int
-    attach_function :gfarm_terminate, [], :int
-    attach_function :gfarm_realpath_by_gfarm2fs, [:string, :pointer], :int
-    attach_function :gfarm_error_string, [:int], :string
-    attach_function :gfs_replica_info_by_name, [:string, :int, :pointer], :int
-    attach_function :gfs_replica_info_number, [:pointer], :int
-    attach_function :gfs_replica_info_free, [:pointer], :void
-    attach_function :gfs_replica_info_nth_host, [:pointer, :int], :string
-  end
-
-
-  class Connection
-    include Singleton
-
-    def self.callback
-      proc{ FFI.gfarm_terminate }
-    end
-
-    def self.set_args(args)
-      @@args = args
-    end
-
-    def initialize
-      args = @@args || []
-      argc = ::FFI::MemoryPointer.new(:int, 1)
-      argc.write_int(args.size)
-      ary = args.map do |s|
-        str = ::FFI::MemoryPointer.new(:string, s.size)
-        str.write_string(s)
-        str
+      path = nil
+      dirs.each do |d|
+        f = File.join(d,"libgfarm.so*")
+        g = Dir.glob(f)
+        if !g.empty?
+          path = g[0]
+          break
+        end
       end
-      ptr = ::FFI::MemoryPointer.new(:pointer, args.size)
-      ptr.write_array_of_pointer(ary)
-      argv = ::FFI::MemoryPointer.new(:pointer, 1)
-      argv.write_pointer(ptr)
-      e = FFI.gfarm_initialize(argc, argv)
+      if !(path && File.exist?(path))
+        raise StandardError, "cannot find libgfarm"
+      end
+      HANDLE = Fiddle::Handle.new(path)
+    end
+
+    FUNC = {}
+
+    def def_cfunc(name,argtypes,rettype=Fiddle::TYPE_INT)
+      FUNC[name] = func =
+        Fiddle::Function.new(HANDLE.sym(name),argtypes,rettype,name:name)
+      define_singleton_method(name){|*a| func.call(*a)}
+    end
+
+    # gfarm_error_t gfarm_initialize(int *argcp, char *** argvp);
+    def_cfunc 'gfarm_initialize',[Fiddle::TYPE_VOIDP,Fiddle::TYPE_VOIDP]
+
+    # gfarm_error_t gfarm_terminate(void);
+    def_cfunc 'gfarm_terminate',[]
+
+    # const char *gfarm_error_string(gfarm_error_t);
+    def_cfunc 'gfarm_error_string',[Fiddle::TYPE_INT],Fiddle::TYPE_VOIDP
+
+    # gfarm_error_t gfarm_realpath_by_gfarm2fs(const char *, char **);
+    def_cfunc 'gfarm_realpath_by_gfarm2fs',[Fiddle::TYPE_VOIDP,Fiddle::TYPE_VOIDP]
+
+    # gfarm_error_t gfs_replica_info_by_name(
+    #   const char *, int, struct gfs_replica_info **);
+    def_cfunc 'gfs_replica_info_by_name',[Fiddle::TYPE_VOIDP,Fiddle::TYPE_INT,Fiddle::TYPE_VOIDP]
+
+    # void gfs_replica_info_free(struct gfs_replica_info *);
+    def_cfunc 'gfs_replica_info_free',[Fiddle::TYPE_VOIDP],Fiddle::TYPE_VOID
+
+    # int gfs_replica_info_number(struct gfs_replica_info *);
+    def_cfunc 'gfs_replica_info_number',[Fiddle::TYPE_VOIDP]
+
+    # const char *gfs_replica_info_nth_host(struct gfs_replica_info *, int);
+    def_cfunc 'gfs_replica_info_nth_host',[Fiddle::TYPE_VOIDP,Fiddle::TYPE_INT],Fiddle::TYPE_VOIDP
+
+
+    @@initialized = false
+
+    def initialize(*argv)
+      if @@initialized
+        warn "gfarm_initialize: already initialized"
+        return
+      end
+      argc_buf = [argv.size].pack('i')
+      if argv.empty?
+        argv_ary = [0].pack('J')
+      else
+        argv_ary = ARGV.map{|a| Fiddle::Pointer[a]}.pack('J*')
+      end
+      argv_buf = [Fiddle::Pointer[argv_ary]].pack('J')
+      e = LibGfarm.gfarm_initialize(argc_buf,argv_buf)
+      # size = argc_buf.unpack('i').first
       if e != GFARM_ERR_NO_ERROR
-        raise GfarmError, FFI.gfarm_error_string(e)
+        raise GfarmError,error_string(e)
       end
-      ObjectSpace.define_finalizer(self, self.class.callback)
+      @@initialized = true
+      at_exit{ gfarm_terminate() }
+    end
+
+    def error_string(i)
+      gfarm_error_string(i).to_s
     end
 
     def realpath_by_gfarm2fs(path)
-      ptr = ::FFI::MemoryPointer.new(:pointer, 1)
-      e = FFI.gfarm_realpath_by_gfarm2fs(path, ptr)
+      ptr_buf = [0].pack('J')
+      e = gfarm_realpath_by_gfarm2fs(path,ptr_buf)
       if e != GFARM_ERR_NO_ERROR
-        raise GfarmError, FFI.gfarm_error_string(e)
+        raise GfarmError,error_string(e)
       end
-      ptr.read_pointer().read_string()
+      Fiddle::Pointer[ptr_buf.unpack('J').first].to_s
     end
 
-    def replica_info_by_name(name)
-      ReplicaInfo.new(self,name)
-    end
   end
 
 
-  class ReplicaInfo < ::FFI::AutoPointer
+  class ReplicaInfo
 
-    def self.release(ptr)
-      FFI.gfs_replica_info_free(ptr)
-    end
-
-    def self.set_opts(opts)
-      @@opts = opts
-    end
-
-    def initialize(gfarm, path)
-      @gfarm = gfarm
-      @realpath = @gfarm.realpath_by_gfarm2fs(path)
-      flag = @@opts.flags
-      ptr = ::FFI::MemoryPointer.new(:pointer, 1)
-      e = FFI.gfs_replica_info_by_name(@realpath, flag, ptr)
-      if e != GFARM_ERR_NO_ERROR
-        raise GfarmError, @realpath+" "+FFI.gfarm_error_string(e)
-      end
-      @ri = ptr.read_pointer()
-      super @ri
-    end
-    attr_reader :realpath
-
-    def number
-      FFI.gfs_replica_info_number(@ri)
-    end
-
-    def nth_host(i)
-      FFI.gfs_replica_info_nth_host(@ri,i)
-    end
-  end
-
-  class Options
+    @@flags = 0
     INCLUDING_DEAD_HOST       = 1
     INCLUDING_INCOMPLETE_COPY = 2
     INCLUDING_DEAD_COPY       = 4
 
-    def initialize(argv)
-      @args = []
-      @flags = 0
+    def self.set_opts(argv)
+      @@flags = 0
+      args = []
       argv.each do |x|
         case x
         when "-i"
-          @including_incomplete_copy = true
-          @flags |= INCLUDING_INCOMPLETE_COPY
+          @@flags |= INCLUDING_INCOMPLETE_COPY
         else
-          @args << x
+          args << x
         end
       end
+      args
     end
 
-    attr_reader :args
-    attr_reader :flags
-    attr_reader :including_incomplete_copy
+    def initialize(path)
+      @realpath = LibGfarm.realpath_by_gfarm2fs(path)
+      ptr_buf = [0].pack('J')
+      e = LibGfarm.gfs_replica_info_by_name(@realpath,@@flags,ptr_buf)
+      if e != GFARM_ERR_NO_ERROR
+        raise GfarmError,@realpath+" : "+LibGfarm.error_string(e)
+      end
+      @ptr = Fiddle::Pointer[ptr_buf.unpack('J').first]
+      @ptr.free = LibGfarm::FUNC['gfs_replica_info_free']
+    end
+
+    attr_reader :realpath
+
+    def number
+      LibGfarm.gfs_replica_info_number(@ptr)
+    end
+
+    def nth_host(i)
+      LibGfarm.gfs_replica_info_nth_host(@ptr,i).to_s
+    end
   end
 
 end
 
-[:PIPE,:TERM,:INT].each do |sig|
-  Signal.trap(sig, "EXIT")
-end
+if $0 == __FILE__
 
-opts = Gfarm::Options.new(ARGV)
-Gfarm::ReplicaInfo.set_opts(opts)
-Gfarm::Connection.set_args(opts.args)
-gfarm = Gfarm::Connection.instance
-
-while path=$stdin.gets
-  path.chomp!
-  $stdout.print path+"\n"
-  $stdout.flush
-  begin
-    ri = gfarm.replica_info_by_name(path)
-    hosts = ri.number.times.map{|i| ri.nth_host(i) }
-    $stdout.print ri.realpath+":\n"+hosts.join(" ")+"\n"
-  rescue
-    $stdout.print "Error: "+path+"\n"
+  [:PIPE,:TERM,:INT].each do |sig|
+    Signal.trap(sig, "EXIT")
   end
-  $stdout.flush
+
+  argv = Gfarm::ReplicaInfo.set_opts(ARGV)
+  Gfarm::LibGfarm.initialize(*argv)
+
+  while path=$stdin.gets
+    path.chomp!
+    $stdout.print path+"\n"
+    $stdout.flush
+    begin
+      rep_info = Gfarm::ReplicaInfo.new(path)
+      hosts = rep_info.number.times.map{|i| rep_info.nth_host(i) }
+      $stdout.print rep_info.realpath+":\n"+hosts.join(" ")+"\n"
+    rescue
+      $stdout.print "Error: "+path+"\n"
+    end
+    $stdout.flush
+  end
+
 end
