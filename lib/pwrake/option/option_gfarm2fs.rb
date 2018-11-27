@@ -39,7 +39,6 @@ module Pwrake
         :single_mp => self['GFARM_SINGLE_MP']
       }
       @worker_progs = %w[
-        parallel/processor_count.rb
         pwrake/nbio
         pwrake/branch/fiber_queue
         pwrake/worker/writer

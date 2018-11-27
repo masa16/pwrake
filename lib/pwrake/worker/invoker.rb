@@ -1,14 +1,13 @@
 require "socket"
+require "etc"
 
 module Pwrake
 
   class Invoker
-    begin
-      # use Michael Grosser's Parallel module
-      # https://github.com/grosser/parallel
-      include Parallel::ProcessorCount
-    rescue
-      def processor_count
+    def processor_count
+      begin
+        Etc.nprocessors
+      rescue
         # only for Linux
         IO.read("/proc/cpuinfo").scan(/^processor/).size
       end

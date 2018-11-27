@@ -18,5 +18,4 @@ Gem::Specification.new do |gem|
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
   gem.require_paths = ["lib"]
   gem.required_ruby_version = '>= 2.2.3'
-  gem.add_runtime_dependency 'parallel', '>= 1.2.4'
 end

@@ -1,4 +1,3 @@
-require "parallel/processor_count.rb"
 require "pwrake/nbio"
 require "pwrake/branch/fiber_queue"
 require "pwrake/worker/writer"

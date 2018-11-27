@@ -1,7 +1,6 @@
 require "pathname"
 require "yaml"
 require "socket"
-require "parallel"
 require "pwrake/option/host_map"
 
 module Pwrake

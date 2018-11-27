@@ -10,7 +10,6 @@ module Pwrake
 
     def set_filesystem_option
       @worker_progs = %w[
-        parallel/processor_count.rb
         pwrake/nbio
         pwrake/branch/fiber_queue
         pwrake/worker/writer
