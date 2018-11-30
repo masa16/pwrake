@@ -8,8 +8,8 @@ Gem::Specification.new do |gem|
   gem.version       = Pwrake::VERSION
   gem.authors       = ["Masahiro TANAKA"]
   gem.email         = ["masa16.tanaka@gmail.com"]
-  gem.summary       = %q{Parallel and distributed Rake, which runs workflows on multicores, clusters, clouds. It allows parallel process execution on remote nodes via SSH.}
-  gem.description   = %q{Parallel and distributed Rake, which runs workflows on multicores, clusters, clouds. It invokes Rake tasks in parallel and executes processes on remote nodes via SSH. It provides locality-aware scheduling on Gfarm file system.}
+  gem.summary       = %q{Parallel and distributed Rake for workflow execution on multicores, clusters, clouds.}
+  gem.description   = %q{Parallel and distributed Rake for workflow execution on multicores, clusters, clouds using SSH. It has locality-aware scheduling designed for Gfarm file system.}
   gem.homepage      = "http://masa16.github.com/pwrake"
   gem.license       = 'MIT'
 
