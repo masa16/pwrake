@@ -23,6 +23,14 @@ Parallel Workflow extension for Rake, runs on multicores, clusters, clouds.
   * Pwrake schedules a compute node to execute a task, to a node where input files are stored.
   * Other supports for Gfarm: Automatic mount of the Gfarm file system, etc.
 
+## Requirement
+
+* Ruby version 2.2.3 or later
+* UNIX-like OS
+* For distributed processing:
+  * SSH command
+  * distributed file system (NFS, Gfarm, etc.)
+
 ## Installation
 
 Install with RubyGems:
@@ -70,7 +78,7 @@ In this case, you need the rehash of command paths:
 
         $ pwrake -F hosts
 
-### Use MPI to start remote worker
+### Sustitute MPI for SSH to start remote worker (Experimental)
 
 1. Setup MPI on your cluster.
 2. Install [MPipe gem](https://rubygems.org/gems/mpipe). (requires `mpicc`)
@@ -179,9 +187,9 @@ Properties (The leftmost item is default):
 
 ## Note for Gfarm
 
-* Gfarm file-affinity scheduling is achieved by `gfwhere-pipe` script included in Pwrake.
-  This script access to `libgfarm.so.1` through Fiddle (a Ruby's standard module) since Pwrake v2.2.7.
-  Please make accessible to `libgfarm.so.1` by setting environment variable `LD_LIBRARY_PATH`.
+* Gfarm file-affinity scheduling is achieved by `gfwhere-pipe` script bundled in the Pwrake package.
+  This script accesses `libgfarm.so.1` through Fiddle (a Ruby's standard module) since Pwrake ver.2.2.7.
+  Please set the environment variable `LD_LIBRARY_PATH` correctly to find `libgfarm.so.1`.
 
 ## Scheduling with Graph Partitioning
 
@@ -198,17 +206,6 @@ Properties (The leftmost item is default):
         GRAPH_PARTITION: true
 
 * See publication: [M. Tanaka and O. Tatebe, “Workflow Scheduling to Minimize Data Movement Using Multi-constraint Graph Partitioning,” in CCGrid 2012](http://ieeexplore.ieee.org/abstract/document/6217406/)
-
-## Current version
-
-* Pwrake version 2.2.3
-
-## Tested Platform
-
-
-* Ruby 2.4.1
-* Rake 12.0.0
-* CentOS 7.3
 
 ## Acknowledgment
 
