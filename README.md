@@ -207,6 +207,8 @@ Properties (The leftmost item is default):
 
 * See publication: [M. Tanaka and O. Tatebe, “Workflow Scheduling to Minimize Data Movement Using Multi-constraint Graph Partitioning,” in CCGrid 2012](http://ieeexplore.ieee.org/abstract/document/6217406/)
 
+## [Publications](https://github.com/masa16/pwrake/wiki/Publications)
+
 ## Acknowledgment
 
 This work is supported by:
