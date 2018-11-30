@@ -27,7 +27,7 @@ Parallel Workflow extension for Rake, runs on multicores, clusters, clouds.
 
 * Ruby version 2.2.3 or later
 * UNIX-like OS
-* For distributed processing:
+* For distributed processing using multiple computers:
   * SSH command
   * distributed file system (NFS, Gfarm, etc.)
 
@@ -40,8 +40,6 @@ Install with RubyGems:
 Or download source tgz/zip and expand, cd to subdirectory and install:
 
     $ ruby setup.rb
-
-In the latter case, you need install [Parallel](https://github.com/grosser/parallel) manually. It is required by Pwrake for processor count.
 
 If you use rbenv, your system may fail to find pwrake command after installation:
 
