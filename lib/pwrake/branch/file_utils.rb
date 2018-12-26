@@ -17,10 +17,9 @@ module Pwrake
       else
         options[:verbose] ||= RakeFileUtils.verbose_flag
       end
-      options[:noop]    ||= RakeFileUtils.nowrite_flag
+      options[:noop] ||= RakeFileUtils.nowrite_flag
       Rake.rake_check_options options, :noop, :verbose
       Rake.rake_output_message cmd.join(" ") if options[:verbose]
-      #Pwrake::Log.stderr_puts cmd.join(" ") if options[:verbose]
       unless options[:noop]
         res,status = Pwrake::FileUtils.pwrake_system(*cmd)
         block.call(res, status)
@@ -41,10 +40,9 @@ module Pwrake
       else
         options[:verbose] ||= RakeFileUtils.verbose_flag
       end
-      options[:noop]    ||= RakeFileUtils.nowrite_flag
+      options[:noop] ||= RakeFileUtils.nowrite_flag
       Rake.rake_check_options options, :noop, :verbose
       Rake.rake_output_message cmd.join(" ") if options[:verbose]
-      #Pwrake::Log.stderr_puts cmd.join(" ") if options[:verbose]
       unless options[:noop]
         res,status = Pwrake::FileUtils.pwrake_backquote(*cmd)
         block.call(res, status)
@@ -53,9 +51,6 @@ module Pwrake
     end
 
     def pwrake_system(*cmd)
-      cmd_log = cmd.join(" ").inspect
-      #tm = Pwrake::Timer.new("sh",cmd_log)
-
       conn = Pwrake::Shell.current
       if conn.kind_of?(Pwrake::Shell)
         res    = conn.system(*cmd)
@@ -65,16 +60,11 @@ module Pwrake
         status = $?
         status = Rake::PseudoStatus.new(1) if !res && status.nil?
       end
-
-      #tm.finish("status=%s cmd=%s"%[status.exitstatus,cmd_log])
       [res,status]
     end
 
     # Pwrake version of backquote command
     def pwrake_backquote(cmd)
-      cmd_log = cmd.inspect
-      #tm = Pwrake::Timer.new("bq",cmd_log)
-
       conn = Pwrake::Shell.current
       if conn.kind_of?(Pwrake::Shell)
         res    = conn.backquote(*cmd)
@@ -84,8 +74,6 @@ module Pwrake
         status = $?
         status = Rake::PseudoStatus.new(1) if status.nil?
       end
-
-      #tm.finish("status=%s cmd=%s"%[status.exitstatus,cmd_log])
       [res,status]
     end
 
