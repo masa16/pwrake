@@ -1,5 +1,6 @@
 #! /usr/bin/env ruby
 
+require 'pathname'
 require 'fiddle'
 
 module Gfarm
@@ -153,10 +154,7 @@ module Gfarm
     end
 
     def initialize(path)
-      while File.symlink?(path)
-        link = File.readlink(path)
-        path = File.expand_path(link, File.dirname(path))
-      end
+      path = Pathname.new(path).realpath.to_s
       @realpath = LibGfarm.realpath_by_gfarm2fs(path)
       ptr_buf = [0].pack('J')
       e = LibGfarm.gfs_replica_info_by_name(@realpath,@@flags,ptr_buf)
