@@ -178,7 +178,8 @@ module Gfarm
 
 end
 
-if $0 == __FILE__
+
+def gfwhere_pipe
 
   [:PIPE,:TERM,:INT].each do |sig|
     Signal.trap(sig, "EXIT")
@@ -202,3 +203,5 @@ if $0 == __FILE__
   end
 
 end
+
+gfwhere_pipe
