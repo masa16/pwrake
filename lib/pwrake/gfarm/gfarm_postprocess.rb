@@ -1,5 +1,7 @@
 module Pwrake
 
+  class GfwhereError < StandardError; end
+
   class GfarmPostprocess
 
     def initialize(selector)
@@ -22,11 +24,11 @@ module Pwrake
       end
       s = @reader.get_line
       if s.nil?
-        raise "gfwhere: unexpected end"
+        raise GfwhereError,"lost connection to gfwhere-pipe"
       end
       s.chomp!
       if s != filename
-        raise "gfwhere: file=#{filename}, result=#{s}"
+        raise GfwhereError,"path mismatch: send=#{filename}, return=#{s}"
       end
       while s = @reader.get_line
         s.chomp!
