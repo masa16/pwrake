@@ -94,20 +94,27 @@ module Pwrake
     def fmt(x)
       case x
       when Numeric
-        "%g"%x
+        a = x.abs
+        if a == 0
+          "0"
+        elsif a < 1
+          "%.3g" % x
+        else
+          "%.3f" % x
+        end
       else
         x.to_s
       end
     end
 
     def html_td
-      "<td>%i</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>" %
-        [@n, fmt(@mean), fmt(@median), fmt(@min), fmt(@max), fmt(@sdev)]
+      '<td align="right">%i</td><td align="right">%s</td><td align="right">%s</td><td align="right">%s</td><td align="right">%s</td><td align="right">%s</td>' %
+        [@n, fmt(@sum), fmt(@mean), fmt(@median), fmt(@min), fmt(@max)]
     end
 
     def self.html_th
       "<th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th>" %
-      %w[n mean median min max sdev]
+      %w[n sum mean median min max]
     end
 
     def report2

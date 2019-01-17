@@ -238,7 +238,7 @@ EOL
       fimg2 = Parallelism.plot_parallelism_by_host(@sh_table,@base,@img_fmt)
       html << "<img src='./#{File.basename(fimg2)}' align='top'/></br>\n"
 
-      html << "<h2>Command statistics</h2>\n"
+      html << "<h2>Command time statistics</h2>\n"
       html << "<table>\n"
       html << "<tr><th>command</th>"
       html << Stat.html_th
