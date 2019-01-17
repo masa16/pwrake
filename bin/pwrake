@@ -14,6 +14,7 @@ require "pwrake/version"
 require "pwrake/master/master_application"
 require "pwrake/task/task_manager"
 require "pwrake/task/task_algorithm"
+require "pwrake/task/file_task_algorithm"
 require "pwrake/branch/branch_application"
 
 class Rake::Application
@@ -24,6 +25,9 @@ end
 class Rake::Task
   include Pwrake::TaskAlgorithm
   prepend Pwrake::TaskInvoke
+end
+class Rake::FileTask
+  prepend Pwrake::FileTaskAlgorithm
 end
 
 # does NOT exit when writing to broken pipe
