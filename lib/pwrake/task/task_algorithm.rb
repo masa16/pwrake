@@ -33,8 +33,8 @@ module Pwrake
       new_chain = InvocationChain.append(self, invocation_chain)
       @lock.synchronize do
         if application.options.trace
-          #Log.debug "** Search #{name} #{format_search_flags}"
-          application.trace "** Search #{name} #{format_search_flags}"
+          #Log.debug "** Search #{name}#{format_search_flags}"
+          application.trace "** Search #{name}#{format_search_flags}"
         end
 
         return true if @already_finished # <<--- competition !!!
@@ -80,7 +80,7 @@ module Pwrake
       flags << "finished" if @already_finished
       flags << "first_time" unless @already_searched
       flags << "not_needed" unless needed?
-      flags.empty? ? "" : "(" + flags.join(", ") + ")"
+      flags.empty? ? "" : " (" + flags.join(", ") + ")"
     end
     private :format_search_flags
 
