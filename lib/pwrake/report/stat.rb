@@ -10,7 +10,7 @@ module Pwrake
         @max = data.max
         @sum = data.inject(0){|s,x| s+x}
         @mean = @sum/@n
-        @median = _median
+        @median = calc_median
         @mean_absolute_deviation = data.inject(0){|s,x| (x-@mean).abs} / @n
         if @n>1
           @variance = data.inject(0){|s,x| y=x-@mean; y**2} / (@n-1)
@@ -55,7 +55,7 @@ module Pwrake
       end
     end
 
-    def _median
+    def calc_median
       if @n==1
         @data[0]
       elsif @n==2
@@ -71,24 +71,6 @@ module Pwrake
           (s[i]+s[i+1])/2
         end
       end
-    end
-
-    def report
-      case @n
-      when 0
-        "no data"
-      when 1
-        "n=1 mean=%g"%@mean
-      else
-        "n=%i mean=%g median=%g min=%g max=%g sdev=%g skew=%g kurt=%g" %
-          [@n, @mean, @median, @min, @max, @sdev||0, @skew||0, @kurt||0]
-        "n=%i mean=%g median=%g min=%g max=%g sdev=%g" %
-          [@n, @mean, @median, @min, @max, @sdev||0]
-      end
-    end
-
-    def stat_array
-      [@n, @mean, @median, @min, @max, @sdev||0]
     end
 
     def fmt(x)
@@ -115,18 +97,6 @@ module Pwrake
     def self.html_th
       "<th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th>" %
       %w[n sum mean median min max]
-    end
-
-    def report2
-      case @n
-      when 0
-        "  no data"
-      when 1
-        "  n=1\n  mean=%g"%@mean
-      else
-        "  n=%i\n  mean=%g\n  median=%g\n  min=%g\n  max=%g\n  sdev=%g\n  skew=%g\n  kurt=%g" %
-          [@n, @mean, @median, @min, @max, @sdev||0, @skew||0, @kurt||0]
-      end
     end
 
   end
