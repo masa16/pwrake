@@ -223,7 +223,11 @@ module Pwrake
         end
       end
       send_task_to_idle_core
-      setup_fiber(t)
+      if ending?
+        @post_pool.finish # need?
+      else
+        setup_fiber(t)
+      end
     end
 
     def setup_fiber(t)
