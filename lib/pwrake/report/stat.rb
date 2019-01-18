@@ -12,7 +12,7 @@ module Pwrake
         @mean = @sum/@n
         @median = calc_median
         @mean_absolute_deviation = data.inject(0){|s,x| (x-@mean).abs} / @n
-        if @n>1
+        if false and @n>1
           @variance = data.inject(0){|s,x| y=x-@mean; y**2} / (@n-1)
           @sdev = Math.sqrt(@variance)
           @skew = data.inject(0){|s,x| y=(x-@mean)/@sdev; y**3} / @n
@@ -95,8 +95,12 @@ module Pwrake
     end
 
     def self.html_th
-      "<th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th>" %
-      %w[n sum mean median min max]
+      a = %w[command count sum mean median min max]
+      "<tr>" + "<th></th>"*2 +
+        "<th colspan=#{a.size-2}>time (seconds)</th>" +
+        "</tr>\n<tr>" +
+        "<th>%s</th>" * a.size % a +
+        "</tr>\n"
     end
 
   end

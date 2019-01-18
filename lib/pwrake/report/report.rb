@@ -227,7 +227,7 @@ EOL
       end
       html << "</table>\n"
       html << "<h2>Parallelism</h2>\n"
-      fimg = Parallelism.plot_parallelism2(@sh_table,@base,@img_fmt)
+      fimg = Parallelism.plot_parallelism(@sh_table,@base,@img_fmt)
       html << "<img src='./#{File.basename(fimg)}' align='top'/></br>\n"
 
       html << "<h2>Parallelism by command</h2>\n"
@@ -240,9 +240,7 @@ EOL
 
       html << "<h2>Command time statistics</h2>\n"
       html << "<table>\n"
-      html << "<tr><th>command</th>"
       html << Stat.html_th
-      html << "</tr>\n"
       @cmd_stat.each do |cmd,stat|
         html << "<tr><td>#{cmd}</td>"
         html << stat.html_td

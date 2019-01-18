@@ -59,59 +59,63 @@ module Pwrake
       d
     end
 
-    def plot_parallelism(file,fmt)
-      a = count_start_end_from_csv(file)
+
+    def plot_parallelism(csvtable, base, fmt)
+      a = count_start_end_from_csv_table(csvtable)
       return if a.size < 4
 
       #density = exec_density(a)
 
-      base = file.sub(/\.csv$/,"")
-      fpara = base+"_para.dat"
+      fimg = base+'/parallelism.'+fmt
 
       n = a.size
+      i = 0
       y = 0
       y_max = 0
 
-      File.open(fpara,"w") do |f|
-        i = 0
+      para = []
+      begin
         t = 0
         y_pre = 0
-        begin
-          while i < n
-            if a[i][0]-t > 0.001
-              f.printf "%.3f %d\n", t, y_pre
-              t = a[i][0]
-              f.printf "%.3f %d\n", t, y
-            end
-            y += a[i][1]
-            y_pre = y
-            y_max = y if y > y_max
-            i += 1
+        while i < n
+          if a[i][0]-t > 0.001
+            para.push "%.3f %d" % [t, y_pre]
+            t = a[i][0]
+            para.push "%.3f %d" % [t, y]
           end
-        rescue
-          p a[i]
+          y += a[i][1]
+          y_pre = y
+          y_max = y if y > y_max
+          i += 1
         end
+      rescue
+        p a[i]
       end
 
       t_end = (a.last)[0]
 
-      IO.popen("gnuplot","r+") do |f|
-        f.puts "
+      if system("which gnuplot >/dev/null 2>&1")
+        IO.popen("gnuplot","r+") do |f|
+          f.print "
 set terminal #{fmt}
-set output '#{base}.#{fmt}'
-#set rmargin 10
-set title '#{base}'
+set output '#{fimg}'
 set xlabel 'time (sec)'
-set ylabel 'parallelism'
+set ylabel '# of cores'
+set ytics nomirror
 
 set arrow 1 from #{t_end},#{y_max*0.5} to #{t_end},0 linecolor rgb 'blue'
-set label 1 at first #{t_end},#{y_max*0.5} right \"#{t_end}\\nsec\" textcolor rgb 'blue'
+set label 1 \"#{t_end}\\nsec\" at first #{t_end},#{y_max*0.5} right front textcolor rgb 'blue'
 
-plot '#{fpara}' w l axis x1y1 title 'parallelism'
+plot '-' w l notitle
 "
+          para.each do |x|
+            f.puts x
+          end
+        end
       end
 
-      #puts "Parallelism plot: #{base}.#{fmt}"
+      #puts "Parallelism plot: #{fimg}"
+      fimg
     end
 
 
@@ -154,10 +158,8 @@ plot '#{fpara}' w l axis x1y1 title 'parallelism'
         f.print "
 set terminal #{fmt}
 set output '#{fimg}'
-#set rmargin 10
-set title '#{base}'
 set xlabel 'time (sec)'
-set ylabel 'parallelism'
+set ylabel '# of cores'
 set y2tics
 set ytics nomirror
 set y2label 'exec/sec'
@@ -291,9 +293,8 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
         f.print "
 set terminal #{fmt}
 set output '#{fimg}'
-set title '#{base}'
 set xlabel 'time (sec)'
-set ylabel 'parallelism'
+set ylabel '# of cores'
 "
         f.print "plot "
         f.puts para.map{|cmd,re| "'-' w l title #{cmd.inspect}"}.join(",")
