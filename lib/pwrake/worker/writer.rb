@@ -9,21 +9,24 @@ module Pwrake
       @out = $stderr
       @mutex = Mutex.new
       @cond_hb = true
-      @heartbeat = 120
+      @heartbeat = nil
       @thread = Thread.new{ heartbeat_loop }
     end
 
     attr_accessor :out
 
     def heartbeat=(t)
-      @heartbeat = t.to_i
+      if t
+        t = t.to_i
+        t = 15 if t < 15
+      end
+      @heartbeat = t
       @thread.run
     end
 
     def heartbeat_loop
-      sleep
       loop do
-        sleep(@heartbeat)
+        @heartbeat ? sleep(@heartbeat) : sleep
         if @cond_hb
           _puts "heartbeat"
         end
@@ -36,9 +39,9 @@ module Pwrake
     end
 
     def puts(s)
+      _puts(s)
       @cond_hb = false
       @thread.run
-      _puts(s)
     end
 
     def flush
