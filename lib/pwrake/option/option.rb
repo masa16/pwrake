@@ -172,7 +172,7 @@ module Pwrake
         'PLOT_PARTITION',
 
         ['HOSTFILE','HOSTS'],
-        ['LOG_DIR','LOG',
+        ['LOG_DIR',
           proc{|v|
             if v
               if v == "" || !v.kind_of?(String)
