@@ -16,8 +16,8 @@ module Pwrake
     end
 
     def define_task(task_class, *args, &block) # :nodoc:
-      prop = @property_by_block[block.object_id]
-      if prop.nil?
+      prop = block && @property_by_block[block.source_location]
+      unless prop
         prop = @last_property
         @last_property = TaskProperty.new
       end
@@ -35,7 +35,9 @@ module Pwrake
     end
 
     def create_rule(*args, &block) # :nodoc:
-      @property_by_block[block.object_id] = @last_property
+      if block
+        @property_by_block[block.source_location] = @last_property
+      end
       @last_property = TaskProperty.new
       super
     end
