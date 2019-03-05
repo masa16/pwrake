@@ -139,6 +139,18 @@ module Pwrake
     end
     attr_reader :by_id, :by_name
 
+    def max_ncore
+      by_id.map{|host_info| host_info.ncore}.max
+    end
+
+    def min_ncore
+      by_id.map{|host_info| host_info.ncore}.max
+    end
+
+    def total_ncore
+      by_id.inject(0){|sum,host_info| host_info.ncore + sum}
+    end
+
     def local?
       @is_local
     end
