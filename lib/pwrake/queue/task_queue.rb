@@ -9,6 +9,12 @@ module Pwrake
       @enable_steal = true
       @q_no_action = NoActionQueue.new
       @q_reserved = Hash.new
+      def @q_reserved.first
+        super.last
+      end
+      def @q_reserved.last
+        self[keys.last]
+      end
 
       @hostinfo_by_id = hostinfo_by_id
 
@@ -158,7 +164,8 @@ module Pwrake
     def inspect_q
       _qstr("noaction",@q_no_action) +
       _qstr("input",   @q_input) +
-      _qstr("no_input",@q_no_input)
+      _qstr("no_input",@q_no_input) +
+      _qstr("reserved",@q_reserved)
     end
 
     def drop_host(host_info)

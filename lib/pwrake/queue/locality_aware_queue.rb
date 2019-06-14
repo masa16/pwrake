@@ -158,6 +158,7 @@ module Pwrake
       end
       s << _qstr("local*#{n}",[]) if n > 0
       s << _qstr("remote",@q_remote)
+      s << _qstr("reserved",@q_reserved)
       s << "@size_q=#{@size_q}"
       s
     end
