@@ -329,7 +329,7 @@ module Pwrake
       if count == 0 && !@task_queue.empty? && @hostinfo_by_taskname.empty?
         m="No task was invoked while unexecuted tasks remain"
         Log.error m
-        Log.error "count=#{count} @hostinfo_by_taskname.empty?=#{@hostinfo_by_taskname.empty?} @task_queue=\n"+@task_queue.inspect_q
+        Log.error "count=#{count} @hostinfo_by_taskname.empty?=#{@hostinfo_by_taskname.empty?} @task_queue.empty?={@task_queue.empty?} @task_queue=\n"+@task_queue.inspect_q
         raise RuntimeError,m
       end
       #Log.debug "#{self.class}#send_task_to_idle_core end time=#{Time.now-tm}"
