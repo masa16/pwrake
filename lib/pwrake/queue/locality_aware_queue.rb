@@ -59,7 +59,7 @@ module Pwrake
     def turn_empty?(turn)
       case turn
       when 0
-        @q_no_action.empty? && @size_q == 0 && @q_remote.empty?
+        empty?
       when 1
         @size_q == 0
       end
