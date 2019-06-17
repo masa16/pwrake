@@ -30,7 +30,7 @@ module Pwrake
         :shared_directory => "SharedDirectory"
       }
       @filesystem  = "default"
-      @queue_class = "TaskQueue"
+      @queue_class = "NonLocalityQueue"
     end
 
     def max_postprocess_pool

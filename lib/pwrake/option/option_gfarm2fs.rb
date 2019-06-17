@@ -50,7 +50,7 @@ module Pwrake
         pwrake/worker/worker_main
       ]
       if self['DISABLE_AFFINITY']
-        @queue_class = "TaskQueue"
+        @queue_class = "NonLocalityQueue"
       else
         @queue_class = "LocalityAwareQueue"
       end
