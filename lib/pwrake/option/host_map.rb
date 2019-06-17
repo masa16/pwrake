@@ -33,7 +33,6 @@ module Pwrake
     end
 
     def set_ncore(n)
-      @retire = 0
       @busy_cores = 0
       @ncore = @idle_cores = n
     end
@@ -45,19 +44,18 @@ module Pwrake
     def idle(n)
       @busy_cores -= n
       @idle_cores += n
-      @idle_cores -= @retire
-      @retire = 0
-      @idle_cores + @busy_cores < 1 # all retired
     end
 
     def busy(n)
       @busy_cores += n
       @idle_cores -= n
-      @idle_cores + @busy_cores < 1 # all retired
     end
 
-    def decrease(n)
+    def retire(n)
       @idle_cores -= n
+    end
+
+    def retired?
       @idle_cores + @busy_cores < 1 # all retired
     end
 
@@ -66,11 +64,6 @@ module Pwrake
       t = yield(self)
       @steal_flag = false
       t
-    end
-
-    def retire(n)
-      @retire += n
-      Log.debug "retire n=#{n}, host=#{@name}"
     end
 
     def task_result(result)
