@@ -148,8 +148,7 @@ module Pwrake
       if @hostinfo_by_id.empty?
         raise RuntimeError,"no worker host"
       end
-      queue_class = Pwrake.const_get(@option.queue_class)
-      @task_queue = queue_class.new(@hostinfo_by_id)
+      @task_queue = TaskQueue.new(@option.queue_class,@hostinfo_by_id)
 
       @branch_setup_thread = Thread.new do
         create_fiber(@hdl_set) do |hdl|
@@ -171,15 +170,16 @@ module Pwrake
 
     def retire(hid)
       host_info = @hostinfo_by_id[hid.to_i]
-      if host_info && host_info.decrease(1)
-        # all retired
+      return if host_info.nil?
+      host_info.retire(1)
+      if host_info.retired?
         if !@exited
           m = "retired: host #{host_info.name}"
           Log.warn(m)
           $stderr.puts(m)
           drop_host(host_info) # delete from hostinfo_by_id
           if @hostinfo_by_id.empty?
-              raise RuntimeError,"no worker host"
+            raise RuntimeError,"no worker host"
           end
         end
       end
@@ -310,11 +310,11 @@ module Pwrake
       count = 0
       # @idle_cores.decrease(..
       @task_queue.deq_task do |tw,host_info,ncore|
-        host_info.busy(ncore)
         count += 1
         @hostinfo_by_taskname[tw.name] = host_info
         tw.preprocess
-        if tw.has_action?
+        if host_info
+          host_info.busy(ncore)
           hid = host_info.id
           s = "#{hid}:#{tw.task_id}:#{tw.name}"
           @channel_by_hostid[hid].put_line(s)
@@ -322,7 +322,6 @@ module Pwrake
           tw.exec_host_id = hid
         else
           tw.status = "end"
-          task_end(tw,host_info) # @idle_cores.increase(..
           @post_pool.enq(tw)
         end
       end
@@ -359,7 +358,9 @@ module Pwrake
     end
 
     def task_end(tw,host_info)
-      if host_info && host_info.idle(tw.n_used_cores(host_info))
+      return if host_info.nil?
+      host_info.idle(tw.n_used_cores(host_info))
+      if host_info.retired?
         # all retired
         Log.warn("retired host:#{host_info.name} because all core retired")
         drop_host(host_info)
