@@ -21,6 +21,10 @@ module Pwrake
       @total_fail = 0
       @count_task = 0
       @ipaddr = []
+      begin
+        @ipaddr << IPSocket.getaddress(@name)
+      rescue
+      end
     end
 
     attr_reader :name, :ncore, :weight, :group, :id, :steal_flag
