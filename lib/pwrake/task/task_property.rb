@@ -19,7 +19,9 @@ module Pwrake
         end
       end
       if /\breserve[=:]\s*(\S+)/i =~ description
-        if /^(y|t)/i =~ $1
+        if /^(n|f)/i =~ $1
+          @reserve = false
+        else
           @reserve = true
         end
       end
