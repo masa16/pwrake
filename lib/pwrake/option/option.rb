@@ -166,8 +166,9 @@ module Pwrake
         'REPORT_IMAGE',
         'FAILED_TARGET', # rename(default), delete, leave
         'FAILURE_TERMINATION', # wait, kill, continue
-        'QUEUE_PRIORITY', # RANK(default), FIFO, LIFO, DFS
+        'QUEUE_PRIORITY', # LIHR(default), FIFO, LIFO, RANK
         'NOACTION_QUEUE_PRIORITY', # FIFO(default), LIFO, RAND
+        'MULTICORE_TASK_PRIORITY', # half(default), none
         'GRAPH_PARTITION',
         'PLOT_PARTITION',
 
