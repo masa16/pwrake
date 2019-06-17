@@ -1,8 +1,11 @@
 module Pwrake
 
-  class LocalityAwareQueue < TaskQueue
+  class LocalityAwareQueue
 
-    def init_queue(group_map=nil)
+    def initialize(hostinfo_by_id, array_class, group_map=nil)
+      @hostinfo_by_id = hostinfo_by_id
+      @array_class = array_class
+
       # group_map = {gid1=>[hid1,hid2,...], ...}
       @size_q = 0
       @q = {}
@@ -20,9 +23,11 @@ module Pwrake
       end
       @q_remote = @array_class.new(0)
       @disable_steal = Rake.application.pwrake_options['DISABLE_STEAL']
-      @last_enq_time = Time.now
       @n_turn = @disable_steal ? 1 : 2
+      @last_enq_time = Time.now
     end
+
+    attr_reader :n_turn
 
     def enq_impl(t)
       hints = t && t.suggest_location
@@ -69,10 +74,7 @@ module Pwrake
       host = host_info.name
       case turn
       when 0
-        if t = @q_no_action.shift
-          Log.debug "deq_no_action task=#{t&&t.name} host=#{host}"
-          return t
-        elsif t = deq_locate(host_info,host_info)
+        if t = deq_locate(host_info,host_info)
           Log.debug "deq_locate task=#{t&&t.name} host=#{host}"
           return t
         elsif t = @q_remote.shift(host_info)
@@ -138,7 +140,7 @@ module Pwrake
     end
 
     def inspect_q
-      s = _qstr("noaction",@q_no_action)
+      s = ""
       if @size_q == 0
         n = @q.size
       else
@@ -147,25 +149,27 @@ module Pwrake
           if q.size > 0
             hinfo = @hostinfo_by_id[h]
             if hinfo
-              s << _qstr(hinfo.name,q)
+              s << TaskQueue._qstr(hinfo.name,q)
             else
-              s << _qstr("(#{hinfo.inspect})",q)
+              s << TaskQueue._qstr("(#{hinfo.inspect})",q)
             end
           else
             n += 1
           end
         end
       end
-      s << _qstr("local*#{n}",[]) if n > 0
-      s << _qstr("remote",@q_remote)
-      s << _qstr("reserved",@q_reserved)
-      s << "@size_q=#{@size_q}"
+      s << TaskQueue._qstr("local*#{n}",[]) if n > 0
+      s << TaskQueue._qstr("remote",@q_remote)
+      s << " @size_q=#{@size_q}\n"
       s
     end
 
+    def size
+      @size_q +
+      @q_remote.size
+    end
+
     def clear
-      @q_no_action.clear
-      @q_reserved.clear
       @q.each{|h,q| q.clear}
       @size_q = 0
       @q_remote.clear
@@ -173,9 +177,7 @@ module Pwrake
 
     def empty?
       @size_q == 0 &&
-        @q_no_action.empty? &&
-        @q_reserved.empty? &&
-        @q_remote.empty?
+      @q_remote.empty?
     end
 
     def drop_host(host_info)
