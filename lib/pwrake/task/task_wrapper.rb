@@ -34,6 +34,7 @@ module Pwrake
     end
 
     def_delegators :@task, :name, :actions, :prerequisites, :subsequents
+    def_delegators :@property, :use_cores
 
     attr_reader :task, :task_id, :group, :group_id, :file_stat
     attr_reader :location
