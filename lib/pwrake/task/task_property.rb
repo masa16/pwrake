@@ -7,8 +7,19 @@ module Pwrake
     attr_accessor :subflow
 
     def parse_description(description)
-      if /\bn_?cores?[=:]\s*([+-]?\d+)/i =~ description
-        @ncore = $1.to_i
+      if /\bn_?cores?[=:]\s*(-?[\/\d]+)/i =~ description
+        case x = $1
+        when /^\/\d+$/
+          @ncore = ('1'+x).to_r
+        when /^\d+\/\d+$/
+          @ncore = x.to_r
+        when /^-?\d+$/
+          @ncore = x.to_i
+        else
+          m = "invalid task property: ncore=#{x.inspect}"
+          Log.fatal m
+          raise RuntimeError,m
+        end
       end
       if /\bretry[=:]\s*(\d+)/i =~ description
         @retry = $1.to_i
@@ -18,11 +29,10 @@ module Pwrake
           @exclusive = true
         end
       end
+      @reserve = true
       if /\breserve[=:]\s*(\S+)/i =~ description
         if /^(n|f)/i =~ $1
           @reserve = false
-        else
-          @reserve = true
         end
       end
       if /\ballow[=:]\s*(\S+)/i =~ description
@@ -44,7 +54,6 @@ module Pwrake
           @disable_steal = true
         end
       end
-      @use_cores = nil
     end
 
     def merge(prop)
@@ -57,11 +66,39 @@ module Pwrake
       @retry = prop.retry if prop.retry
       @disable_steal = prop.disable_steal if prop.disable_steal
       @subflow = prop.subflow if prop.subflow
-      @use_cores = nil
     end
 
-    def use_cores
-      @use_cores ||= (@exclusive) ? 0 : (@ncore || 1)
+    def use_cores(arg)
+      case arg
+      when HostInfo
+        ppn = arg.ncore
+      when Integer
+        ppn = arg
+        if ppn < 1
+          raise "invalid ppn: #{ppn}"
+        end
+      else
+        raise "invalid ppn: #{ppn}"
+      end
+
+      if @exclusive
+        return ppn
+      end
+
+      case @ncore
+      when Rational
+        if @ncore > 0 && @ncore <= 1
+          return [(@ncore*ppn).to_i, 1].min
+        end
+      when 1-ppn..ppn
+        return (@ncore>0) ? @ncore : @ncore+ppn
+      when nil
+        return 1
+      end
+
+      m = "ncore=#{@ncore} is out of range of cores per node: #{ppn}"
+      Log.fatal m
+      raise RuntimeError,m
     end
 
     def accept_host(host_info)
@@ -87,20 +124,6 @@ module Pwrake
         end
       end
       return true
-    end
-
-    def n_used_cores(host_info=nil)
-      n = use_cores
-      if n == 1
-        return 1
-      elsif host_info
-        return host_info.check_cores(n)
-      elsif n < 1
-        m = "invalid for use_cores=#{n}"
-        Log.fatal m
-        raise RuntimeError,m
-      end
-      return n
     end
 
   end

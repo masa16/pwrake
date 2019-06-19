@@ -40,6 +40,7 @@ module Pwrake
     attr_reader :location
     attr_reader :assigned
     attr_reader :tried_hosts
+    attr_reader :n_used_cores
     attr_accessor :executed
     attr_accessor :exec_host, :exec_host_id
     attr_accessor :shell_id, :status
@@ -341,8 +342,8 @@ module Pwrake
       @priority || 0
     end
 
-    def n_used_cores(host_info=nil)
-      @n_used_cores ||= @property.n_used_cores(host_info)
+    def set_used_cores(ncore)
+      @n_used_cores = ncore
     end
 
     def acceptable_for(host_info)
@@ -355,7 +356,7 @@ module Pwrake
       if @property.reserve
         return true
       end
-      host_info.accept_core(@property.use_cores)
+      host_info.accept_core(@property.use_cores(host_info.ncore))
     end
 
     def tried_host?(host_info)
