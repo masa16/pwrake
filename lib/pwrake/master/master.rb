@@ -312,6 +312,7 @@ module Pwrake
       @task_queue.deq_task do |tw,host_info,ncore|
         count += 1
         @hostinfo_by_taskname[tw.name] = host_info
+        tw.set_used_cores(ncore)
         tw.preprocess
         if host_info
           host_info.busy(ncore)
@@ -359,7 +360,7 @@ module Pwrake
 
     def task_end(tw,host_info)
       return if host_info.nil?
-      host_info.idle(tw.n_used_cores(host_info))
+      host_info.idle(tw.n_used_cores)
       if host_info.retired?
         # all retired
         Log.warn("retired host:#{host_info.name} because all core retired")
