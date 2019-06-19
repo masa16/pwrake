@@ -20,18 +20,12 @@ module Pwrake
 
       pri = Rake.application.pwrake_options['QUEUE_PRIORITY'] || "LIHR"
       case pri
-      when /prio/i
-        @array_class = PriorityQueueArray
       when /fifo/i
         @array_class = FifoQueueArray # Array # Fifo
       when /lifo/i
         @array_class = LifoQueueArray
       when /lihr/i
         @array_class = LifoHrfQueueArray
-      when /prhr/i
-        @array_class = PriorityHrfQueueArray
-      when /rank/i
-        @array_class = RankQueueArray
       else
         raise RuntimeError,"unknown option for QUEUE_PRIORITY: "+pri
       end
@@ -40,31 +34,16 @@ module Pwrake
       # median number of cores
       a = @hostinfo_by_id.map{|id,host_info| host_info.ncore}.sort
       n = a.size
-      @n_core = (n%2==0) ? (a[n/2-1]+a[n/2])/2 : a[(n-1)/2]
+      @median_core = (n%2==0) ? (a[n/2-1]+a[n/2])/2 : a[(n-1)/2]
 
-      case Rake.application.pwrake_options['MULTICORE_TASK_PRIORITY']
-      when /^half/i, nil
-        @core_threshold = @n_core/2
-      when /^n(o(ne)?)?/i
-        @core_threshold = 0
-      else
-        raise RuntimeError,"unknown option for MULTICORE_TASK_PRIORITY: "+
-          Rake.application.pwrake_options['MULTICORE_TASK_PRIORITY']
-      end
-      @q = ((@core_threshold==0)?1:2).times.map do
-        @queue_class.new(hostinfo_by_id, @array_class, group_map)
-      end
+      @q = @queue_class.new(hostinfo_by_id,@array_class,@median_core,group_map)
     end
 
-    # enq
     def enq(tw)
       if tw.nil? || tw.actions.empty?
         @q_no_action.push(tw)
       else
-        n = tw.use_cores
-        n += @n_core if n <= 0
-        i = (n > @core_threshold) ? 0 : 1
-        @q[i].enq_impl(tw)
+        @q.enq_impl(tw)
       end
     end
 
@@ -72,10 +51,8 @@ module Pwrake
       Log.debug "deq_task from:"+(empty? ? " (empty)" : "\n#{inspect_q}")
       deq_noaction_task(&block)
       deq_reserve(&block)
-      @q.each do |q|
-        unless q.empty?
-          q.n_turn.times{|turn| deq_turn(q,turn,&block) }
-        end
+      unless @q.empty?
+        @q.turns.each{|turn| deq_turn(turn,&block) }
       end
     end
 
@@ -89,7 +66,7 @@ module Pwrake
     def deq_reserve(&block)
       @q_reserved.each do |host_info,tw|
         n_idle = host_info.idle_cores || 0
-        n_core = tw.n_used_cores(host_info)
+        n_core = tw.use_cores(host_info)
         if n_idle >= n_core
           @q_reserved.delete(host_info)
           Log.debug "deq_reserve: #{tw.name} n_use_cores=#{n_core}"
@@ -98,15 +75,15 @@ module Pwrake
       end
     end
 
-    def deq_turn(q,turn,&block)
+    def deq_turn(turn,&block)
       begin
         count = 0
         @hostinfo_by_id.each_value do |host_info|
-          return if q.turn_empty?(turn)
+          return if @q.turn_empty?(turn)
           n_idle = host_info.idle_cores || 0
           next if n_idle == 0 || @q_reserved[host_info]
-          if tw = q.deq_impl(host_info,turn)
-            n_core = tw.n_used_cores(host_info)
+          if tw = @q.deq_impl(host_info,turn)
+            n_core = tw.use_cores(host_info)
             if n_idle >= n_core
               Log.debug "deq: #{tw.name} n_use_cores=#{n_core}"
               yield(tw,host_info,n_core)
@@ -123,13 +100,13 @@ module Pwrake
     def clear
       @q_no_action.clear
       @q_reserved.clear
-      @q.each{|q| q.clear}
+      @q.clear
     end
 
     def empty?
       @q_no_action.empty? &&
       @q_reserved.empty? &&
-      @q.all?{|q| q.empty?}
+      @q.empty?
     end
 
     def self._qstr(h,q)
@@ -148,15 +125,13 @@ module Pwrake
     end
 
     def inspect_q
-      [TaskQueue._qstr("noaction",@q_no_action),
-       *@q.map{|q| q.inspect_q},
-       TaskQueue._qstr("reserved",@q_reserved),
-      ].inject(&:+)
+      TaskQueue._qstr("noaction",@q_no_action) +
+      @q.inspect_q +
+      TaskQueue._qstr("reserved",@q_reserved)
     end
 
     def drop_host(host_info)
-      @q.each{|q| q.drop_host(host_info)}
+      @q.drop_host(host_info)
     end
-
   end
 end
