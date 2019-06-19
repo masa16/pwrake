@@ -91,7 +91,7 @@ class CommunicatorSet
   end
 
   def handler_set
-    @communicators.each_value.map{|comm| comm.handler}
+    @communicators.each_value.map{|comm| comm.handler}.compact
   end
 
   def kill(sig)
