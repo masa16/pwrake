@@ -84,20 +84,8 @@ module Pwrake
       @continuous_fail
     end
 
-    def check_cores(use_cores)
-      unless (1-@ncore..@ncore) === use_cores
-        m = "use_cores=#{use_cores} is invalid for @ncore=#{@ncore}"
-        Log.fatal m
-        raise RuntimeError,m
-      end
-      if use_cores < 1
-        use_cores += @ncore
-      end
-      use_cores
-    end
-
     def accept_core(use_cores)
-      check_cores(use_cores) <= @idle_cores
+      use_cores <= @idle_cores
     end
   end
 
