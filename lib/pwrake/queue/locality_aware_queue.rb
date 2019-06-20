@@ -28,7 +28,12 @@ module Pwrake
       @q_remote = @array_class.new(@median_core)
       @q_all = @array_class.new(@total_core)
       @disable_steal = Rake.application.pwrake_options['DISABLE_STEAL']
-      @turns = @disable_steal ? [0,2] : [0,1,2,3]
+      @multicore_task_priority = Rake.application.pwrake_options['MULTICORE_TASK_PRIORITY']
+      if @half_core == 0 || !@multicore_task_priority
+        @turns = @disable_steal ? [2] : [2,3]
+      else
+        @turns = @disable_steal ? [0,2] : [0,1,2,3]
+      end
       @last_enq_time = Time.now
     end
 
@@ -75,75 +80,59 @@ module Pwrake
     end
 
     def deq_impl(host_info, turn)
-      host = host_info.name
       case turn
       when 0
-        if t = deq_locate(host_info,host_info,@half_core)
-          Log.debug "deq_locate task=#{t&&t.name} host=#{host}"
-          return t
-        elsif t = @q_remote.shift(host_info,@half_core)
-          @q_all.delete(t)
-          Log.debug "deq_remote task=#{t&&t.name}"
-          return t
-        else
-          nil
-        end
+        deq_local(host_info,@half_core) ||
+        deq_remote(host_info,@half_core)
       when 1
-        if t = deq_steal(host_info,@half_core)
-          Log.debug "deq_steal task=#{t&&t.name} host=#{host}"
-          return t
-        else
-          nil
-        end
+        deq_steal(host_info,@half_core)
       when 2
-        if t = deq_locate(host_info,host_info,0)
-          Log.debug "deq_locate task=#{t&&t.name} host=#{host}"
-          return t
-        elsif t = @q_remote.shift(host_info,0)
-          @q_all.delete(t)
-          Log.debug "deq_remote task=#{t&&t.name}"
-          return t
-        else
-          nil
-        end
+        deq_local(host_info,0) ||
+        deq_remote(host_info,0)
       when 3
-        if t = deq_steal(host_info,0)
-          Log.debug "deq_steal task=#{t&&t.name} host=#{host}"
-          return t
-        else
-          nil
-        end
+        deq_steal(host_info,0)
       end
     end
 
-    def deq_locate(q_host,run_host,min_core)
-      q = @q[q_host.id]
+    def deq_local(run_host, min_core)
+      q = @q[run_host.id]
       if q && !q.empty?
         t = q.shift(run_host,min_core)
         if t
-          t.assigned.each do |h|
-            if q_h = @q[h]
-              q_h.delete(t)
-            end
-          end
+          q_delete_assigned_to(t)
           @q_all.delete(t)
+          Log.debug "deq_local task=#{t&&t.name} host=#{run_host.name}"
           return t
         end
       end
       nil
     end
 
-    def deq_steal(run_host,min_core)
-      if t = @q_all.shift(run_host,min_core)
-        t.assigned.each do |h|
-          if q_h = @q[h]
-            q_h.delete(t)
-          end
-        end
-        @q_remote.delete(t)
+    def deq_remote(host_info, min_core)
+      if t = @q_remote.shift(host_info,@half_core)
+        @q_all.delete(t)
+        Log.debug "deq_remote task=#{t&&t.name} host=#{host_info.name}"
         return t
       end
       nil
+    end
+
+    def deq_steal(run_host, min_core)
+      if t = @q_all.shift(run_host,min_core)
+        q_delete_assigned_to(t)
+        @q_remote.delete(t)
+        Log.debug "deq_steal task=#{t&&t.name} host=#{run_host.name}"
+        return t
+      end
+      nil
+    end
+
+    def q_delete_assigned_to(t)
+      t.assigned.each do |h|
+        if q_h = @q[h]
+          q_h.delete(t)
+        end
+      end
     end
 
     def inspect_q
