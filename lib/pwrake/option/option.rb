@@ -168,9 +168,20 @@ module Pwrake
         'FAILURE_TERMINATION', # wait, kill, continue
         'QUEUE_PRIORITY', # LIHR(default), FIFO, LIFO, RANK
         'NOACTION_QUEUE_PRIORITY', # FIFO(default), LIFO, RAND
-        'MULTICORE_TASK_PRIORITY', # half(default), none
         'GRAPH_PARTITION',
         'PLOT_PARTITION',
+
+        ['MULTICORE_TASK_PRIORITY', # true(default), false
+         proc{|v|
+           v = true if v.nil?
+           case v
+           when TrueClass,FalseClass
+             v
+           else
+             raise "invalid parameter: MULTICORE_TASK_PRIORITY=#{v.inspect}"
+           end
+         }
+        ],
 
         ['HOSTFILE','HOSTS'],
         ['LOG_DIR',
@@ -287,9 +298,9 @@ module Pwrake
 
     def parse_opt(s)
       case s
-      when /^(false|nil|off)$/i
+      when /^(false|nil|off|n|no)$/i
         false
-      when /^(true|on)$/i
+      when /^(true|on|y|yes)$/i
         true
       when $stdout
         "stdout"
