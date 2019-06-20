@@ -26,7 +26,7 @@ module Pwrake
           end
           if min_core > 0
             count += use_core
-            if count > @nproc
+            if count >= @nproc
               break
             end
           end
@@ -108,7 +108,7 @@ module Pwrake
             end
             if min_core > 0
               count += use_core
-              if count > @nproc
+              if count >= @nproc
                 break
               end
             end
