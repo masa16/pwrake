@@ -29,10 +29,9 @@ module Pwrake
           @exclusive = true
         end
       end
-      @reserve = true
       if /\breserve[=:]\s*(\S+)/i =~ description
-        if /^(n|f)/i =~ $1
-          @reserve = false
+        if /^(y|t|on)/i =~ $1
+          @reserve = true
         end
       end
       if /\ballow[=:]\s*(\S+)/i =~ description
