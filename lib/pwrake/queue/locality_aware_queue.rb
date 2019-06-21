@@ -29,6 +29,7 @@ module Pwrake
       @q_all = @array_class.new(@total_core)
       @disable_steal = Rake.application.pwrake_options['DISABLE_STEAL']
       @multicore_task_priority = Rake.application.pwrake_options['MULTICORE_TASK_PRIORITY']
+      Log.debug "MULTICORE_TASK_PRIORITY=#{@multicore_task_priority.inspect}"
       if @half_core == 0 || !@multicore_task_priority
         @turns = @disable_steal ? [2] : [2,3]
       else
@@ -109,7 +110,7 @@ module Pwrake
     end
 
     def deq_remote(host_info, min_core)
-      if t = @q_remote.shift(host_info,@half_core)
+      if t = @q_remote.shift(host_info,min_core)
         @q_all.delete(t)
         Log.debug "deq_remote task=#{t&&t.name} host=#{host_info.name}"
         return t
