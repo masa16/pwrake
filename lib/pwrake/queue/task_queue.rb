@@ -20,11 +20,13 @@ module Pwrake
 
       pri = Rake.application.pwrake_options['QUEUE_PRIORITY'] || "LIHR"
       case pri
-      when /fifo/i
+      when /^fifo$/i
         @array_class = FifoQueueArray # Array # Fifo
-      when /lifo/i
+      when /^lifo$/i
         @array_class = LifoQueueArray
-      when /lihr/i
+      when /^lifhr$/i
+        @array_class = FhrfLifoQueueArray
+      when /^lihr$/i
         @array_class = LifoHrfQueueArray
       else
         raise RuntimeError,"unknown option for QUEUE_PRIORITY: "+pri
