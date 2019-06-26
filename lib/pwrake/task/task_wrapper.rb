@@ -9,6 +9,7 @@ module Pwrake
 
     @@current_id = 1
     @@task_logger = nil
+    @@instances = []
 
     def initialize(task,task_args=nil)
       @task = task
@@ -31,6 +32,7 @@ module Pwrake
       @exec_host_id = nil
       @tried_hosts = {}
       @n_retry = @property.retry || Rake.application.pwrake_options["RETRY"] || 1
+      @@instances << self
     end
 
     def_delegators :@task, :name, :actions, :prerequisites, :subsequents
@@ -63,6 +65,11 @@ module Pwrake
 
     def self.close_task_logger
       @@task_logger.close if @@task_logger
+    end
+
+    def self.clear_rank
+      Log.debug "#{self}.clear_rank"
+      @@instances.each{|w| w.clear_rank}
     end
 
     def preprocess
@@ -269,9 +276,13 @@ module Pwrake
           end
           @rank = max_rank + step
         end
-        #Log.debug "Task[#{name}] rank=#{@rank.inspect}"
+        Log.debug "Task[#{name}] rank=#{@rank.inspect}"
       end
       @rank
+    end
+
+    def clear_rank
+      @rank = nil
     end
 
     def file_size

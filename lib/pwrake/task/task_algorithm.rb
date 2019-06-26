@@ -20,6 +20,7 @@ module Pwrake
     def pw_search_tasks(args)
       Log.debug "#{self.class}#pw_search_tasks start, task=#{name} args=#{args.inspect}"
       cl = Pwrake.clock
+      TaskWrapper.clear_rank
       task_args = TaskArguments.new(arg_names, args)
       # not synchronize owing to fiber
       search_with_call_chain(nil, task_args, InvocationChain::EMPTY)
