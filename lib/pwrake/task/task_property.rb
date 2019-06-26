@@ -29,9 +29,13 @@ module Pwrake
           @exclusive = true
         end
       end
+      @reserve = Rake.application.pwrake_options["RESERVE"]
       if /\breserve[=:]\s*(\S+)/i =~ description
-        if /^(y|t|on)/i =~ $1
+        case $1
+        when /^(y|t|on)/i
           @reserve = true
+        when /^(n|f|off)/i
+          @reserve = false
         end
       end
       if /\ballow[=:]\s*(\S+)/i =~ description
