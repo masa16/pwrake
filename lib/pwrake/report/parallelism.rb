@@ -61,12 +61,11 @@ module Pwrake
 
 
     def plot_parallelism(csvtable, base, fmt)
+      fimg = base+'/parallelism.'+fmt
       a = count_start_end_from_csv_table(csvtable)
-      return if a.size < 4
+      return fimg if a.size < 4
 
       #density = exec_density(a)
-
-      fimg = base+'/parallelism.'+fmt
 
       n = a.size
       i = 0
@@ -120,12 +119,11 @@ plot '-' w l notitle
 
 
     def plot_parallelism2(csvtable, base, fmt)
+      fimg = base+'/parallelism.'+fmt
       a = count_start_end_from_csv_table(csvtable)
-      return if a.size < 4
+      return fimg if a.size < 4
 
       density = exec_density(a)
-
-      fimg = base+'/parallelism.'+fmt
 
       n = a.size
       i = 0
