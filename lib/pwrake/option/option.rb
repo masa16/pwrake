@@ -168,7 +168,7 @@ module Pwrake
         'FAILURE_TERMINATION', # wait, kill, continue
         'QUEUE_PRIORITY', # LIHR(default), FIFO, LIFO, RANK
         'NOACTION_QUEUE_PRIORITY', # FIFO(default), LIFO, RAND
-        'RESERVE',
+        ['RESERVE_NODE','RESERVE_HOST'],
         'GRAPH_PARTITION',
         'PLOT_PARTITION',
 

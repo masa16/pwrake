@@ -29,7 +29,7 @@ module Pwrake
           @exclusive = true
         end
       end
-      @reserve = Rake.application.pwrake_options["RESERVE"]
+      @reserve = Rake.application.pwrake_options["RESERVE_NODE"]
       if /\breserve[=:]\s*(\S+)/i =~ description
         case $1
         when /^(y|t|on)/i
