@@ -51,6 +51,7 @@ module Pwrake
       Log.debug "deq_task from:"+(empty? ? " (empty)" : "\n#{inspect_q}")
       deq_noaction_task(&block)
       deq_reserve(&block)
+      @q.deq_start
       unless @q.empty?
         @q.turns.each{|turn| deq_turn(turn,&block) }
       end

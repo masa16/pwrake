@@ -10,38 +10,43 @@ module Pwrake
       super()
     end
 
-    def shift(host_info, min_core)
-      return super() unless host_info
-      i_tried = []
-      count = 0
+    def shift(host_info, req_rank=0)
+      i_tried = nil
       size.times do |i|
         tw = q_at(i)
-        if tw.tried_host?(host_info)
-          i_tried << i
-        elsif tw.acceptable_for(host_info)
-          use_core = tw.use_cores(host_info)
-          if use_core > min_core
-            Log.debug "qa1: task=#{tw.name} use_core=#{use_core} i=#{i}/#{size} min_core=#{min_core}"
+        if tw.rank >= req_rank && tw.acceptable_for(host_info)
+          if tw.tried_host?(host_info)
+            i_tried ||= i
+          else
+            Log.debug "#{self.class}: task=#{tw.name} i=#{i}/#{size} rank=#{tw.rank}"
             return q_delete_at(i)
-          end
-          if min_core > 0
-            count += use_core
-            if count >= @nproc
-              break
-            end
           end
         end
       end
-      i_tried.each do |i|
-        tw = q_at(i)
-        if tw.acceptable_for(host_info)
-          use_core = tw.use_cores(host_info)
-          Log.debug "qa4: task=#{tw.name} use_core=#{use_core} i=#{i}/#{size}"
-          return q_delete_at(i)
-        end
+      if i_tried
+        Log.debug "#{self.class}(retry): task=#{tw.name} i=#{i}/#{size} rank=#{tw.rank}"
+        return q_delete_at(i_tried)
       end
       nil
     end
+
+    def find_rank(ncore)
+      if empty?
+        return 0
+      end
+      count = []
+      size.times do |i|
+        tw = q_at(i)
+        r = tw.rank
+        c = (count[r]||0) + tw.use_cores(ncore)
+        if c >= @nproc
+          return r
+        end
+        count[r] = c
+      end
+      count.size - 1
+    end
+
   end
 
   class LifoQueueArray < QueueArray
@@ -77,13 +82,13 @@ module Pwrake
       @count[r] = (@count[r] || 0) + n
     end
 
-    def hrf_get(host_info, min_core)
-      (@count.size-1).downto(0) do |r|
+    def hrf_get(host_info, rank)
+      (@count.size-1).downto(rank) do |r|
         c = @count[r]
         if c && c>0
           t = (c <= @nproc) ?
-            pop_last_rank(r, host_info, min_core) :
-            pop_super(host_info, min_core)
+            pop_last_rank(r, host_info) :
+            pop_super(host_info, rank)
           hrf_delete(t) if t
           return t
         end
@@ -92,36 +97,22 @@ module Pwrake
       nil
     end
 
-    def pop_last_rank(r, host_info, min_core)
-      i_tried = []
-      count = 0
+    def pop_last_rank(r, host_info)
+      i_tried = nil
       size.times do |i|
         tw = q_at(i)
-        if tw.rank == r
+        if tw.rank == r && tw.acceptable_for(host_info)
           if tw.tried_host?(host_info)
-            i_tried << i
-          elsif tw.acceptable_for(host_info)
-            use_core = tw.use_cores(@nproc)
-            if use_core > min_core
-              Log.debug "qa5: task=#{tw.name} use_core=#{use_core} @count[rank=#{r}]=#{@count[r]} i=#{i}/#{size} min_core=#{min_core}"
-              return q_delete_at(i)
-            end
-            if min_core > 0
-              count += use_core
-              if count >= @nproc
-                break
-              end
-            end
+            i_tried ||= i
+          else
+            Log.debug "#{self.class}: task=#{tw.name} i=#{i}/#{size} rank=#{tw.rank}"
+            return q_delete_at(i)
           end
         end
       end
-      i_tried.each do |i|
-        tw = q_at(i)
-        if tw.acceptable_for(host_info)
-          use_core = tw.use_cores(host_info)
-          Log.debug "qa6: task=#{tw.name} use_core=#{use_core}"
-          return q_delete_at(i)
-        end
+      if i_tried
+        Log.debug "#{self.class}(retry): task=#{tw.name} i=#{i}/#{size} rank=#{tw.rank}"
+        return q_delete_at(i_tried)
       end
       nil
     end
@@ -136,7 +127,7 @@ module Pwrake
   class LifoHrfQueueArray
     include HrfQueue
     extend Forwardable
-    def_delegators :@a, :empty?, :size, :first, :last, :q_at, :q_delete_at
+    def_delegators :@a, :empty?, :size, :first, :last, :q_at, :q_delete_at, :find_rank
 
     def initialize(nproc)
       @a = LifoQueueArray.new(nproc)
@@ -148,9 +139,9 @@ module Pwrake
       hrf_push(t)
     end
 
-    def shift(host_info, min_core)
+    def shift(host_info, rank)
       return nil if empty?
-      hrf_get(host_info, min_core)
+      hrf_get(host_info, rank)
     end
 
     def delete(t)
@@ -160,8 +151,8 @@ module Pwrake
       x
     end
 
-    def pop_super(host_info, min_core)
-      @a.shift(host_info, min_core)
+    def pop_super(host_info, rank)
+      @a.shift(host_info, rank)
     end
   end
 

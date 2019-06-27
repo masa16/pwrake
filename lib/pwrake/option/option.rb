@@ -168,21 +168,10 @@ module Pwrake
         'FAILURE_TERMINATION', # wait, kill, continue
         'QUEUE_PRIORITY', # LIHR(default), FIFO, LIFO, RANK
         'NOACTION_QUEUE_PRIORITY', # FIFO(default), LIFO, RAND
+        'DISABLE_RANK_PRIORITY',
         ['RESERVE_NODE','RESERVE_HOST'],
         'GRAPH_PARTITION',
         'PLOT_PARTITION',
-
-        ['MULTICORE_TASK_PRIORITY', # true(default), false
-         proc{|v|
-           v = true if v.nil?
-           case v
-           when TrueClass,FalseClass
-             v
-           else
-             raise "invalid parameter: MULTICORE_TASK_PRIORITY=#{v.inspect}"
-           end
-         }
-        ],
 
         ['HOSTFILE','HOSTS'],
         ['LOG_DIR',

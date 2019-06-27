@@ -10,10 +10,11 @@ module Pwrake
       @hostinfo_by_id = hostinfo_by_id
       @array_class = array_class
       @median_core = median_core
-      @half_core = @median_core / 2
+      @disable_rank = Rake.application.pwrake_options['DISABLE_RANK_PRIORITY']
+      Log.debug "#{self.class}: @disable_rank=#{@disable_rank.inspect}"
       @q_input = @array_class.new(@median_core)
       @q_no_input = FifoQueueArray.new(@median_core)
-      @turns = [0,1]
+      @turns = [0]
     end
 
     attr_reader :turns
@@ -30,14 +31,15 @@ module Pwrake
       empty?
     end
 
+    def deq_start
+      @rank = @disable_rank ? 0 : @q_input.find_rank(@median_core)
+    end
+
     def deq_impl(host_info, turn)
       case turn
       when 0
-        @q_input.shift(host_info,@half_core) ||
-          @q_no_input.shift(host_info,@half_core)
-      when 1
-        @q_input.shift(host_info,0) ||
-          @q_no_input.shift(host_info,0)
+        @q_input.shift(host_info,@rank) ||
+          @q_no_input.shift(host_info,@rank)
       else
         raise "invalid turn: #{turn}"
       end
