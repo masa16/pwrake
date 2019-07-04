@@ -93,7 +93,7 @@ module Pwrake
           return t
         end
       end
-      raise "no element"
+      Log.debug "#{self.class}#hrf_get: no item for rank=#{rank} @count=#{@count.inspect}"
       nil
     end
 
