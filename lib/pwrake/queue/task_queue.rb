@@ -18,7 +18,7 @@ module Pwrake
         self[keys.last]
       end
 
-      pri = Rake.application.pwrake_options['QUEUE_PRIORITY'] || "LIHR"
+      pri = Rake.application.pwrake_options['QUEUE_PRIORITY'] || "LIFO"
       case pri
       when /^fifo$/i
         @array_class = FifoQueueArray
