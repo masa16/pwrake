@@ -177,7 +177,7 @@ module Pwrake
       if q_drop = @q.delete(hid)
         n_move = 0
         q_size = q_drop.size
-        while t = q_drop.shift
+        while t = q_drop.shift(host_info,@rank)
           assigned_other = false
           t.assigned.each do |h|
             if h != hid && @q[h]
