@@ -24,7 +24,8 @@ module Pwrake
         end
       end
       if i_tried
-        Log.debug "#{self.class}(retry): task=#{tw.name} i=#{i}/#{size} rank=#{tw.rank}"
+        tw = q_at(i_tried)
+        Log.debug "#{self.class}(retry): task=#{tw.name} i=#{i_tried}/#{size} rank=#{tw.rank}"
         return q_delete_at(i_tried)
       end
       nil
@@ -111,7 +112,8 @@ module Pwrake
         end
       end
       if i_tried
-        Log.debug "#{self.class}(retry): task=#{tw.name} i=#{i}/#{size} rank=#{tw.rank}"
+        tw = q_at(i_tried)
+        Log.debug "#{self.class}(retry): task=#{tw.name} i=#{i_tried}/#{size} rank=#{tw.rank}"
         return q_delete_at(i_tried)
       end
       nil
