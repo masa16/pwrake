@@ -74,9 +74,17 @@ module Pwrake
     def close
       super
       if File.directory? @gfarm_mountpoint
-        begin
-          spawn_cmd "fusermount -u #{@gfarm_mountpoint}"
-        rescue
+        sleep 0.2
+        n = 0
+        while n < 4
+          begin
+            spawn_cmd "fusermount -u #{@gfarm_mountpoint}"
+            n = 9999
+          rescue => e
+            @log.error e.message+" n=#{n}"
+            sleep 2**n
+            n += 1
+          end
         end
         #system "sync"
         begin
@@ -84,6 +92,9 @@ module Pwrake
           @log.info "rmdir #{@gfarm_mountpoint} @#{@@hostname}"
         rescue
           @log.error "failed to rmdir #{@gfarm_mountpoint} @#{@@hostname}"
+        end
+        if FileUnitls.exist? @gfarm_mountpoint
+          @log.warn "mountpoint #{@@hostname}:#{@gfarm_mountpoint} remains"
         end
       end
     end
