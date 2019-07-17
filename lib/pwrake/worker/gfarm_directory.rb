@@ -93,7 +93,7 @@ module Pwrake
         rescue
           @log.error "failed to rmdir #{@gfarm_mountpoint} @#{@@hostname}"
         end
-        if FileUnitls.exist? @gfarm_mountpoint
+        if File.exist? @gfarm_mountpoint
           @log.warn "mountpoint #{@@hostname}:#{@gfarm_mountpoint} remains"
         end
       end
