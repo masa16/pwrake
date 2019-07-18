@@ -73,30 +73,42 @@ module Pwrake
 
     def close
       super
-      if File.directory? @gfarm_mountpoint
-        sleep 0.2
-        n = 0
-        while n < 4
-          begin
-            spawn_cmd "fusermount -u #{@gfarm_mountpoint}"
-            n = 9999
-          rescue => e
-            @log.error e.message+" n=#{n}"
-            sleep 2**n
-            n += 1
-          end
-        end
-        #system "sync"
+      n = 0
+      while n < 4
         begin
-          FileUtils.rmdir @gfarm_mountpoint
-          @log.info "rmdir #{@gfarm_mountpoint} @#{@@hostname}"
-        rescue
-          @log.error "failed to rmdir #{@gfarm_mountpoint} @#{@@hostname}"
-        end
-        if File.exist? @gfarm_mountpoint
-          @log.warn "mountpoint #{@@hostname}:#{@gfarm_mountpoint} remains"
+          if mounted?
+            sleep 0.15 * 4**n
+            spawn_cmd "fusermount -u #{@gfarm_mountpoint}"
+          end
+          n = 99
+        rescue => e
+          @log.error e.message+" n=#{n}"
+          n += 1
         end
       end
+      if File.directory? @gfarm_mountpoint
+        begin
+          FileUtils.rmdir @gfarm_mountpoint
+          @log.info "rmdir #{@@hostname}:#{@gfarm_mountpoint}"
+        rescue
+          @log.error "failed to rmdir #{@@hostname}:#{@gfarm_mountpoint}"
+        end
+      end
+      if File.exist? @gfarm_mountpoint
+        @log.warn "mountpoint #{@@hostname}:#{@gfarm_mountpoint} remains"
+      end
+    end
+
+    def mounted?
+      File.open('/etc/mtab','r') do |f|
+        f.each_line do |l|
+          a = l.split
+          if a[1] == @gfarm_mountpoint && a[2] =~ /gfarm2fs/
+            return true
+          end
+        end
+      end
+      false
     end
 
   end
