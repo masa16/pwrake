@@ -70,5 +70,8 @@ module Pwrake
       work_path + @@log_dir
     end
 
+    def check_mountpoint
+    end
+
   end
 end

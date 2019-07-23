@@ -111,5 +111,13 @@ module Pwrake
       false
     end
 
+    def check_mountpoint
+      # try to recover from gfarm2fs segfault
+      unless File.directory?(@gfarm_mountpoint)
+        close
+        open
+      end
+    end
+
   end
 end

@@ -108,6 +108,7 @@ module Pwrake
     def start_process(command)
       return if @thread      # running
       return if !command     # empty queue
+      @dir.check_mountpoint
       @spawn_in, @sh_in = IO.pipe
       @sh_out, @spawn_out = IO.pipe
       @sh_err, @spawn_err = IO.pipe
