@@ -114,6 +114,7 @@ module Pwrake
     def check_mountpoint
       # try to recover from gfarm2fs segfault
       unless File.directory?(@gfarm_mountpoint)
+        @log.warn "remounting #{@@hostname}:#{@gfarm_mountpoint}"
         close
         open
       end
