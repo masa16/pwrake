@@ -29,6 +29,7 @@ module Pwrake
 
     attr_reader :name, :ncore, :weight, :group, :id, :steal_flag
     attr_reader :ipaddr
+    attr_reader :continuous_fail
     attr_accessor :idle_cores
 
     def local?
@@ -70,7 +71,7 @@ module Pwrake
       t
     end
 
-    def task_result(result)
+    def count_result(result)
       @count_task += 1
       case result
       when "end"

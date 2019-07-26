@@ -231,7 +231,7 @@ module Pwrake
     end
 
     def setup_fiber(t)
-      n_fail = @option["HOST_FAILURE"]
+      @host_fail = @option["HOST_FAILURE"]
       create_fiber(@hdl_set) do |hdl|
         while s = hdl.get_line
           Log.debug "Master:recv #{s.inspect} from branch[#{hdl.host}]"
@@ -253,9 +253,10 @@ module Pwrake
             if tw.status == "fail"
               $stderr.puts %[task "#{tw.name}" failed.]
               if host_info
-                continuous_fail = host_info.task_result(tw.status)
+                host_info.count_result(tw.status)
+                continuous_fail = host_info.continuous_fail
                 Log.debug "task=#{tw.name} continuous_fail=#{continuous_fail}"
-                if continuous_fail > n_fail && @hostinfo_by_id.size > 1
+                if continuous_fail > @host_fail && @hostinfo_by_id.size > 1
                   # retire this host
                   drop_host(host_info)
                   Log.warn("retired host:#{host_info.name} due to continuous fail")
