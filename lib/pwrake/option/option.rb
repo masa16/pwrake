@@ -227,6 +227,7 @@ module Pwrake
         ['SHELL_START_INTERVAL', proc{|v| (v || 0.012).to_f}],
         ['HEARTBEAT', proc{|v| v && v.to_i}],
         ['RETRY', proc{|v| (v || 1).to_i}],
+        ['HOST_FAILURE', 'HOST_FAIL', proc{|v| (v || 2).to_i}],
         ['MASTER_HOSTNAME', proc{|v| (v || Socket.gethostname).chomp}],
         ['WORK_DIR', proc{|v|
            v ||= '%CWD_RELATIVE_TO_HOME'
