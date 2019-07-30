@@ -131,10 +131,13 @@ In this case, you need the rehash of command paths:
         SSH_OPTION        SSH option
         PASS_ENV          (Array) Environment variables passed to SSH
         HEARTBEAT         default=240 - Hearbeat interval in seconds
-        RETRY             default=1 - The number of retry
+        RETRY             default=1 - The number of task retry
+        HOST_FAILURE      default=2 - The number of allowed continuous host failure (since v2.3)
         FAILED_TARGET     rename(default)|delete|leave - Treatment of failed target files
         FAILURE_TERMINATION wait(default)|kill|continue - Behavior of other tasks when a task is failed
-        QUEUE_PRIORITY          LIHR(default)|FIFO|LIFO|RANK
+        QUEUE_PRIORITY          LIFO(default)|FIFO|LIHR(LIfo&Highest-Rank-first; obsolete)
+        DISABLE_RANK_PRIORITY   false(default)|true - Disable rank-aware task scheduling (since v2.3)
+        RESERVE_NODE            false(default)|true - Reserve a node for tasks with ncore>1 (since v2.3)
         NOACTION_QUEUE_PRIORITY FIFO(default)|LIFO|RAND
         SHELL_START_INTERVAL    default=0.012 (sec)
         GRAPH_PARTITION         false(default)|true
