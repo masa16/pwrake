@@ -13,7 +13,7 @@ module Pwrake
 
     def initialize(name,id,ncore,weight,group=nil)
       @name = name
-      @ncore = ncore
+      @ncore = ncore || 1
       @weight = weight || 1.0
       @group = group || 0
       @id = id
@@ -31,6 +31,17 @@ module Pwrake
     attr_reader :ipaddr
     attr_reader :continuous_fail
     attr_accessor :idle_cores
+
+    def add_line(ncore=nil,weight=nil,group=nil)
+      ncore ||= 1
+      weight ||= 1.0
+      group ||= 0
+      if @group != group
+        raise "different group=#{group} for host=#{@name}"
+      end
+      @weight = (@weight*@ncore + weight*ncore)/(@ncore+ncore)
+      @ncore += ncore
+    end
 
     def local?
       ipa = IPSocket.getaddress(@name)
@@ -231,7 +242,7 @@ module Pwrake
           #weight = (weight || 1).to_f
           group  &&= group.to_i
           if host_info = @by_name[host]
-            raise RuntimeError,"duplicated hostname: #{host}"
+            host_info.add_line(ncore,weight,group)
           else
             id = @by_id.size
             host_info = HostInfo.new(host,id,ncore,weight,group)

@@ -354,6 +354,14 @@ module Pwrake
     # ----------------------------------------------------------
 
     def setup_hosts
+      if f = ENV['PBS_NODEFILE']
+        if @hostfile
+          Log.info "HOSTFILE=#{@hostfile} overrides PBS_NODEFILE=#{f}"
+        else
+          Log.info "use PBS_NODEFILE=#{f}"
+          @hostfile = f
+        end
+      end
       if @hostfile && @num_threads
         raise "Cannot set `hostfile' and `num_threads' simultaneously"
       end
