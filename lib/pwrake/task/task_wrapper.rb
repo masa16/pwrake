@@ -10,6 +10,7 @@ module Pwrake
     @@current_id = 1
     @@task_logger = nil
     @@instances = []
+    MUTEX = Mutex.new
 
     def initialize(task,task_args=nil)
       @task = task
@@ -68,8 +69,10 @@ module Pwrake
     end
 
     def self.clear_rank
-      Log.debug "#{self}.clear_rank"
-      @@instances.each{|w| w.clear_rank}
+      MUTEX.synchronize do
+        Log.debug "#{self}.clear_rank"
+        @@instances.each{|w| w.clear_rank}
+      end
     end
 
     def preprocess
@@ -258,27 +261,29 @@ module Pwrake
     end
 
     def rank
-      if @rank.nil?
-        if subsequents.nil? || subsequents.empty?
-          @rank = 0
-        else
-          max_rank = 0
-          subsequents.each do |subsq|
-            r = subsq.wrapper.rank
-            if max_rank < r
-              max_rank = r
-            end
-          end
-          if has_output_file?
-            step = 1
+      MUTEX.synchronize do
+        if @rank.nil?
+          if subsequents.nil? || subsequents.empty?
+            @rank = 0
           else
-            step = 0
+            max_rank = 0
+            subsequents.each do |subsq|
+              r = subsq.wrapper.rank
+              if max_rank < r
+                max_rank = r
+              end
+            end
+            if has_output_file?
+              step = 1
+            else
+              step = 0
+            end
+            @rank = max_rank + step
           end
-          @rank = max_rank + step
+          Log.debug "Task[#{name}] rank=#{@rank.inspect}"
         end
-        Log.debug "Task[#{name}] rank=#{@rank.inspect}"
+        @rank
       end
-      @rank
     end
 
     def clear_rank
