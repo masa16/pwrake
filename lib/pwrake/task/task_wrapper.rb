@@ -10,7 +10,7 @@ module Pwrake
     @@current_id = 1
     @@task_logger = nil
     @@instances = []
-    MUTEX = Mutex.new
+    LOCK = Monitor.new
 
     def initialize(task,task_args=nil)
       @task = task
@@ -69,7 +69,7 @@ module Pwrake
     end
 
     def self.clear_rank
-      MUTEX.synchronize do
+      LOCK.synchronize do
         Log.debug "#{self}.clear_rank"
         @@instances.each{|w| w.clear_rank}
       end
@@ -261,6 +261,7 @@ module Pwrake
     end
 
     def rank
+      LOCK.synchronize do
       if @rank.nil?
         if subsequents.nil? || subsequents.empty?
           @rank = 0
@@ -282,6 +283,7 @@ module Pwrake
         Log.debug "Task[#{name}] rank=#{@rank.inspect}"
       end
       @rank
+      end
     end
 
     def clear_rank
