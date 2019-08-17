@@ -268,7 +268,7 @@ module Pwrake
           max_rank = 0
           subsequents.each do |subsq|
             r = subsq.wrapper.rank
-            if max_rank < r
+            if r && max_rank < r
               max_rank = r
             end
           end
