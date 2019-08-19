@@ -269,8 +269,12 @@ module Pwrake
           max_rank = 0
           subsequents.each do |subsq|
             r = subsq.wrapper.rank
-            if r && max_rank < r
-              max_rank = r
+            if r
+              if max_rank < r
+                max_rank = r
+              end
+            else
+              Log.warn "subsq.wrapper.rank=#{rank.inspect}"
             end
           end
           if has_output_file?
