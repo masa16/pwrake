@@ -56,6 +56,7 @@ module Pwrake
 
     def open
       FileUtils.mkdir_p @gfarm_mountpoint
+      @log.info "mkdir -p #{@@hostname}:#{@gfarm_mountpoint}"
       path = @log.path
       begin
         if @@gfarm2fs_debug && path
