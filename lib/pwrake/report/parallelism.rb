@@ -93,6 +93,7 @@ module Pwrake
 
       t_end = (a.last)[0]
 
+      begin
       if system("which gnuplot >/dev/null 2>&1")
         IO.popen("gnuplot","r+") do |f|
           f.print "
@@ -111,6 +112,10 @@ plot '-' w l notitle
             f.puts x
           end
         end
+      end
+      rescue => exc
+        $stderr.puts exc
+        $stderr.puts exc.backtrace.join("\n")
       end
 
       #puts "Parallelism plot: #{fimg}"
@@ -151,6 +156,7 @@ plot '-' w l notitle
 
       t_end = (a.last)[0]
 
+      begin
       if system("which gnuplot >/dev/null 2>&1")
       IO.popen("gnuplot","r+") do |f|
         f.print "
@@ -176,6 +182,10 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
           f.puts "#{t} #{d}"
         end
       end
+      end
+      rescue => exc
+        $stderr.puts exc
+        $stderr.puts exc.backtrace.join("\n")
       end
 
       #puts "Parallelism plot: #{fimg}"
@@ -341,6 +351,7 @@ set ylabel '# of cores'
         grid << a
       end
 
+      begin
       if system("which gnuplot >/dev/null 2>&1")
       IO.popen("gnuplot","r+") do |f|
         f.puts "
@@ -375,6 +386,10 @@ set format y ''
         end
         f.printf "e\n"
       end
+      end
+      rescue => exc
+        $stderr.puts exc
+        $stderr.puts exc.backtrace.join("\n")
       end
       fimg
     end
