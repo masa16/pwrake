@@ -16,6 +16,7 @@ module Pwrake
       @@prefix   = opts[:base_dir]
       @@work_dir = opts[:work_dir]
       @@log_dir  = opts[:log_dir]
+      @@gfarm2fs_command = opts[:gfarm2fs_command] || 'gfarm2fs'
       @@gfarm2fs_option = opts[:gfarm2fs_option]
       @@gfarm2fs_debug = opts[:gfarm2fs_debug]
       @@gfarm2fs_debug_wait = opts[:gfarm2fs_debug_wait]
@@ -61,9 +62,9 @@ module Pwrake
       begin
         if @@gfarm2fs_debug && path
           f = path+("gfarm2fs-"+@@hostname+"-"+@suffix)
-          spawn_cmd "gfarm2fs #{@@gfarm2fs_option} -d #{@gfarm_mountpoint} > #{f} 2>&1 & sleep #{@@gfarm2fs_debug_wait}"
+          spawn_cmd "#{@@gfarm2fs_command} #{@@gfarm2fs_option} -d #{@gfarm_mountpoint} > #{f} 2>&1 & sleep #{@@gfarm2fs_debug_wait}"
         else
-          spawn_cmd "gfarm2fs #{@@gfarm2fs_option} #{@gfarm_mountpoint}"
+          spawn_cmd "#{@@gfarm2fs_command} #{@@gfarm2fs_option} #{@gfarm_mountpoint}"
         end
       rescue => exc
         sleep 1

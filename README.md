@@ -151,6 +151,7 @@ In this case, you need the rehash of command paths:
         GFARM_PREFIX        default="pwrake_$USER"
         GFARM_SUBDIR        default='/'
         MAX_GFWHERE_WORKER  default=8
+        GFARM2FS_COMMAND    default='gfarm2fs'
         GFARM2FS_OPTION     default=""
         GFARM2FS_DEBUG      default=false
         GFARM2FS_DEBUG_WAIT default=1

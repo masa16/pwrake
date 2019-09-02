@@ -8,6 +8,7 @@ module Pwrake
 
     def option_data_filesystem
       [
+        'GFARM2FS_COMMAND',
         'GFARM2FS_OPTION',
         'GFARM2FS_DEBUG',
         ['GFARM2FS_DEBUG_WAIT', proc{|v| v ? v.to_i : 1}],
@@ -33,6 +34,7 @@ module Pwrake
         :shared_directory => "GfarmDirectory",
         :base_dir => self['GFARM_BASEDIR']+"/"+self['GFARM_PREFIX'],
         :work_dir => GfarmPath.pwd.to_s,
+        :gfarm2fs_command => self['GFARM2FS_COMMAND'],
         :gfarm2fs_option => self['GFARM2FS_OPTION'],
         :gfarm2fs_debug => self['GFARM2FS_DEBUG'],
         :gfarm2fs_debug_wait => self['GFARM2FS_DEBUG_WAIT'],
