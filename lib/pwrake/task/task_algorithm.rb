@@ -12,7 +12,8 @@ module Pwrake
 
     def wrapper
       if @wrapper.nil?
-        raise "TaskWrapper is not defined for #{self.class}[#{name}]"
+        Log.debug "TaskWrapper is not defined for #{self.class}[#{name}]"
+        @wrapper = TaskWrapper.new(self)
       end
       @wrapper
     end

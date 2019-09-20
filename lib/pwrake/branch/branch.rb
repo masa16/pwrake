@@ -42,6 +42,7 @@ module Pwrake
       setup_shell
       setup_fiber
       setup_master_channel
+      setup_search_thread
       @cs.run("task execution")
       Log.debug "Branch#run end"
     end
@@ -191,6 +192,29 @@ module Pwrake
         end
         Log.debug "Branch#setup_master_channel: end of fiber for master channel"
       end.resume
+    end
+
+    def setup_search_thread
+      @search_que = Queue.new
+      Thread.new do
+        while a = @search_que.deq
+          t,args,w = *a
+          t.pw_search_tasks(args)
+          w.puts(t.name)
+        end
+      end
+    end
+
+    def invoke(t,args)
+      Log.debug "Branch#invoke start: #{t.class}[#{t.name}]"
+      r,w = IO.pipe
+      rd = NBIO::Reader.new(@selector,r)
+      @search_que.enq([t,args,w])
+      task_name = rd.get_line.chomp
+      if t.name != task_name
+        raise "t.name=#{t.name} != task_name=#{task_name}"
+      end
+      Log.debug "Branch#invoke end: #{t.class}[#{t.name}]"
     end
 
     def kill(sig="INT")

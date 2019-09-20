@@ -84,7 +84,11 @@ module Pwrake
     end
 
     def invoke(t,*args)
-      @master.invoke(t,args)
+      if Thread.current == @master.thread
+        @branch.invoke(t,args)
+      else
+        @master.invoke(t,args)
+      end
     end
 
     def standard_rake_options
