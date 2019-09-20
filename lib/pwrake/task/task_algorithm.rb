@@ -26,7 +26,7 @@ module Pwrake
       # not synchronize owing to fiber
       search_with_call_chain(nil, task_args, InvocationChain::EMPTY)
       #
-      Log.debug "#{self.class}[#{name}]#pw_search_tasks end #{Pwrake.clock-cl}"
+      Log.debug "#{self.class}[#{name}]#pw_search_tasks end %.6f sec" % (Pwrake.clock-cl)
     end
 
     # Same as search, but explicitly pass a call chain to detect

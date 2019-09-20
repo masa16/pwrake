@@ -90,15 +90,12 @@ module Pwrake
 
     def postprocess(postproc)
       @executed = true if !@task.actions.empty?
-      #tm_taskend = Pwrake.clock
       if is_file_task?
-        #t = Pwrake.clock
         if File.exist?(name)
           @file_stat = File::Stat.new(name)
           @location = postproc.run(self)
         end
       end
-      #Log.debug "postprocess time=#{Pwrake.clock-tm_taskend}"
       log_task
     end
 

@@ -26,13 +26,13 @@ module Pwrake
         @master.setup_branches
         load_rakefile
         begin
-          Log.debug "init: #{Pwrake.clock-t} sec"
+          Log.debug "init: %.6f sec" % (Pwrake.clock-t)
           t = Pwrake.clock
           top_level
-          Log.debug "main: #{Pwrake.clock-t} sec"
+          Log.debug "main: %.6f sec" % (Pwrake.clock-t)
           t = Pwrake.clock
           @failed = @master.finish
-          Log.debug "finish: #{Pwrake.clock-t} sec"
+          Log.debug "finish: %.6f sec" % (Pwrake.clock-t)
         rescue SystemExit => e
           @failed = true
         rescue Exception => e

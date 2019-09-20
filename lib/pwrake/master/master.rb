@@ -295,7 +295,7 @@ module Pwrake
             $stderr.puts(s)
           end
         end
-        Log.debug "Master#invoke: fiber end"
+        Log.debug "Master#setup_fiber: end of fiber"
       end
 
       if !ending?
