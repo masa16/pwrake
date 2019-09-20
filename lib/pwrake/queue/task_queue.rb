@@ -9,6 +9,7 @@ module Pwrake
     def initialize(queue_class, hostinfo_by_id, group_map=nil)
       @queue_class = Pwrake.const_get(queue_class)
       @hostinfo_by_id = hostinfo_by_id
+      @lock = Monitor.new
       @q_no_action = NoActionQueue.new
       @q_reserved = Hash.new
       def @q_reserved.first
@@ -40,20 +41,24 @@ module Pwrake
     end
 
     def enq(tw)
+      @lock.synchronize do
       if tw.nil? || tw.actions.empty?
         @q_no_action.push(tw)
       else
         @q.enq_impl(tw)
       end
+      end
     end
 
     def deq_task(&block)
+      @lock.synchronize do
       Log.debug "deq_task from:"+(empty? ? " (empty)" : "\n#{inspect_q}")
       deq_noaction_task(&block)
       deq_reserve(&block)
       @q.deq_start
       unless @q.empty?
         @q.turns.each{|turn| deq_turn(turn,&block) }
+      end
       end
     end
 
