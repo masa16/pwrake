@@ -226,11 +226,11 @@ module Pwrake
       if ending?
         @post_pool.finish # need?
       else
-        setup_fiber(t)
+        setup_fiber
       end
     end
 
-    def setup_fiber(t)
+    def setup_fiber
       @host_fail = @option["HOST_FAILURE"]
       create_fiber(@hdl_set) do |hdl|
         while s = hdl.get_line
@@ -297,13 +297,15 @@ module Pwrake
         end
         Log.debug "Master#invoke: fiber end"
       end
+
       if !ending?
         Log.debug "@selector.run begin"
         @selector.run
         Log.debug "@selector.run end"
+      else
+        Log.debug "@selector.run skipped"
       end
       @post_pool.finish
-      Log.debug "Master#invoke: end of task=#{t.name}"
     end
 
     def send_task_to_idle_core
@@ -361,7 +363,7 @@ module Pwrake
 
     def task_end(tw,host_info)
       return if host_info.nil?
-      host_info.idle(tw.n_used_cores)
+      host_info.idle(tw.n_used_cores||1)
       if host_info.retired?
         # all retired
         Log.warn("retired host:#{host_info.name} because all core retired")
@@ -396,8 +398,9 @@ module Pwrake
           Log.debug " @task_queue.empty?=#{@task_queue.empty?}" if @task_queue.empty?
           Log.debug " @hostinfo_by_id.empty?=#{@hostinfo_by_id.empty?}" if @hostinfo_by_id.empty?
           Log.debug " @hostinfo_by_taskname.keys=#{@hostinfo_by_taskname.keys.inspect}"
+          Log.debug " @post_pool.empty?=#{@post_pool.empty?}" if @post_pool.empty?
         end
-        @hostinfo_by_taskname.empty?
+        @hostinfo_by_taskname.empty? && @post_pool.empty?
       else
         false
       end

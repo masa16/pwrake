@@ -132,7 +132,12 @@ module Pwrake
       end
       return if !@@task_logger
       #
-      elap = @clock_end - @clock_start
+      if @clock_start
+        elap = @clock_end - @clock_start
+      else
+        Loag.debug "@clock_start is not defined for #{@task.class}[#{name}]"
+        elap = 0
+      end
       if has_output_file?
         RANK_STAT.add_sample(rank,elap)
       end

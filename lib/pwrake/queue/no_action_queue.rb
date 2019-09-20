@@ -30,13 +30,12 @@ module Pwrake
     def pop
       case @prio
       when 0
-        x = @que.shift
+        @que.shift
       when 1
-        x = @que.pop
+        @que.pop
       when 2
-        x = @que.delete_at(rand(@que.size))
+        @que.delete_at(rand(@que.size))
       end
-      return x
     end
 
     alias shift pop
