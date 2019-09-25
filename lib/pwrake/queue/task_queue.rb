@@ -12,6 +12,8 @@ module Pwrake
       @lock = Monitor.new
       @q_no_action = NoActionQueue.new
       @q_reserved = Hash.new
+      @nenq = 0
+      @ndeq = 0
       def @q_reserved.first
         super.last
       end
@@ -47,25 +49,33 @@ module Pwrake
       else
         @q.enq_impl(tw)
       end
+      @nenq += 1
       end
     end
 
     def deq_task(&block)
       @lock.synchronize do
-      Log.debug "deq_task from:"+(empty? ? " (empty)" : "\n#{inspect_q}")
+      if @nenq > 0
+        Log.debug "deq_task nenq=#{@nenq}:"+(empty? ? " (empty)" : "\n"+inspect_q)
+        @nenq = 0
+      end
       deq_noaction_task(&block)
       deq_reserve(&block)
       @q.deq_start
       unless @q.empty?
         @q.turns.each{|turn| deq_turn(turn,&block) }
       end
+      if @ndeq > 0
+        Log.debug "deq_task ndeq=#{@ndeq}:"+(empty? ? " (empty)" : "\n"+inspect_q)
+        @ndeq = 0
+      end
       end
     end
 
     def deq_noaction_task(&block)
       while tw = @q_no_action.shift
-        Log.debug "deq_noaction: #{tw.name}"
         yield(tw)
+        @ndeq += 1
       end
     end
 
@@ -77,6 +87,7 @@ module Pwrake
           @q_reserved.delete(host_info)
           Log.debug "deq_reserve: #{tw.name} n_use_cores=#{n_core}"
           yield(tw,host_info,n_core)
+          @ndeq += 1
         end
       end
     end
@@ -94,6 +105,7 @@ module Pwrake
               Log.debug "deq: #{tw.name} n_use_cores=#{n_core}"
               yield(tw,host_info,n_core)
               count += 1
+              @ndeq += 1
             else
               @q_reserved[host_info] = tw
               Log.debug "reserve host: #{host_info.name} for #{tw.name} (#{n_core} cores)"
