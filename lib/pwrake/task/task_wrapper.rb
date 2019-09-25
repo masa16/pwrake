@@ -236,6 +236,7 @@ module Pwrake
 
     def suggest_location
       if has_input_file? && @suggest_location.nil?
+        cl = Pwrake.clock
         @suggest_location = []
         loc_fsz = Hash.new(0)
         prerequisites.each do |preq|
@@ -251,12 +252,12 @@ module Pwrake
         #Log.debug "input=#{prerequisites.join('|')}"
         if !loc_fsz.empty?
           half_max_fsz = loc_fsz.values.max / 2
-          Log.debug "loc_fsz=#{loc_fsz.inspect} half_max_fsz=#{half_max_fsz}"
           loc_fsz.each do |h,sz|
             if sz > half_max_fsz
               @suggest_location << h
             end
           end
+          Log.debug "locate:%.6f #{name} loc_fsz=#{loc_fsz.inspect} half_max_fsz=#{half_max_fsz} suggest=#{@suggest_location.inspect}"%(Pwrake.clock-cl)
         end
       end
       @suggest_location
@@ -286,7 +287,6 @@ module Pwrake
           end
           @rank = max_rank + step
         end
-        Log.debug "Task[#{name}] rank=#{@rank.inspect}"
       end
       @rank
       end
@@ -359,7 +359,7 @@ module Pwrake
         else
           @priority = 0
         end
-        Log.debug "task_name=#{name} priority=#{@priority} sum_file_size=#{sum_sz}"
+        Log.debug "task=#{name} priority=#{@priority} sum_file_size=#{sum_sz}"
       end
       @priority || 0
     end

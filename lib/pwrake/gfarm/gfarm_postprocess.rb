@@ -43,7 +43,7 @@ module Pwrake
           break
         end
       end
-      Log.debug "Gfarm file=#{filename} nodes=#{a.join("|")}"
+      #Log.debug "Gfarm file=#{filename} nodes=#{a.join("|")}"
       a
     end
 

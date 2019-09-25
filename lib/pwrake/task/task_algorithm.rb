@@ -20,13 +20,16 @@ module Pwrake
 
     def pw_search_tasks(args)
       Log.debug "#{self.class}[#{name}]#pw_search_tasks start, args=#{args.inspect}"
+      if application.options.trace
+        application.trace "** Search #{name}#{format_search_flags}"
+      end
       cl = Pwrake.clock
       TaskWrapper.clear_rank
       task_args = TaskArguments.new(arg_names, args)
       # not synchronize owing to fiber
       search_with_call_chain(nil, task_args, InvocationChain::EMPTY)
       #
-      Log.debug "#{self.class}[#{name}]#pw_search_tasks end %.6f sec" % (Pwrake.clock-cl)
+      Log.debug "#{self.class}[#{name}]#pw_search_tasks end t=%.6f" % (Pwrake.clock-cl)
     end
 
     # Same as search, but explicitly pass a call chain to detect
@@ -34,11 +37,6 @@ module Pwrake
     def search_with_call_chain(subseq, task_args, invocation_chain) # :nodoc:
       new_chain = InvocationChain.append(self, invocation_chain)
       @lock.synchronize do
-        if application.options.trace
-          #Log.debug "** Search #{name}#{format_search_flags}"
-          application.trace "** Search #{name}#{format_search_flags}"
-        end
-
         return true if @already_finished # <<--- competition !!!
         @subsequents ||= []
         @subsequents << subseq if subseq # <<--- competition !!!
