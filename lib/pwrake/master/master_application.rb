@@ -148,9 +148,9 @@ module Pwrake
           options.filesystem = value
         }
        ],
-       ['--gfarm', "[Pw] FILESYSTEM=gfarm",
+       ['--gfarm', "[Pw] FILESYSTEM=gfarm2fs",
         lambda { |value|
-          options.filesystem = "gfarm"
+          options.filesystem = "gfarm2fs"
         }
        ],
        ['-A', '--disable-affinity', "[Pw] Turn OFF affinity (AFFINITY=off)",

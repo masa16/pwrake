@@ -29,7 +29,6 @@ module Pwrake
         :heartbeat => self['HEARTBEAT'],
         :shared_directory => "SharedDirectory"
       }
-      @filesystem  = "default"
       @queue_class = "NonLocalityQueue"
     end
 

@@ -61,11 +61,11 @@ module Pwrake
     # ----------------------------------------------------------
 
     def init_filesystem
-      @filesystem = Rake.application.options.filesystem
-      @filesystem ||= mount_type.sub(/fuse\./,"")
-      begin
-        require "pwrake/option/option_#{@filesystem}"
-      rescue LoadError
+      @filesystem = Rake.application.options.filesystem || mount_type
+      case @filesystem
+      when 'gfarm2fs'
+        require "pwrake/option/option_gfarm2fs"
+      else
         require "pwrake/option/option_default_filesystem"
       end
     end
@@ -73,15 +73,15 @@ module Pwrake
     attr_reader :worker_option
     attr_reader :queue_class
 
-    def mount_type(d=nil)
+    def mount_type(dir=nil)
       mtab = '/etc/mtab'
       if File.exist?(mtab)
-        d ||= mountpoint_of_cwd
+        dir ||= mountpoint_of_cwd
         open(mtab,'r') do |f|
           f.each_line do |l|
             a = l.split
-            if a[1] == d
-              return a[2]
+            if a[1] == dir
+              return a[2].sub(/^fuse\./,'')
             end
           end
         end
@@ -372,6 +372,7 @@ module Pwrake
     # ----------------------------------------------------------
 
     def put_log
+      Log.info "Pwrake::VERSION=#{Pwrake::VERSION}"
       Log.info "Options:"
       self.each do |k,v|
         Log.info " #{k} = #{v.inspect}"

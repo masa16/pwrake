@@ -22,7 +22,6 @@ module Pwrake
     end
 
     def set_filesystem_option
-      @filesystem  = 'gfarm'
       GfarmPath.subdir = self['GFARM_SUBDIR']
       @worker_option = {
         :log_dir   => self['LOG_DIR'],
