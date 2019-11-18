@@ -89,14 +89,10 @@ module Pwrake
       end
 
       case @ncore
-      when Rational
-        if @ncore > 0 && @ncore <= 1
-          return [(@ncore*ppn).to_i, 1].min
-        end
-      when 1-ppn..ppn
-        return (@ncore>0) ? @ncore : @ncore+ppn
       when nil
         return 1
+      when 1-ppn..ppn
+        return (@ncore>0) ? @ncore : @ncore+ppn
       end
 
       m = "ncore=#{@ncore} is out of range of cores per node: #{ppn}"
