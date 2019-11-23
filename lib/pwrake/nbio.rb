@@ -506,8 +506,17 @@ module NBIO
       end
       @exited = true
       exit_msg = "exited"
-      #return if iow.closed?
-      @writer.put_line "exit"
+      begin
+        @writer.put_line "exit"
+      rescue Errno::EPIPE => e
+        m = "#{e} in #{self.class}.exit iow=#{iow.inspect}"
+        if defined? Log
+          Log.warn m
+        else
+          $stderr.puts m
+        end
+        return
+      end
       Log.debug "Handler#exit: end: @writer.put_line \"exit\"" if defined? Log
       #
       if @reader.class == Reader # MultiReader not work
@@ -518,9 +527,6 @@ module NBIO
           return if line == exit_msg
         end
       end
-    rescue Errno::EPIPE => e
-      Log.error "Errno::EPIPE in #{self.class}.exit iow=#{iow.inspect}\n"+
-        e.backtrace.join("\n") if defined? Log
     end
 
     def halt
