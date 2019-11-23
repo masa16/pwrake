@@ -90,7 +90,6 @@ class Communicator
 
     sel = @set.selector
     @reader = NBIO::MultiReader.new(sel,@ior)
-    @rd_err = NBIO::Reader.new(sel,@ioe)
     @writer = NBIO::Writer.new(sel,@iow)
     @handler = NBIO::Handler.new(@reader,@writer,@host)
 
@@ -146,47 +145,38 @@ class Communicator
   end
 
   def dropout(exc=nil)
-    # Error output
-    err_out = []
+    # Finish worker
     begin
       finish_shells
       if @handler
         @handler.exit
         @handler = nil
       end
-      if @rd_err
-        while s = @rd_err.get_line
-          err_out << s
-        end
-      end
     rescue => e
       m = Log.bt(e)
-      #$stderr.puts m
+      $stderr.puts(m)
       Log.error(m)
     end
-    # Error output
-    if !err_out.empty?
-      $stderr.puts err_out.join("\n")
-      Log.error((["process error output:"]+err_out).join("\n "))
+    # Error output from worker
+    if @ioe
+      err_out = ["standard error from worker:"]
+      while s = @ioe.gets
+        err_out << s.chomp
+      end
+      if err_out.size > 1
+        m = err_out.join("\n ")
+        $stderr.puts(m)
+        Log.error(m)
+      end
     end
-    # Exception
+    # Exception message
     if exc
       m = Log.bt(exc)
-      #$stderr.puts m
-      Log.error m
+      $stderr.puts(m)
+      Log.error(m)
     end
   ensure
     @set.delete(self)
-  end
-
-  def finish
-    @iow.close
-    while s=@ior.gets
-      puts "out=#{s.chomp}"
-    end
-    while s=@ioe.gets
-      puts "err=#{s.chomp}"
-    end
   end
 
 end
