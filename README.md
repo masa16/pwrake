@@ -93,8 +93,8 @@ In this case, you need the rehash of command paths:
     -L, --log, --log-dir [DIRECTORY] [Pw] Write log to DIRECTORY
         --ssh-opt, --ssh-option OPTION
                                      [Pw] Option passed to SSH
-        --filesystem FILESYSTEM      [Pw] Specify FILESYSTEM (nfs|gfarm)
-        --gfarm                      [Pw] FILESYSTEM=gfarm
+        --filesystem FILESYSTEM      [Pw] Specify FILESYSTEM (nfs|gfarm2fs)
+        --gfarm                      [Pw] (obsolete; Start pwrake on Gfarm FS)
     -A, --disable-affinity           [Pw] Turn OFF affinity (AFFINITY=off)
     -S, --disable-steal              [Pw] Turn OFF task steal
     -d, --debug                      [Pw] Output Debug messages
