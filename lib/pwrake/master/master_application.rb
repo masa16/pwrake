@@ -143,13 +143,14 @@ module Pwrake
           options.ssh_option = value
         }
        ],
-       ['--filesystem FILESYSTEM', "[Pw] Specify FILESYSTEM (nfs|gfarm)",
+       ['--filesystem FILESYSTEM', "[Pw] Specify FILESYSTEM (nfs|gfarm2fs)",
         lambda { |value|
           options.filesystem = value
         }
        ],
        ['--gfarm', "[Pw] FILESYSTEM=gfarm2fs",
         lambda { |value|
+          warn 'The --gfarm option may not work correctly. Execute pwrake under gfarm2fs.'
           options.filesystem = "gfarm2fs"
         }
        ],
