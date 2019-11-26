@@ -23,6 +23,14 @@ Parallel Workflow extension for Rake, runs on multicores, clusters, clouds.
   * Pwrake schedules a compute node to execute a task, to a node where input files are stored.
   * Other supports for Gfarm: Automatic mount of the Gfarm file system, etc.
 
+## Requirement
+
+* Ruby version 2.2.3 or later
+* UNIX-like OS
+* For distributed processing using multiple computers:
+  * SSH command
+  * distributed file system (NFS, Gfarm, etc.)
+
 ## Installation
 
 Install with RubyGems:
@@ -32,8 +40,6 @@ Install with RubyGems:
 Or download source tgz/zip and expand, cd to subdirectory and install:
 
     $ ruby setup.rb
-
-In the latter case, you need install [Parallel](https://github.com/grosser/parallel) manually. It is required by Pwrake for processor count.
 
 If you use rbenv, your system may fail to find pwrake command after installation:
 
@@ -70,7 +76,7 @@ In this case, you need the rehash of command paths:
 
         $ pwrake -F hosts
 
-### Use MPI to start remote worker
+### Sustitute MPI for SSH to start remote worker (Experimental)
 
 1. Setup MPI on your cluster.
 2. Install [MPipe gem](https://rubygems.org/gems/mpipe). (requires `mpicc`)
@@ -87,8 +93,8 @@ In this case, you need the rehash of command paths:
     -L, --log, --log-dir [DIRECTORY] [Pw] Write log to DIRECTORY
         --ssh-opt, --ssh-option OPTION
                                      [Pw] Option passed to SSH
-        --filesystem FILESYSTEM      [Pw] Specify FILESYSTEM (nfs|gfarm)
-        --gfarm                      [Pw] FILESYSTEM=gfarm
+        --filesystem FILESYSTEM      [Pw] Specify FILESYSTEM (nfs|gfarm2fs)
+        --gfarm                      [Pw] (obsolete; Start pwrake on Gfarm FS)
     -A, --disable-affinity           [Pw] Turn OFF affinity (AFFINITY=off)
     -S, --disable-steal              [Pw] Turn OFF task steal
     -d, --debug                      [Pw] Output Debug messages
@@ -125,10 +131,13 @@ In this case, you need the rehash of command paths:
         SSH_OPTION        SSH option
         PASS_ENV          (Array) Environment variables passed to SSH
         HEARTBEAT         default=240 - Hearbeat interval in seconds
-        RETRY             default=1 - The number of retry
+        RETRY             default=1 - The number of task retry
+        HOST_FAILURE      default=2 - The number of allowed continuous host failure (since v2.3)
         FAILED_TARGET     rename(default)|delete|leave - Treatment of failed target files
         FAILURE_TERMINATION wait(default)|kill|continue - Behavior of other tasks when a task is failed
-        QUEUE_PRIORITY          LIHR(default)|FIFO|LIFO|RANK
+        QUEUE_PRIORITY          LIFO(default)|FIFO|LIHR(LIfo&Highest-Rank-first; obsolete)
+        DISABLE_RANK_PRIORITY   false(default)|true - Disable rank-aware task scheduling (since v2.3)
+        RESERVE_NODE            false(default)|true - Reserve a node for tasks with ncore>1 (since v2.3)
         NOACTION_QUEUE_PRIORITY FIFO(default)|LIFO|RAND
         SHELL_START_INTERVAL    default=0.012 (sec)
         GRAPH_PARTITION         false(default)|true
@@ -142,6 +151,7 @@ In this case, you need the rehash of command paths:
         GFARM_PREFIX        default="pwrake_$USER"
         GFARM_SUBDIR        default='/'
         MAX_GFWHERE_WORKER  default=8
+        GFARM2FS_COMMAND    default='gfarm2fs'
         GFARM2FS_OPTION     default=""
         GFARM2FS_DEBUG      default=false
         GFARM2FS_DEBUG_WAIT default=1
@@ -168,20 +178,20 @@ end
 
 Properties (The leftmost item is default):
 
-    ncore=integer     - The number of cores used by this task.
-    exclusive=no|yes  - Exclusively execute this task in a single node.
-    allow=hostname    - Allow this host to execute this task. (accepts wild card)
-    deny=hostname     - Deny this host to execute this task. (accepts wild card)
-    order=deny,allow|allow,deny - The order of evaluation.
-    steal=yes|no      - Allow task stealing for this task.
-    retry=integer     - The number of retry for this task.
+    ncore=integer|rational - The number of cores used by this task.
+    exclusive=no|yes       - Exclusively execute this task in a single node.
+    reserve=no|yes         - Gives higher priority to this task if ncore>1. (reserve a host)
+    allow=hostname         - Allow this host to execute this task. (accepts wild card)
+    deny=hostname          - Deny this host to execute this task. (accepts wild card)
+    order=deny,allow|a     llow,deny - The order of evaluation.
+    steal=yes|no           - Allow task stealing for this task.
+    retry=integer          - The number of retry for this task.
 
 ## Note for Gfarm
 
-* `gfwhere-pipe` script (included in Pwrake) is used for file-affinity scheduling.
-  This script requires Ruby/FFI (https://github.com/ffi/ffi). Install FFI by
-
-        gem install ffi
+* Gfarm file-affinity scheduling is achieved by `gfwhere-pipe` script bundled in the Pwrake package.
+  This script accesses `libgfarm.so.1` through Fiddle (a Ruby's standard module) since Pwrake ver.2.2.7.
+  Please set the environment variable `LD_LIBRARY_PATH` correctly to find `libgfarm.so.1`.
 
 ## Scheduling with Graph Partitioning
 
@@ -199,16 +209,7 @@ Properties (The leftmost item is default):
 
 * See publication: [M. Tanaka and O. Tatebe, “Workflow Scheduling to Minimize Data Movement Using Multi-constraint Graph Partitioning,” in CCGrid 2012](http://ieeexplore.ieee.org/abstract/document/6217406/)
 
-## Current version
-
-* Pwrake version 2.2.0
-
-## Tested Platform
-
-
-* Ruby 2.4.0
-* Rake 12.0.0
-* CentOS 7.3
+## [Publications](https://github.com/masa16/pwrake/wiki/Publications)
 
 ## Acknowledgment
 
