@@ -319,12 +319,8 @@ set ylabel '# of cores'
       fimg
     end
 
-    def timeline_to_grid(a)
-      resolution = Rational(1,10)
-
+    def timeline_to_grid(a,resolution)
       a = a.sort{|x,y| x[0]<=>y[0]}
-      #t_end = (a.last)[0]
-      #ngrid = (t_end/resolution).floor
       grid = [[0,0]]
 
       j = 0
@@ -339,15 +335,17 @@ set ylabel '# of cores'
       return grid
     end
 
-    def plot_parallelism_by_host(csvtable,base,fmt)
+    def plot_parallelism_by_host(csvtable,base,fmt,start_time,end_time)
       fimg = base+"/para_host."+fmt
       data = read_time_by_host_from_csv(csvtable)
       return fimg if data.size == 0
 
+      e = ([Math.log10(end_time-start_time),1].max * 3).floor
+      reso = [1,2,5][e%3] * 10**(e/3-3)
       grid = []
       hosts = data.keys.sort
       hosts.each do |h|
-        a = timeline_to_grid(data[h])
+        a = timeline_to_grid(data[h],reso)
         grid << a
       end
 

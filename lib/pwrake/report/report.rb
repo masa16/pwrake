@@ -60,6 +60,7 @@ EOL
       h = {}
       @elap_sum = 0
       @elap_core_sum = 0
+      @start_time = @end_time = Time.parse(@sh_table[0]["start_time"])
       @sh_table.each do |row|
         if host = row['host']
           h[host] = true
@@ -67,10 +68,16 @@ EOL
         t = row['elap_time'].to_f
         @elap_sum += t
         @elap_core_sum += t * row['ncore'].to_f
+        t_start = Time.parse(row["start_time"])
+        if @start_time > t_start
+          @start_time = t_start
+        end
+        t_end = Time.parse(row["end_time"])
+        if @end_time < t_end
+          @end_time = t_end
+        end
       end
       @hosts = h.keys.sort
-      @start_time = Time.parse(@sh_table[0]["start_time"])
-      @end_time = Time.parse(@sh_table[-1]["start_time"])
       @elap = @end_time - @start_time
       read_elap_each_cmd
       make_cmd_stat
@@ -235,7 +242,7 @@ EOL
       html << "<img src='./#{File.basename(fimg3)}' align='top'/></br>\n"
 
       html << "<h2>Parallelism by host</h2>\n"
-      fimg2 = Parallelism.plot_parallelism_by_host(@sh_table,@base,@img_fmt)
+      fimg2 = Parallelism.plot_parallelism_by_host(@sh_table,@base,@img_fmt,@start_time,@end_time)
       html << "<img src='./#{File.basename(fimg2)}' align='top'/></br>\n"
 
       html << "<h2>Command time statistics</h2>\n"
