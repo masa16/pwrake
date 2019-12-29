@@ -11,7 +11,7 @@ module Pwrake
         t = Time.parse(row['start_time']) - start_time[0]
         a << [t,0]
       elsif start_time[0]
-        n = begin Integer(row['ncore']) rescue 1 end
+        n = begin Rational(row['ncore']) rescue 1 end
         t = Time.parse(row['start_time']) - start_time[0]
         a << [t,+n]
         t = Time.parse(row['end_time']) - start_time[0]
@@ -204,7 +204,7 @@ plot '-' w l axis x1y1 title 'parallelism', '-' w l axis x1y2 title 'exec/sec'
         end
       elsif start_time[0]
         a = (h[key] ||= [])
-        n = begin Integer(row['ncore']) rescue 1 end
+        n = begin Rational(row['ncore']) rescue 1 end
         t = Time.parse(row['start_time']) - start_time[0]
         a << [t,+n]
         t = Time.parse(row['end_time']) - start_time[0]
