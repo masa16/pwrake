@@ -66,8 +66,10 @@ EOL
           h[host] = true
         end
         t = row['elap_time'].to_f
-        @elap_sum += t
-        @elap_core_sum += t * row['ncore'].to_f
+        if t>0
+          @elap_sum += t
+          @elap_core_sum += t * Rational(row['ncore']||0)
+        end
         t_start = Time.parse(row["start_time"])
         if @start_time > t_start
           @start_time = t_start
